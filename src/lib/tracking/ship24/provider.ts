@@ -70,6 +70,8 @@ function firstTracking(
 }
 
 export class Ship24Provider implements TrackingProvider {
+  readonly name = "ship24";
+
   constructor(private readonly config: Ship24ProviderConfig) {}
 
   async createTracking(

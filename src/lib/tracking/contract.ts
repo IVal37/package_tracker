@@ -12,6 +12,8 @@ import {
 
 export interface ContractSetup {
   provider: TrackingProvider;
+  /** The value of provider.name, stored in shipments.provider. */
+  providerName: TrackingProvider["name"];
   validNumber: string;
   invalidNumber: string;
   unknownTrackerId: string;
@@ -44,6 +46,10 @@ export function runProviderContract(
 
     beforeEach(async () => {
       ctx = await setup();
+    });
+
+    it("exposes its provider name", () => {
+      expect(ctx.provider.name).toBe(ctx.providerName);
     });
 
     it("createTracking returns a valid, newest-first NormalizedShipment", async () => {

@@ -20,6 +20,7 @@ runProviderContract("Ship24Provider", () => {
       webhookSecret: WEBHOOK_SECRET,
       retry: { sleep: async () => {} },
     }),
+    providerName: "ship24",
     validNumber: VALID_NUMBER,
     invalidNumber: INVALID_NUMBER,
     unknownTrackerId: "no-such-tracker",

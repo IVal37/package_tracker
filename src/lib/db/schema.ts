@@ -24,12 +24,15 @@ export const parseStatus = pgEnum("parse_status", [
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
+// RLS is enabled on every table with no policies: Supabase's Data API
+// (anon/authenticated roles) is denied everything. The app itself connects as
+// the table owner and enforces ownership in the query layer.
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   forwardingAlias: text("forwarding_alias").unique(),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const shipments = pgTable(
   "shipments",
@@ -57,7 +60,7 @@ export const shipments = pgTable(
     ),
     index("shipments_provider_tracker_idx").on(t.provider, t.providerTrackerId),
   ],
-);
+).enableRLS();
 
 export const checkpoints = pgTable(
   "checkpoints",
@@ -84,7 +87,7 @@ export const checkpoints = pgTable(
     ),
     index("checkpoints_shipment_occurred_idx").on(t.shipmentId, t.occurredAt),
   ],
-);
+).enableRLS();
 
 export const places = pgTable("places", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -93,7 +96,7 @@ export const places = pgTable("places", {
   lng: doublePrecision("lng").notNull(),
   displayName: text("display_name"),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const inboundEmails = pgTable(
   "inbound_emails",
@@ -109,4 +112,4 @@ export const inboundEmails = pgTable(
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [index("inbound_emails_received_at_idx").on(t.receivedAt)],
-);
+).enableRLS();

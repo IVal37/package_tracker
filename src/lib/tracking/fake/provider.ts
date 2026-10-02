@@ -193,6 +193,7 @@ const fakeWebhookSchema = z.object({
  * is in transit. Never calls the network.
  */
 export class FakeProvider implements TrackingProvider {
+  readonly name = "fake";
   private readonly now: () => Date;
   private readonly createdAt = new Map<string, Date>();
 

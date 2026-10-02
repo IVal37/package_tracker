@@ -35,6 +35,8 @@ export interface CreateTrackingInput {
 }
 
 export interface TrackingProvider {
+  /** Stored in shipments.provider so each row records which provider created it. */
+  readonly name: "ship24" | "fake";
   /** Idempotent: creating the same tracking number twice returns the same tracker. */
   createTracking(input: CreateTrackingInput): Promise<NormalizedShipment>;
   getTracking(providerTrackerId: string): Promise<NormalizedShipment>;

@@ -23,6 +23,7 @@ runProviderContract("FakeProvider", async () => {
 
   return {
     provider,
+    providerName: "fake",
     validNumber: VALID_NUMBER,
     invalidNumber: "FAKE-INVALID-1",
     unknownTrackerId: "no-such-tracker",

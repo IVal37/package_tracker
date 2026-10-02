@@ -43,6 +43,27 @@ describe("schema (PGlite)", () => {
     );
   });
 
+  it("enables row-level security on every table", async () => {
+    const result = await ctx.client.query<{
+      relname: string;
+      relrowsecurity: boolean;
+    }>(
+      `select c.relname, c.relrowsecurity
+         from pg_class c
+         join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r'`,
+    );
+    const tables = result.rows.map((r) => r.relname).sort();
+    expect(tables).toEqual([
+      "checkpoints",
+      "inbound_emails",
+      "places",
+      "shipments",
+      "users",
+    ]);
+    expect(result.rows.every((r) => r.relrowsecurity)).toBe(true);
+  });
+
   it("defaults shipment status to Pending", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);

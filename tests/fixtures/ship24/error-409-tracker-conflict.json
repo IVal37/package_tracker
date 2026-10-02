@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "code": "tracker_conflict",
+      "message": "A tracker with these parameters already exists."
+    }
+  ],
+  "data": null
+}

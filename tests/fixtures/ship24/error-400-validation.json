@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "code": "validation_error",
+      "message": "The trackingNumber provided seems invalid."
+    }
+  ],
+  "data": null
+}

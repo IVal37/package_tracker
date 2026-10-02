@@ -1,0 +1,86 @@
+{
+  "data": {
+    "trackings": [
+      {
+        "tracker": {
+          "trackerId": "d3adbeef-0000-4000-8000-000000000002",
+          "trackingNumber": "1Z999AA10123456784",
+          "shipmentReference": null,
+          "clientTrackerId": null,
+          "isSubscribed": true,
+          "isTracked": true,
+          "createdAt": "2021-03-01T03:16:22.000Z"
+        },
+        "shipment": {
+          "shipmentId": "f4f888d7-d140-423f-9a48-e0689d27e098",
+          "statusCode": "delivery_delivered",
+          "statusCategory": "delivery",
+          "statusMilestone": "delivered",
+          "originCountryCode": "CN",
+          "destinationCountryCode": "US",
+          "delivery": {
+            "estimatedDeliveryDate": null,
+            "courierEstimatedDeliveryDate": {
+              "from": null,
+              "to": "2021-03-04T18:00:00"
+            },
+            "service": null,
+            "signedBy": null
+          },
+          "trackingNumbers": [
+            {
+              "tn": "9400115901047177598206"
+            }
+          ]
+        },
+        "events": [
+          {
+            "eventId": "evt-del-3",
+            "trackingNumber": "1Z999AA10123456784",
+            "eventTrackingNumber": "1Z999AA10123456784",
+            "status": "Delivered to the addressee",
+            "occurrenceDatetime": "2021-03-04T17:12:57.000Z",
+            "order": null,
+            "location": "SAN RAFAEL, CA 94901",
+            "sourceCode": "usps-tracking",
+            "courierCode": "us-post",
+            "statusCode": "delivery_delivered",
+            "statusCategory": "delivery",
+            "statusMilestone": "delivered"
+          },
+          {
+            "eventId": "evt-del-2",
+            "trackingNumber": "1Z999AA10123456784",
+            "eventTrackingNumber": "1Z999AA10123456784",
+            "status": "Out for delivery",
+            "occurrenceDatetime": "2021-03-04T10:12:57+02:00",
+            "order": null,
+            "location": "SAN RAFAEL, CA 94901",
+            "sourceCode": "usps-tracking",
+            "courierCode": "us-post",
+            "statusCode": "delivery_out_for_delivery",
+            "statusCategory": "delivery",
+            "statusMilestone": "out_for_delivery"
+          },
+          {
+            "eventId": "evt-del-1",
+            "trackingNumber": "1Z999AA10123456784",
+            "eventTrackingNumber": "1Z999AA10123456784",
+            "status": "Accepted at origin",
+            "occurrenceDatetime": "2021-03-01T08:00:00",
+            "order": null,
+            "location": "SHENZHEN, CN",
+            "sourceCode": "usps-tracking",
+            "courierCode": "us-post",
+            "statusCode": null,
+            "statusCategory": null,
+            "statusMilestone": "in_transit"
+          }
+        ],
+        "statistics": {
+          "timestamps": {}
+        }
+      }
+    ]
+  }
+}

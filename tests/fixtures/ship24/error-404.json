@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "code": "tracker_not_found",
+      "message": "Tracker not found."
+    }
+  ],
+  "data": null
+}

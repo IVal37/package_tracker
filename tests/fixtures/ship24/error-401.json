@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "code": "unauthorized",
+      "message": "No valid API key provided."
+    }
+  ],
+  "data": null
+}

@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "code": "quota_limit_reached",
+      "message": "No more quota left. Please update your plan."
+    }
+  ],
+  "data": null
+}

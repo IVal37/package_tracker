@@ -1,10 +1,12 @@
 import { sql as sqlTag } from "drizzle-orm";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { getEnv } from "@/lib/env";
 import * as schema from "./schema";
 
-export type Db = PostgresJsDatabase<typeof schema>;
+// Shared base type so queries accept both postgres.js (prod) and PGlite (tests).
+export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 export function createDb(url: string, opts: { max?: number } = {}) {
   // prepare: false is required by Supabase's transaction pooler.

@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { eq } from "drizzle-orm";
+import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createTestDb,
   insertShipment,
   insertUser,
 } from "../../../tests/db/pglite";
-import { checkpoints, shipments, users } from "./schema";
+import { checkpoints, inboundEmails, shipments, users } from "./schema";
 
 let ctx: Awaited<ReturnType<typeof createTestDb>>;
 
@@ -98,5 +99,20 @@ describe("schema (PGlite)", () => {
         .from(checkpoints)
         .where(eq(checkpoints.shipmentId, shipment.id)),
     ).toHaveLength(0);
+  });
+});
+
+describe("schema foreign keys", () => {
+  const cases: [string, PgTable, PgTable][] = [
+    ["shipments -> users", shipments, users],
+    ["checkpoints -> shipments", checkpoints, shipments],
+    ["inbound_emails -> users", inboundEmails, users],
+  ];
+
+  it.each(cases)("%s is a single cascading FK", (_name, table, target) => {
+    const [fk, ...others] = getTableConfig(table).foreignKeys;
+    expect(others).toHaveLength(0);
+    expect(fk?.onDelete).toBe("cascade");
+    expect(fk?.reference().foreignTable).toBe(target);
   });
 });

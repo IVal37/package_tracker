@@ -6,7 +6,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 ## Current phase
 
-**Phase 0 — Foundation.** (Update this line each time a phase is tagged done.)
+**Phase 1 — Data model and tracking-provider adapter.** (Update this line each time a phase is tagged done.)
 
 ## Stack
 

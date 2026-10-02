@@ -1,7 +1,9 @@
+import { Wordmark } from "@/components/wordmark";
+
 export default function Home() {
   return (
     <main>
-      <h1>Wayfind</h1>
+      <Wordmark />
     </main>
   );
 }

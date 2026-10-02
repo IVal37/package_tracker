@@ -2,13 +2,39 @@
 // this module from client components: values must not reach the browser.
 import { z } from "zod";
 
-const envSchema = z.object({
-  DATABASE_URL: z.url(),
-  DATABASE_URL_DIRECT: z.url().optional(),
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-});
+const envSchema = z
+  .object({
+    DATABASE_URL: z.url(),
+    DATABASE_URL_DIRECT: z.url().optional(),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    TRACKING_PROVIDER: z.enum(["fake", "ship24"]).default("fake"),
+    SHIP24_API_KEY: z.string().min(1).optional(),
+    SHIP24_WEBHOOK_SECRET: z.string().min(1).optional(),
+    FAKE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  })
+  .superRefine((env, ctx) => {
+    const require = (key: keyof typeof env) =>
+      ctx.addIssue({ code: "custom", path: [key], message: "required" });
+
+    if (env.TRACKING_PROVIDER === "ship24") {
+      if (!env.SHIP24_API_KEY) require("SHIP24_API_KEY");
+      if (!env.SHIP24_WEBHOOK_SECRET) require("SHIP24_WEBHOOK_SECRET");
+    }
+    // The fake provider's well-known default secret is for development only.
+    if (
+      env.TRACKING_PROVIDER === "fake" &&
+      env.NODE_ENV === "production" &&
+      !env.FAKE_WEBHOOK_SECRET
+    ) {
+      require("FAKE_WEBHOOK_SECRET");
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    FAKE_WEBHOOK_SECRET: env.FAKE_WEBHOOK_SECRET ?? "fake-secret",
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 

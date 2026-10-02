@@ -8,6 +8,34 @@ const eslintConfig = defineConfig([
   ...nextTs,
   prettier,
   { rules: { "@typescript-eslint/no-explicit-any": "error" } },
+  {
+    // Everything goes through TrackingProvider (CLAUDE.md): no importing a
+    // specific provider from outside src/lib/tracking.
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/lib/tracking/ship24",
+                "@/lib/tracking/ship24/*",
+                "@/lib/tracking/fake",
+                "@/lib/tracking/fake/*",
+                "**/tracking/ship24",
+                "**/tracking/ship24/*",
+                "**/tracking/fake",
+                "**/tracking/fake/*",
+              ],
+              message:
+                "Import from @/lib/tracking (the TrackingProvider interface), not a specific provider.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  { files: ["src/lib/tracking/**"], rules: { "no-restricted-imports": "off" } },
   globalIgnores([
     ".next/**",
     "out/**",

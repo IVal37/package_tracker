@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { requiredEnv, stubRequiredEnv } from "../../tests/env";
 import { getEnv, parseEnv, resetEnvCache } from "./env";
 
-const valid = {
-  DATABASE_URL: "postgresql://user:s3cret-pw@db.example.test:6543/postgres",
-};
+const valid = requiredEnv;
 
 describe("parseEnv", () => {
   it("parses valid input and applies defaults", () => {
@@ -61,7 +60,7 @@ describe("getEnv", () => {
   });
 
   it("reads process.env lazily and caches the result", () => {
-    vi.stubEnv("DATABASE_URL", valid.DATABASE_URL);
+    stubRequiredEnv();
     const first = getEnv();
     vi.stubEnv("DATABASE_URL", "postgresql://other:pw@elsewhere.test/db");
     expect(getEnv()).toBe(first);
@@ -142,5 +141,30 @@ describe("tracking provider env", () => {
         FAKE_WEBHOOK_SECRET: "prod-secret",
       }).FAKE_WEBHOOK_SECRET,
     ).toBe("prod-secret");
+  });
+});
+
+describe("supabase env", () => {
+  it("requires SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY, naming them", () => {
+    expect(() => parseEnv({ DATABASE_URL: valid.DATABASE_URL })).toThrowError(
+      "Invalid environment: missing SUPABASE_URL; missing SUPABASE_PUBLISHABLE_KEY",
+    );
+  });
+
+  it("rejects a malformed SUPABASE_URL without echoing it", () => {
+    let message = "";
+    try {
+      parseEnv({ ...valid, SUPABASE_URL: "not-a-url-value" });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toBe("Invalid environment: invalid SUPABASE_URL");
+  });
+
+  it("defaults APP_URL to localhost and accepts an override", () => {
+    expect(parseEnv(valid).APP_URL).toBe("http://localhost:3000");
+    expect(
+      parseEnv({ ...valid, APP_URL: "https://wayfind.example.test" }).APP_URL,
+    ).toBe("https://wayfind.example.test");
   });
 });

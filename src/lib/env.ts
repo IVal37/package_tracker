@@ -9,6 +9,12 @@ const envSchema = z
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    // Supabase Auth. All auth calls happen on the server, so these are plain
+    // server-only keys, never NEXT_PUBLIC_*.
+    SUPABASE_URL: z.url(),
+    SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+    // Public origin of this app; used to build auth redirect URLs.
+    APP_URL: z.url().default("http://localhost:3000"),
     TRACKING_PROVIDER: z.enum(["fake", "ship24"]).default("fake"),
     SHIP24_API_KEY: z.string().min(1).optional(),
     SHIP24_WEBHOOK_SECRET: z.string().min(1).optional(),

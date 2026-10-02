@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetEnvCache } from "@/lib/env";
+import { stubRequiredEnv } from "../../../tests/env";
 import {
   createTrackingProvider,
   getTrackingProvider,
@@ -46,11 +47,7 @@ describe("getTrackingProvider", () => {
   });
 
   const useEnv = (vars: Record<string, string>) => {
-    vi.stubEnv(
-      "DATABASE_URL",
-      "postgresql://u:p@db.example.test:6543/postgres",
-    );
-    for (const [key, value] of Object.entries(vars)) vi.stubEnv(key, value);
+    stubRequiredEnv(vars);
     resetEnvCache();
     resetTrackingProviderCache();
   };

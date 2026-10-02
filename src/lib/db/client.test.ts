@@ -14,6 +14,7 @@ vi.mock("postgres", () => ({ default: postgresMock }));
 vi.mock("drizzle-orm/postgres-js", () => ({ drizzle: drizzleMock }));
 
 import { resetEnvCache } from "@/lib/env";
+import { stubRequiredEnv } from "../../../tests/env";
 import { checkConnection, createDb, getDb, resetDbCache } from "./client";
 
 const testUrl = "postgresql://user:pw@db.example.test:6543/postgres";
@@ -63,7 +64,7 @@ describe("checkConnection", () => {
 
 describe("getDb", () => {
   beforeEach(() => {
-    vi.stubEnv("DATABASE_URL", testUrl);
+    stubRequiredEnv({ DATABASE_URL: testUrl });
     resetEnvCache();
     resetDbCache();
   });

@@ -58,14 +58,15 @@ Only added if users hit coverage or ETA gaps. Tracking API version 2026-07, key 
 
 ```ts
 interface TrackingProvider {
-  createTracking(input: { trackingNumber: string; courierHint?: string }): Promise<NormalizedShipment>;
+  createTracking(input: { trackingNumber: string; courierHint?: string; destinationPostCode?: string; destinationCountryCode?: string }): Promise<NormalizedShipment>;
   getTracking(providerTrackerId: string): Promise<NormalizedShipment>;
   deleteTracking(providerTrackerId: string): Promise<void>;
-  parseWebhook(rawBody: string, headers: Headers): Promise<NormalizedEvent[]>;
+  // Authenticates first (throws WebhookAuthError); one NormalizedShipment per tracking in the webhook.
+  parseWebhook(rawBody: string, headers: Headers): Promise<NormalizedShipment[]>;
 }
 ```
 
-Implementations: `Ship24Provider`, `FakeProvider` (canned data for tests and local dev). Chosen with the `TRACKING_PROVIDER` env var.
+`deleteTracking` unsubscribes the tracker on Ship24 (no delete endpoint). Implementations: `Ship24Provider`, `FakeProvider` (canned data for tests and local dev). Chosen with the `TRACKING_PROVIDER` env var.
 
 ### Transport-mode inference (`inferMode()`)
 

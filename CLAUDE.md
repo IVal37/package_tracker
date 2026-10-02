@@ -44,16 +44,19 @@ src/
   app/                 pages and layouts
   app/api/             route handlers and webhooks (keep thin)
   components/          UI components
-  lib/tracking/        TrackingProvider interface, ship24 provider, fake provider, status mapping
+  lib/tracking/        import only from here: index.ts exposes TrackingProvider, getTrackingProvider(), Status, errors
+  lib/tracking/ship24/ Ship24Provider (fetch + zod), client, status-map; never imported from outside lib/tracking
+  lib/tracking/fake/   FakeProvider (canned scenarios by tracking-number prefix, e.g. FAKE-OFD-1)
   lib/env.ts           typed, server-only env loader (zod); add new env keys here
   lib/db/              Drizzle client, schema and queries
   lib/geo/             geocoder (cache-first) and inferMode()
   lib/email/           inbound email parsing and extraction
   jobs/                background jobs (re-poll, archive, notify, cleanup)
 tests/
+  db/                  PGlite helper (createTestDb): real Postgres in memory with the real migrations
   setup.ts             Vitest setup (jest-dom, MSW server lifecycle)
   msw/                 shared MSW server; register handlers per test with server.use()
-  fixtures/            saved JSON / email fixtures
+  fixtures/            saved JSON / email fixtures (fixtures/ship24/ built from Ship24's OpenAPI examples)
 drizzle/               migrations
 docs/
   plan.md              full build plan
@@ -74,7 +77,9 @@ docs/
 - TypeScript strict mode; no `any`.
 - Validate all external input with zod: request bodies, webhook payloads, provider responses, LLM output.
 - Put business logic in pure functions under `src/lib/` so it can be unit tested; route handlers only parse input, call lib code and return a response.
-- Nothing outside `src/lib/tracking/` may import a specific provider. Everything goes through `TrackingProvider`.
+- Nothing outside `src/lib/tracking/` may import a specific provider (ESLint enforces this). Everything goes through `TrackingProvider`.
+- `parseWebhook` authenticates first (throws `WebhookAuthError`), then returns `NormalizedShipment[]`: one per tracking, with only the new events, de-duplicated. `deleteTracking` is an unsubscribe on Ship24 (it has no delete endpoint).
+- Provider env keys: `TRACKING_PROVIDER` (`fake` default | `ship24`), `SHIP24_API_KEY` and `SHIP24_WEBHOOK_SECRET` (required for ship24), `FAKE_WEBHOOK_SECRET` (required in production). See `.env.example`.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
 

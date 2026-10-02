@@ -1,0 +1,10 @@
+node_modules
+.next
+coverage
+drizzle
+package-lock.json
+public
+next-env.d.ts
+.claude
+docs
+CLAUDE.md

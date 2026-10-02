@@ -7,7 +7,15 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   prettier,
-  { rules: { "@typescript-eslint/no-explicit-any": "error" } },
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
   {
     // Everything goes through TrackingProvider (CLAUDE.md): no importing a
     // specific provider from outside src/lib/tracking.

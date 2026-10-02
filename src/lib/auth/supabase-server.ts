@@ -4,8 +4,10 @@ import { getEnv } from "@/lib/env";
 
 /** Supabase client bound to the current request's cookies. Server-only. */
 export async function createSupabaseServerClient() {
-  const env = getEnv();
+  // Read cookies first: it opts the calling page into dynamic rendering, so
+  // env is never needed while Next prerenders at build time.
   const cookieStore = await cookies();
+  const env = getEnv();
 
   return createServerClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
     cookies: {

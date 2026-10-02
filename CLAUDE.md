@@ -11,7 +11,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 ## Stack
 
 - Next.js (App Router) + TypeScript (strict)
-- Postgres (Supabase or Neon, decided in Phase 0) + Drizzle ORM
+- Postgres (Supabase, decided in Phase 0) + Drizzle ORM via the `postgres` driver (transaction pooler, `prepare: false`)
 - Auth: Supabase Auth or Auth.js (decided in Phase 2)
 - Tracking: Ship24 behind the `TrackingProvider` adapter (AfterShip is a later upgrade)
 - Background jobs: Inngest or Upstash QStash
@@ -23,13 +23,17 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 ## Commands
 
-Fill these in during Phase 0 and keep them current.
+Keep these current.
 
 - `npm run dev` — local dev server
 - `npm test` — unit tests
+- `npm run test:watch` — unit tests in watch mode
 - `npm run test:coverage` — unit tests with coverage report
 - `npm run lint` — ESLint + Prettier check
-- `npm run db:migrate` — apply migrations
+- `npm run format` — apply Prettier
+- `npm run typecheck` — `tsc --noEmit`
+- `npm run db:generate` — generate a migration from the schema
+- `npm run db:migrate` — apply migrations (uses `DATABASE_URL_DIRECT` if set)
 
 ## Folder layout
 
@@ -41,11 +45,14 @@ src/
   app/api/             route handlers and webhooks (keep thin)
   components/          UI components
   lib/tracking/        TrackingProvider interface, ship24 provider, fake provider, status mapping
-  lib/db/              Drizzle schema and queries
+  lib/env.ts           typed, server-only env loader (zod); add new env keys here
+  lib/db/              Drizzle client, schema and queries
   lib/geo/             geocoder (cache-first) and inferMode()
   lib/email/           inbound email parsing and extraction
   jobs/                background jobs (re-poll, archive, notify, cleanup)
 tests/
+  setup.ts             Vitest setup (jest-dom, MSW server lifecycle)
+  msw/                 shared MSW server; register handlers per test with server.use()
   fixtures/            saved JSON / email fixtures
 drizzle/               migrations
 docs/

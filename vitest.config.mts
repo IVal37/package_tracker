@@ -11,10 +11,14 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["tests/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
+    // PGlite (WASM Postgres) boots in beforeAll; give it room on slow runners.
+    hookTimeout: 60_000,
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      exclude: ["src/**/*.test.{ts,tsx}", "src/app/**"],
+      // layout.tsx is declarative boilerplate with nothing to assert.
+      exclude: ["src/**/*.test.{ts,tsx}", "src/app/layout.tsx"],
       reporter: ["text", "html"],
     },
   },

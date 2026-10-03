@@ -12,7 +12,8 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 - Next.js (App Router) + TypeScript (strict)
 - Postgres (Supabase, decided in Phase 0) + Drizzle ORM via the `postgres` driver (transaction pooler, `prepare: false`)
-- Auth: Supabase Auth or Auth.js (decided in Phase 2)
+- Auth: Supabase Auth (decided in Phase 2): email magic link + Google, cookie sessions via `@supabase/ssr`, all calls server-side
+- UI: Tailwind CSS
 - Tracking: Ship24 behind the `TrackingProvider` adapter (AfterShip is a later upgrade)
 - Background jobs: Inngest or Upstash QStash
 - Map: MapLibre GL; geocoding results cached in the `places` table
@@ -26,6 +27,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 Keep these current.
 
 - `npm run dev` — local dev server
+- `npm run build` — production build (CI runs it)
 - `npm test` — unit tests
 - `npm run test:watch` — unit tests in watch mode
 - `npm run test:coverage` — unit tests with coverage report
@@ -41,9 +43,13 @@ Phase 0 may refine this; if it does, update this section.
 
 ```
 src/
-  app/                 pages and layouts
+  proxy.ts             refreshes the Supabase session; redirects signed-out users to /sign-in
+  app/                 pages and layouts; app/actions.ts holds thin Server Actions (add / delete package)
+  app/sign-in/         sign-in page and actions;  app/auth/callback/ completes magic-link and Google sign-in
   app/api/             route handlers and webhooks (keep thin)
-  components/          UI components
+  components/          UI components (Tailwind)
+  lib/auth/            Supabase server client, getCurrentUser()/requireUser(), sign-in and callback logic
+  lib/shipments/       add / delete logic, validation, grouping, formatting (pure, unit tested)
   lib/tracking/        import only from here: index.ts exposes TrackingProvider, getTrackingProvider(), Status, errors
   lib/tracking/ship24/ Ship24Provider (fetch + zod), client, status-map; never imported from outside lib/tracking
   lib/tracking/fake/   FakeProvider (canned scenarios by tracking-number prefix, e.g. FAKE-OFD-1)
@@ -79,6 +85,7 @@ docs/
 - Put business logic in pure functions under `src/lib/` so it can be unit tested; route handlers only parse input, call lib code and return a response.
 - Nothing outside `src/lib/tracking/` may import a specific provider (ESLint enforces this). Everything goes through `TrackingProvider`.
 - `parseWebhook` authenticates first (throws `WebhookAuthError`), then returns `NormalizedShipment[]`: one per tracking, with only the new events, de-duplicated. `deleteTracking` is an unsubscribe on Ship24 (it has no delete endpoint).
+- Auth env keys: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (server-only, never `NEXT_PUBLIC_*`) and `APP_URL` (public origin for auth redirects). Setup steps are in `docs/supabase-setup.md`.
 - Provider env keys: `TRACKING_PROVIDER` (`fake` default | `ship24`), `SHIP24_API_KEY` and `SHIP24_WEBHOOK_SECRET` (required for ship24), `FAKE_WEBHOOK_SECRET` (required in production). See `.env.example`.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
@@ -95,6 +102,9 @@ docs/
 
 - Never read, print or commit `.env` files. Secrets come from environment variables, are read server-side only, and are never sent to the browser.
 - Every query or mutation on user data checks that the signed-in user owns it (or relies on row-level security).
+- Every function in `src/lib/db/shipments.ts` takes `userId` and filters by it; do not add an unscoped shipments query. Another user's shipment must look exactly like a missing one. Take `userId` only from `requireUser()` (the verified session), never from form data, query strings or request bodies.
+- Authorize on the server with `getClaims()`, never `getSession()`. The app connects to Postgres as the table owner (RLS does not apply), so the query-layer checks are the real guard; RLS is enabled with no policies on every table to deny Supabase's Data API.
+- Any page that reads the session must stay dynamic (`createSupabaseServerClient` reads cookies first), so builds never need env values.
 - Webhook handlers: authenticate exactly as the provider documents, read the raw body, make processing idempotent, return 2xx quickly and hand heavy work to a background job.
 - Forwarded email content is untrusted. The extraction model gets no tools and sees only that one email; its output must pass schema validation before anything is created.
 - Raw inbound emails are deleted after 30 days.

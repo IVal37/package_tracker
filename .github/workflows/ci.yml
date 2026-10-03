@@ -17,3 +17,6 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:coverage
+      # Catches server/client boundary mistakes. Needs no env: every page that
+      # reads the session is dynamic and never prerenders.
+      - run: npm run build

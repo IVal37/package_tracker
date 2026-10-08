@@ -5,6 +5,14 @@
  */
 export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
+/**
+ * Where MapLibre's Web Worker is served from. MapLibre derives this from
+ * import.meta.url, which is wrong under Next's bundler (the worker 404s and the
+ * map draws nothing). scripts/copy-maplibre-worker.mjs copies the file here
+ * before `dev` and `build`.
+ */
+export const MAP_WORKER_URL = "/maplibre-gl-worker.mjs";
+
 /** Where the map opens before it has any packages to fit: roughly the USA. */
 export const DEFAULT_CENTER: [number, number] = [-98, 39];
 export const DEFAULT_ZOOM = 3;

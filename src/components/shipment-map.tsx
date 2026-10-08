@@ -9,6 +9,7 @@ import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   MAP_STYLE_URL,
+  MAP_WORKER_URL,
 } from "@/lib/geo/map-style";
 import type { MapData, MapListItem } from "@/lib/geo/map-data";
 // status.ts, not the @/lib/tracking index: the index pulls provider code and
@@ -207,6 +208,9 @@ export function ShipmentMap({ data }: ShipmentMapProps) {
       try {
         const maplibre = await import("maplibre-gl");
         if (cancelled || !container.current) return;
+
+        // Must be set before the first map is created.
+        maplibre.setWorkerUrl(MAP_WORKER_URL);
 
         map = new maplibre.Map({
           container: container.current,

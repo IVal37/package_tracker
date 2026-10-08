@@ -27,7 +27,7 @@ vi.mock("@supabase/ssr", () => ({
   },
 }));
 
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 
 const request = (path: string) =>
   new NextRequest(`http://localhost:3000${path}`, {
@@ -43,6 +43,35 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   resetEnvCache();
+});
+
+describe("proxy matcher", () => {
+  // The matcher is a negative-lookahead regex over the path.
+  const [pattern] = config.matcher;
+  const runsOn = (path: string) => new RegExp(`^${pattern}$`).test(path);
+
+  it.each([
+    "/",
+    "/sign-in",
+    "/auth/callback",
+    "/api/webhooks/tracking",
+    "/api/inngest",
+  ])("runs on %s", (path) => {
+    expect(runsOn(path)).toBe(true);
+  });
+
+  it.each([
+    "/_next/static/chunks/app.js",
+    "/_next/image",
+    "/favicon.ico",
+    "/logo.svg",
+    "/photo.png",
+    // MapLibre's worker is served from /public. If this went through the auth
+    // check, a signed-out request got the sign-in HTML instead of JavaScript.
+    "/maplibre-gl-worker.mjs",
+  ])("skips the static asset %s", (path) => {
+    expect(runsOn(path)).toBe(false);
+  });
 });
 
 describe("proxy", () => {

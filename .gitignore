@@ -13,6 +13,9 @@ coverage/
 *.pem
 npm-debug.log*
 
+# copied from node_modules by scripts/copy-maplibre-worker.mjs
+/public/maplibre-gl-worker.mjs
+
 # vercel
 .vercel
 

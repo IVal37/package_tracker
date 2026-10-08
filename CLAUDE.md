@@ -37,6 +37,7 @@ Keep these current.
 - `npm run db:generate` — generate a migration from the schema
 - `npm run db:migrate` — apply migrations (uses `DATABASE_URL_DIRECT` if set)
 - `npm run jobs:dev` — Inngest dev server (UI at http://localhost:8288); run it next to `npm run dev`
+- `predev` / `prebuild` run `scripts/copy-maplibre-worker.mjs`, which copies MapLibre's Web Worker into `public/` (gitignored). MapLibre can't find its own worker under Next's bundler, so the map component points it at `/maplibre-gl-worker.mjs` (`setWorkerUrl`). If the map is blank, check the browser console for "Worker failed to load" and that the file is served as JavaScript; the proxy matcher must skip `.mjs`.
 
 ## Folder layout
 

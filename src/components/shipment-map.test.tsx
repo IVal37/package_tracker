@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { MAP_STYLE_URL } from "@/lib/geo/map-style";
+import { MAP_STYLE_URL, MAP_WORKER_URL } from "@/lib/geo/map-style";
 import type { MapData, PointFeature } from "@/lib/geo/map-data";
 import { MODES } from "@/lib/tracking/status";
 
@@ -76,12 +76,18 @@ const h = vi.hoisted(() => {
     }
   }
 
-  return { FakeMap, LngLatBounds, push: vi.fn() };
+  // Records whether the worker URL was set before any map existed.
+  const setWorkerUrl = vi.fn((_url: string) => {
+    setWorkerUrl.mapsAtCall = FakeMap.instances.length;
+  }) as ReturnType<typeof vi.fn> & { mapsAtCall?: number };
+
+  return { FakeMap, LngLatBounds, setWorkerUrl, push: vi.fn() };
 });
 
 vi.mock("maplibre-gl", () => ({
   Map: h.FakeMap,
   LngLatBounds: h.LngLatBounds,
+  setWorkerUrl: h.setWorkerUrl,
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }));
 
@@ -164,6 +170,19 @@ describe("ShipmentMap: the map", () => {
     expect(
       screen.getByRole("region", { name: "Map of your packages" }),
     ).toBeInTheDocument();
+  });
+
+  it("points MapLibre at the self-hosted worker before creating the first map", async () => {
+    // Regression: MapLibre derives its worker URL from import.meta.url, which is
+    // wrong under Next's bundler. The worker 404'd and the map drew nothing.
+    h.setWorkerUrl.mockClear();
+    h.setWorkerUrl.mapsAtCall = undefined;
+
+    await renderLoaded();
+
+    expect(h.setWorkerUrl).toHaveBeenCalledWith("/maplibre-gl-worker.mjs");
+    expect(MAP_WORKER_URL).toBe("/maplibre-gl-worker.mjs");
+    expect(h.setWorkerUrl.mapsAtCall).toBe(0);
   });
 
   it("registers an image for every one of the five transport modes", async () => {

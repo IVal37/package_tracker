@@ -149,6 +149,44 @@ describe("buildMapData: routes", () => {
     expect(data.points.features).toHaveLength(1);
   });
 
+  it("draws Asia to the US across the Pacific, not the long way round", () => {
+    const shenzhen = { lat: 22.64, lng: 113.81 };
+    const losAngeles = { lat: 33.94, lng: -118.41 };
+    const data = buildMapData([
+      shipment("a", [cp(1, shenzhen), cp(30, losAngeles)]),
+    ]);
+
+    const [start, end] = data.routes.features[0]!.geometry.coordinates;
+    expect(start).toEqual([113.81, 22.64]);
+    // Shifted east past 180 so the segment is ~128 degrees, not ~232.
+    expect(end).toEqual([-118.41 + 360, 33.94]);
+    expect(Math.abs(end![0] - start![0])).toBeLessThan(180);
+  });
+
+  it("unwraps back and forth across the date line", () => {
+    const tokyo = { lat: 35.7, lng: 139.7 };
+    const seattle = { lat: 47.6, lng: -122.3 };
+    const data = buildMapData([
+      shipment("a", [cp(1, tokyo), cp(10, seattle), cp(20, tokyo)]),
+    ]);
+
+    const longitudes = data.routes.features[0]!.geometry.coordinates.map(
+      ([lng]) => lng,
+    );
+    expect(longitudes).toEqual([139.7, 237.7, 139.7]);
+  });
+
+  it("leaves routes that do not cross the date line untouched", () => {
+    const data = buildMapData([
+      shipment("a", [cp(1, MEMPHIS), cp(2, CHICAGO), cp(3, OAKLAND)]),
+    ]);
+    expect(data.routes.features[0]?.geometry.coordinates).toEqual([
+      [MEMPHIS.lng, MEMPHIS.lat],
+      [CHICAGO.lng, CHICAGO.lat],
+      [OAKLAND.lng, OAKLAND.lat],
+    ]);
+  });
+
   it("keeps one route per shipment", () => {
     const data = buildMapData([
       shipment("a", [cp(1, MEMPHIS), cp(2, CHICAGO)]),

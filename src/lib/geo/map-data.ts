@@ -44,6 +44,28 @@ export interface MapData {
 const sameSpot = (a: LatLng, b: LatLng) => a.lat === b.lat && a.lng === b.lng;
 
 /**
+ * GeoJSON coordinates ([lng, lat]) for a route, with each longitude shifted by
+ * a multiple of 360 so it is within 180 degrees of the previous one. Without
+ * this, Shenzhen -> Los Angeles (113.8 -> -118.4) is drawn the long way across
+ * Asia, Europe and the Atlantic instead of across the Pacific. MapLibre draws
+ * longitudes beyond +/-180 correctly, as another copy of the world.
+ */
+function unwrapLongitudes(path: readonly LatLng[]): [number, number][] {
+  const coordinates: [number, number][] = [];
+  let previous: number | undefined;
+  for (const { lat, lng } of path) {
+    let unwrapped = lng;
+    if (previous !== undefined) {
+      while (unwrapped - previous > 180) unwrapped -= 360;
+      while (unwrapped - previous < -180) unwrapped += 360;
+    }
+    coordinates.push([unwrapped, lat]);
+    previous = unwrapped;
+  }
+  return coordinates;
+}
+
+/**
  * Turns shipments into what the map draws.
  * - A shipment with a located checkpoint gets an icon at the newest one, and a
  *   route through every located checkpoint in time order (consecutive repeats
@@ -86,7 +108,7 @@ export function buildMapData(shipments: readonly MapShipment[]): MapData {
           properties: { id: shipment.id },
           geometry: {
             type: "LineString",
-            coordinates: path.map(({ lat, lng }) => [lng, lat]),
+            coordinates: unwrapLongitudes(path),
           },
         });
       }

@@ -44,7 +44,11 @@ const envSchema = z
 
 export type Env = z.infer<typeof envSchema>;
 
-export function parseEnv(source: Record<string, string | undefined>): Env {
+export function parseEnv(rawSource: Record<string, string | undefined>): Env {
+  // A blank line like `SHIP24_API_KEY=` in a .env file means "not set".
+  const source = Object.fromEntries(
+    Object.entries(rawSource).filter(([, value]) => value !== ""),
+  );
   const result = envSchema.safeParse(source);
   if (result.success) return result.data;
 

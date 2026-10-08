@@ -114,20 +114,49 @@ describe("tracking provider env", () => {
     ).not.toThrow();
   });
 
-  it("rejects an unknown provider and an empty key without echoing values", () => {
+  it("rejects an unknown provider without echoing the value", () => {
     let message = "";
     try {
-      parseEnv({
-        ...valid,
-        TRACKING_PROVIDER: "aftership",
-        SHIP24_API_KEY: "",
-      });
+      parseEnv({ ...valid, TRACKING_PROVIDER: "aftership" });
     } catch (error) {
       message = (error as Error).message;
     }
-    expect(message).toContain("invalid TRACKING_PROVIDER");
-    expect(message).toContain("invalid SHIP24_API_KEY");
-    expect(message).not.toContain("aftership");
+    expect(message).toBe("Invalid environment: invalid TRACKING_PROVIDER");
+  });
+
+  // `KEY=` with no value is how .env.example ships optional keys.
+  it("treats blank optional values as unset", () => {
+    const env = parseEnv({
+      ...valid,
+      TRACKING_PROVIDER: "",
+      SHIP24_API_KEY: "",
+      SHIP24_WEBHOOK_SECRET: "",
+      FAKE_WEBHOOK_SECRET: "",
+      DATABASE_URL_DIRECT: "",
+    });
+    expect(env.TRACKING_PROVIDER).toBe("fake");
+    expect(env.SHIP24_API_KEY).toBeUndefined();
+    expect(env.FAKE_WEBHOOK_SECRET).toBe("fake-secret");
+    expect(env.DATABASE_URL_DIRECT).toBeUndefined();
+  });
+
+  it("still requires Ship24 keys when they are blank and ship24 is selected", () => {
+    expect(() =>
+      parseEnv({
+        ...valid,
+        TRACKING_PROVIDER: "ship24",
+        SHIP24_API_KEY: "",
+        SHIP24_WEBHOOK_SECRET: "",
+      }),
+    ).toThrowError(
+      "Invalid environment: missing SHIP24_API_KEY; missing SHIP24_WEBHOOK_SECRET",
+    );
+  });
+
+  it("reports a blank required value as missing", () => {
+    expect(() => parseEnv({ ...valid, SUPABASE_URL: "" })).toThrowError(
+      "Invalid environment: missing SUPABASE_URL",
+    );
   });
 
   it("requires an explicit fake webhook secret in production", () => {

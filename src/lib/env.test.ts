@@ -165,6 +165,7 @@ describe("tracking provider env", () => {
         ...valid,
         NODE_ENV: "production",
         INNGEST_SIGNING_KEY: "signkey-test",
+        INNGEST_EVENT_KEY: "eventkey-test",
       }),
     ).toThrowError("Invalid environment: missing FAKE_WEBHOOK_SECRET");
     expect(
@@ -173,6 +174,7 @@ describe("tracking provider env", () => {
         NODE_ENV: "production",
         FAKE_WEBHOOK_SECRET: "prod-secret",
         INNGEST_SIGNING_KEY: "signkey-test",
+        INNGEST_EVENT_KEY: "eventkey-test",
       }).FAKE_WEBHOOK_SECRET,
     ).toBe("prod-secret");
   });
@@ -184,30 +186,55 @@ describe("inngest env", () => {
     NODE_ENV: "production",
     FAKE_WEBHOOK_SECRET: "prod-secret",
   };
+  const withKeys = {
+    ...production,
+    INNGEST_SIGNING_KEY: "signkey-test",
+    INNGEST_EVENT_KEY: "eventkey-test",
+  };
 
-  it("requires INNGEST_SIGNING_KEY in production, naming only the key", () => {
+  it("requires both Inngest keys in production, naming only the keys", () => {
     expect(() => parseEnv(production)).toThrowError(
-      "Invalid environment: missing INNGEST_SIGNING_KEY",
+      "Invalid environment: missing INNGEST_SIGNING_KEY; missing INNGEST_EVENT_KEY",
     );
     expect(() =>
-      parseEnv({ ...production, INNGEST_SIGNING_KEY: "" }),
+      parseEnv({ ...withKeys, INNGEST_SIGNING_KEY: "" }),
     ).toThrowError("Invalid environment: missing INNGEST_SIGNING_KEY");
+    expect(() => parseEnv({ ...withKeys, INNGEST_EVENT_KEY: "" })).toThrowError(
+      "Invalid environment: missing INNGEST_EVENT_KEY",
+    );
   });
 
-  it("accepts INNGEST_SIGNING_KEY in production", () => {
-    expect(
-      parseEnv({ ...production, INNGEST_SIGNING_KEY: "signkey-test" })
-        .INNGEST_SIGNING_KEY,
-    ).toBe("signkey-test");
+  it("accepts both keys in production", () => {
+    const env = parseEnv(withKeys);
+    expect(env.INNGEST_SIGNING_KEY).toBe("signkey-test");
+    expect(env.INNGEST_EVENT_KEY).toBe("eventkey-test");
   });
 
-  it("does not need it in development or test", () => {
-    expect(
-      parseEnv({ ...valid, NODE_ENV: "development" }).INNGEST_SIGNING_KEY,
-    ).toBeUndefined();
-    expect(
-      parseEnv({ ...valid, NODE_ENV: "test" }).INNGEST_SIGNING_KEY,
-    ).toBeUndefined();
+  it("does not need them in development or test", () => {
+    for (const NODE_ENV of ["development", "test"]) {
+      const env = parseEnv({ ...valid, NODE_ENV });
+      expect(env.INNGEST_SIGNING_KEY).toBeUndefined();
+      expect(env.INNGEST_EVENT_KEY).toBeUndefined();
+    }
+  });
+});
+
+describe("geocoder env", () => {
+  it("defaults to the fake geocoder", () => {
+    expect(parseEnv(valid).GEOCODER).toBe("fake");
+    expect(parseEnv({ ...valid, GEOCODER: "" }).GEOCODER).toBe("fake");
+  });
+
+  it("accepts nominatim", () => {
+    expect(parseEnv({ ...valid, GEOCODER: "nominatim" }).GEOCODER).toBe(
+      "nominatim",
+    );
+  });
+
+  it("rejects an unknown geocoder without echoing the value", () => {
+    expect(() => parseEnv({ ...valid, GEOCODER: "google" })).toThrowError(
+      "Invalid environment: invalid GEOCODER",
+    );
   });
 });
 

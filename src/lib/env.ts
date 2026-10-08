@@ -23,6 +23,11 @@ const envSchema = z
     // from the environment itself; it is listed here so a production deploy
     // without it fails loudly. Optional in development (INNGEST_DEV=1).
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),
+    // Needed to send events (geocoding requests). Same rules as the signing key.
+    INNGEST_EVENT_KEY: z.string().min(1).optional(),
+    // "fake" never touches the network; "nominatim" is OpenStreetMap's public
+    // geocoder (light use only, see docs/phase-4-plan.md).
+    GEOCODER: z.enum(["fake", "nominatim"]).default("fake"),
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env) =>
@@ -42,6 +47,9 @@ const envSchema = z
     }
     if (env.NODE_ENV === "production" && !env.INNGEST_SIGNING_KEY) {
       require("INNGEST_SIGNING_KEY");
+    }
+    if (env.NODE_ENV === "production" && !env.INNGEST_EVENT_KEY) {
+      require("INNGEST_EVENT_KEY");
     }
   })
   .transform((env) => ({

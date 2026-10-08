@@ -17,7 +17,7 @@ export function slugFromEmail(email: string): string {
   const local = email.split("@")[0] ?? "";
   const slug = local
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "") // accents
+    .replace(/[\u0300-\u036f]/g, "") // accents
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "")
     .slice(0, SLUG_MAX);

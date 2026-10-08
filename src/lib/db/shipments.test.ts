@@ -1,7 +1,9 @@
 // @vitest-environment node
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { NormalizedEvent } from "@/lib/tracking/types";
 import { createTestDb, insertUser } from "../../../tests/db/pglite";
+import { places, shipments } from "./schema";
 import {
   createShipmentWithCheckpoints,
   deleteShipment,
@@ -9,6 +11,7 @@ import {
   getShipment,
   getShipmentDetail,
   isUniqueViolation,
+  listMapShipments,
   listShipments,
   type NewShipment,
 } from "./shipments";
@@ -46,6 +49,164 @@ const shipmentData = (trackingNumber: string): NewShipment => ({
 });
 
 const NO_SUCH_ID = "99999999-9999-4999-8999-999999999999";
+
+describe("listMapShipments", () => {
+  const located = (id: string, hour: number, locationText: string | null) => ({
+    ...event(id, hour),
+    locationText,
+  });
+
+  it("never includes another user's shipments", async () => {
+    const a = await insertUser(ctx.db);
+    const b = await insertUser(ctx.db);
+    const aId = await createShipmentWithCheckpoints(
+      ctx.db,
+      a.id,
+      shipmentData("MAP-A-1"),
+      [located("ma1", 1, "MAP CITY A")],
+    );
+    await createShipmentWithCheckpoints(ctx.db, b.id, shipmentData("MAP-B-1"), [
+      located("mb1", 1, "MAP CITY B"),
+    ]);
+
+    const aMap = await listMapShipments(ctx.db, a.id);
+    const bMap = await listMapShipments(ctx.db, b.id);
+
+    expect(aMap.map((s) => s.id)).toEqual([aId]);
+    expect(bMap.map((s) => s.id)).not.toContain(aId);
+    expect(bMap).toHaveLength(1);
+    // Nothing of A's, not even its places, appears in B's data.
+    expect(JSON.stringify(bMap)).not.toContain("MAP CITY A");
+  });
+
+  it("excludes archived shipments", async () => {
+    const user = await insertUser(ctx.db);
+    const id = await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      shipmentData("MAP-ARCH-1"),
+      [located("arch1", 1, "ARCH CITY")],
+    );
+    await ctx.db
+      .update(shipments)
+      .set({ archivedAt: new Date() })
+      .where(eq(shipments.id, id));
+
+    expect(await listMapShipments(ctx.db, user.id)).toEqual([]);
+  });
+
+  it("joins coordinates from the places cache, oldest checkpoint first", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db.insert(places).values([
+      { queryKey: "join city one", lat: 10, lng: 20, geocoder: "fake" },
+      { queryKey: "join city two", lat: 11, lng: 21, geocoder: "fake" },
+    ]);
+    await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      { ...shipmentData("MAP-JOIN-1"), nickname: "My boots" },
+      [
+        located("j2", 5, "  JOIN   City Two "),
+        located("j1", 2, "Join City One"),
+      ],
+    );
+
+    const [item] = await listMapShipments(ctx.db, user.id);
+
+    expect(item?.name).toBe("My boots");
+    expect(item?.checkpoints.map((c) => c.point)).toEqual([
+      { lat: 10, lng: 20 },
+      { lat: 11, lng: 21 },
+    ]);
+    expect(item?.checkpoints.map((c) => c.locationText)).toEqual([
+      "Join City One",
+      "  JOIN   City Two ",
+    ]);
+  });
+
+  it("gives a null point for places not geocoded yet and for remembered misses", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db.insert(places).values({
+      queryKey: "nowhere land",
+      lat: null,
+      lng: null,
+      geocoder: "fake",
+    });
+    await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      shipmentData("MAP-NULL-1"),
+      [
+        located("n1", 1, "NOWHERE LAND"),
+        located("n2", 2, "NEVER SEEN BEFORE"),
+        located("n3", 3, null),
+      ],
+    );
+
+    const [item] = await listMapShipments(ctx.db, user.id);
+
+    expect(item?.checkpoints.map((c) => c.point)).toEqual([null, null, null]);
+  });
+
+  it("uses the tracking number as the name and joins the destination", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db
+      .insert(places)
+      .values({ queryKey: "dest city, us", lat: 5, lng: 6, geocoder: "fake" });
+    await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      { ...shipmentData("MAP-DEST-1"), destinationText: "Dest City, US" },
+      [],
+    );
+
+    const [item] = await listMapShipments(ctx.db, user.id);
+
+    expect(item?.name).toBe("MAP-DEST-1");
+    expect(item?.destination).toEqual({ lat: 5, lng: 6 });
+    expect(item?.checkpoints).toEqual([]);
+  });
+
+  it("has no destination point when the destination is unknown or not geocoded", async () => {
+    const user = await insertUser(ctx.db);
+    await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      { ...shipmentData("MAP-NODEST-1"), destinationText: "Unmapped Town" },
+      [],
+    );
+    const [item] = await listMapShipments(ctx.db, user.id);
+    expect(item?.destination).toBeNull();
+  });
+});
+
+describe("getShipmentDetail coordinates", () => {
+  it("returns each checkpoint's coordinates from the places cache", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db.insert(places).values({
+      queryKey: "detail city",
+      lat: 1.5,
+      lng: 2.5,
+      geocoder: "fake",
+    });
+    const id = await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      shipmentData("DETAIL-1"),
+      [
+        { ...event("d1", 1), locationText: "Detail City" },
+        { ...event("d2", 2), locationText: "Elsewhere" },
+      ],
+    );
+
+    const detail = await getShipmentDetail(ctx.db, user.id, id);
+
+    expect(detail?.checkpoints.map((c) => [c.lat, c.lng])).toEqual([
+      [null, null], // d2, newest first: not geocoded
+      [1.5, 2.5], // d1
+    ]);
+  });
+});
 
 describe("ownership isolation (user A vs user B)", () => {
   it("never lists another user's shipments", async () => {

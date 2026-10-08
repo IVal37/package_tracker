@@ -1,14 +1,19 @@
 // Every function here takes userId and filters by it. There is deliberately no
 // unscoped way to read or change a shipment: a shipment that belongs to someone
 // else is indistinguishable from one that does not exist.
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import type { NormalizedEvent } from "@/lib/tracking/types";
 import { insertCheckpoints } from "./checkpoints";
 import type { Db } from "./client";
-import { checkpoints, shipments } from "./schema";
+import { checkpoints, places, shipments } from "./schema";
 
 export type ShipmentRow = typeof shipments.$inferSelect;
 export type CheckpointRow = typeof checkpoints.$inferSelect;
+/** A checkpoint with coordinates from the places cache (null if not geocoded). */
+export type CheckpointDetail = CheckpointRow & {
+  lat: number | null;
+  lng: number | null;
+};
 
 export interface ShipmentListItem extends ShipmentRow {
   lastCheckpoint: {
@@ -21,7 +26,7 @@ export interface ShipmentListItem extends ShipmentRow {
 export interface ShipmentDetail {
   shipment: ShipmentRow;
   /** Newest first. */
-  checkpoints: CheckpointRow[];
+  checkpoints: CheckpointDetail[];
 }
 
 export type NewShipment = Pick<
@@ -121,15 +126,111 @@ export async function getShipmentDetail(
   const shipment = await getShipment(db, userId, shipmentId);
   if (!shipment) return null;
 
+  // Coordinates come from the global places cache; null until geocoded (or
+  // for good, if the place could not be found).
   const timeline = await db
-    .select()
+    .select({
+      ...getTableColumns(checkpoints),
+      lat: places.lat,
+      lng: places.lng,
+    })
     .from(checkpoints)
+    .leftJoin(places, eq(places.queryKey, checkpoints.locationKey))
     .where(eq(checkpoints.shipmentId, shipment.id))
     .orderBy(
       desc(checkpoints.occurredAt),
       sql`${checkpoints.eventOrder} desc nulls last`,
     );
   return { shipment, checkpoints: timeline };
+}
+
+export interface MapCheckpoint {
+  status: CheckpointRow["status"];
+  message: string | null;
+  locationText: string | null;
+  occurredAt: Date;
+  /** Null when the place is not geocoded yet, or could not be found. */
+  point: { lat: number; lng: number } | null;
+}
+
+export interface MapShipment {
+  id: string;
+  /** Nickname, or the tracking number. */
+  name: string;
+  status: ShipmentRow["status"];
+  /** Where it is going, if that has been geocoded. */
+  destination: { lat: number; lng: number } | null;
+  /** Oldest first. */
+  checkpoints: MapCheckpoint[];
+}
+
+const toPoint = (lat: number | null, lng: number | null) =>
+  lat !== null && lng !== null ? { lat, lng } : null;
+
+/**
+ * The user's non-archived shipments with everything the map needs: each
+ * checkpoint (oldest first) and the destination, with coordinates joined from
+ * the places cache. Both queries are scoped to the user.
+ */
+export async function listMapShipments(
+  db: Db,
+  userId: string,
+): Promise<MapShipment[]> {
+  const owned = and(eq(shipments.userId, userId), isNull(shipments.archivedAt));
+
+  const rows = await db
+    .select({
+      id: shipments.id,
+      nickname: shipments.nickname,
+      trackingNumber: shipments.trackingNumber,
+      status: shipments.status,
+      destLat: places.lat,
+      destLng: places.lng,
+    })
+    .from(shipments)
+    .leftJoin(places, eq(places.queryKey, shipments.destinationKey))
+    .where(owned)
+    .orderBy(desc(shipments.createdAt));
+
+  const events = await db
+    .select({
+      shipmentId: checkpoints.shipmentId,
+      status: checkpoints.status,
+      message: checkpoints.message,
+      locationText: checkpoints.locationText,
+      occurredAt: checkpoints.occurredAt,
+      lat: places.lat,
+      lng: places.lng,
+    })
+    .from(checkpoints)
+    .innerJoin(shipments, eq(checkpoints.shipmentId, shipments.id))
+    .leftJoin(places, eq(places.queryKey, checkpoints.locationKey))
+    .where(owned)
+    .orderBy(
+      asc(checkpoints.occurredAt),
+      sql`${checkpoints.eventOrder} asc nulls first`,
+    );
+
+  const byShipment = new Map<string, MapCheckpoint[]>();
+  for (const event of events) {
+    const list = byShipment.get(event.shipmentId) ?? [];
+    list.push({
+      status: event.status,
+      message: event.message,
+      locationText: event.locationText,
+      occurredAt: event.occurredAt,
+      point: toPoint(event.lat, event.lng),
+    });
+    byShipment.set(event.shipmentId, list);
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.nickname ?? row.trackingNumber,
+    status: row.status,
+    destination: toPoint(row.destLat, row.destLng),
+    checkpoints: byShipment.get(row.id) ?? [],
+  }));
 }
 
 export async function findShipmentByTrackingNumber(

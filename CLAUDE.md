@@ -15,7 +15,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 - Auth: Supabase Auth (decided in Phase 2): email magic link + Google, cookie sessions via `@supabase/ssr`, all calls server-side
 - UI: Tailwind CSS
 - Tracking: Ship24 behind the `TrackingProvider` adapter (AfterShip is a later upgrade)
-- Background jobs: Inngest or Upstash QStash
+- Background jobs: Inngest (decided in Phase 3): cron functions in `src/jobs/`, served at `/api/inngest`
 - Map: MapLibre GL; geocoding results cached in the `places` table
 - Inbound email: Postmark Inbound or Cloudflare Email Routing; field extraction with Claude Haiku 4.5
 - Alerts: Web Push (VAPID) + Resend email
@@ -36,6 +36,7 @@ Keep these current.
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run db:generate` — generate a migration from the schema
 - `npm run db:migrate` — apply migrations (uses `DATABASE_URL_DIRECT` if set)
+- `npm run jobs:dev` — Inngest dev server (UI at http://localhost:8288); run it next to `npm run dev`
 
 ## Folder layout
 
@@ -55,9 +56,13 @@ src/
   lib/tracking/fake/   FakeProvider (canned scenarios by tracking-number prefix, e.g. FAKE-OFD-1)
   lib/env.ts           typed, server-only env loader (zod); add new env keys here
   lib/db/              Drizzle client, schema and queries
+  lib/db/tracker-sync.ts  system-scope queries for webhooks and jobs (no userId); import-restricted by ESLint
+  lib/shipments/sync/  webhook handling, update rule (decideShipmentUpdate), re-fetch and archive logic
+  app/api/webhooks/tracking/  provider webhook route (authenticates with the provider's secret)
+  app/api/inngest/     serves the Inngest functions
   lib/geo/             geocoder (cache-first) and inferMode()
   lib/email/           inbound email parsing and extraction
-  jobs/                background jobs (re-poll, archive, notify, cleanup)
+  jobs/                Inngest functions (re-fetch stale, archive delivered; later notify, cleanup), thin wrappers over lib code
 tests/
   db/                  PGlite helper (createTestDb): real Postgres in memory with the real migrations
   setup.ts             Vitest setup (jest-dom, MSW server lifecycle)
@@ -87,6 +92,7 @@ docs/
 - `parseWebhook` authenticates first (throws `WebhookAuthError`), then returns `NormalizedShipment[]`: one per tracking, with only the new events, de-duplicated. `deleteTracking` is an unsubscribe on Ship24 (it has no delete endpoint).
 - Auth env keys: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (server-only, never `NEXT_PUBLIC_*`) and `APP_URL` (public origin for auth redirects). Setup steps are in `docs/supabase-setup.md`.
 - Provider env keys: `TRACKING_PROVIDER` (`fake` default | `ship24`), `SHIP24_API_KEY` and `SHIP24_WEBHOOK_SECRET` (required for ship24), `FAKE_WEBHOOK_SECRET` (required in production). See `.env.example`.
+- Job env keys: `INNGEST_SIGNING_KEY` (required in production; the SDK reads it itself) and `INNGEST_DEV=1` for local development. Setup steps are in `docs/webhooks-and-jobs-setup.md`.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
 
@@ -105,7 +111,9 @@ docs/
 - Every function in `src/lib/db/shipments.ts` takes `userId` and filters by it; do not add an unscoped shipments query. Another user's shipment must look exactly like a missing one. Take `userId` only from `requireUser()` (the verified session), never from form data, query strings or request bodies.
 - Authorize on the server with `getClaims()`, never `getSession()`. The app connects to Postgres as the table owner (RLS does not apply), so the query-layer checks are the real guard; RLS is enabled with no policies on every table to deny Supabase's Data API.
 - Any page that reads the session must stay dynamic (`createSupabaseServerClient` reads cookies first), so builds never need env values.
-- Webhook handlers: authenticate exactly as the provider documents, read the raw body, make processing idempotent, return 2xx quickly and hand heavy work to a background job.
+- Webhook handlers: authenticate exactly as the provider documents, read the raw body, make processing idempotent, return 2xx quickly and hand heavy work to a background job. A small, indexed update (the Phase 3 tracking webhook) may apply inline; a database failure returns 500 so the provider retries. Never log the body, headers or secret.
+- System-scope exception: webhooks and jobs act for no user, because one provider tracker can be shared by several users' shipments. Those queries live only in `src/lib/db/tracker-sync.ts`, which ESLint lets only `src/lib/shipments/sync/**` and `src/jobs/**` import. They apply updates and return counts; never return shipment data from them to anything that renders it, and never add a user-facing query there.
+- Shipment status is decided by event time, never by ranking statuses: a late older event is stored but must not change status or ETA (`decideShipmentUpdate`).
 - Forwarded email content is untrusted. The extraction model gets no tools and sees only that one email; its output must pass schema validation before anything is created.
 - Raw inbound emails are deleted after 30 days.
 

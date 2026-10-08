@@ -24,6 +24,7 @@ const shipment = (
   archivedAt: null,
   createdAt: new Date("2026-06-01T00:00:00Z"),
   updatedAt: new Date("2026-06-01T00:00:00Z"),
+  lastSyncedAt: new Date("2026-06-01T00:00:00Z"),
   lastCheckpoint: null,
   ...overrides,
 });

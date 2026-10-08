@@ -1,0 +1,3 @@
+ALTER TABLE "shipments" ADD COLUMN "last_synced_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+CREATE INDEX "shipments_sync_due_idx" ON "shipments" USING btree ("provider","last_synced_at") WHERE "shipments"."archived_at" is null and "shipments"."status" not in ('Delivered', 'Expired');--> statement-breakpoint
+CREATE INDEX "shipments_archive_due_idx" ON "shipments" USING btree ("last_event_at") WHERE "shipments"."status" = 'Delivered' and "shipments"."archived_at" is null;

@@ -23,6 +23,7 @@ const shipment: ShipmentRow = {
   archivedAt: null,
   createdAt: NOW,
   updatedAt: NOW,
+  lastSyncedAt: NOW,
 };
 
 const checkpoint = (id: string, hour: number): CheckpointRow => ({

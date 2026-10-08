@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   doublePrecision,
   index,
@@ -49,6 +50,9 @@ export const shipments = pgTable(
     status: shipmentStatus("status").notNull().default("Pending"),
     eta: timestamptz("eta"),
     lastEventAt: timestamptz("last_event_at"),
+    // When we last asked the provider (webhook or re-fetch), as opposed to
+    // last_event_at, which is when the courier last scanned the parcel.
+    lastSyncedAt: timestamptz("last_synced_at").notNull().defaultNow(),
     archivedAt: timestamptz("archived_at"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
     updatedAt: timestamptz("updated_at").notNull().defaultNow(),
@@ -59,6 +63,15 @@ export const shipments = pgTable(
       t.trackingNumber,
     ),
     index("shipments_provider_tracker_idx").on(t.provider, t.providerTrackerId),
+    // Partial indexes for the background jobs: only the rows they scan.
+    index("shipments_sync_due_idx")
+      .on(t.provider, t.lastSyncedAt)
+      .where(
+        sql`${t.archivedAt} is null and ${t.status} not in ('Delivered', 'Expired')`,
+      ),
+    index("shipments_archive_due_idx")
+      .on(t.lastEventAt)
+      .where(sql`${t.status} = 'Delivered' and ${t.archivedAt} is null`),
   ],
 ).enableRLS();
 

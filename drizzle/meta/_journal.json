@@ -15,6 +15,13 @@
       "when": 1790984625096,
       "tag": "0001_lucky_ravenous",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791422499462,
+      "tag": "0002_flat_crystal",
+      "breakpoints": true
     }
   ]
 }

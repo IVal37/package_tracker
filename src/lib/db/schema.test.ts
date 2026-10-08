@@ -64,6 +64,38 @@ describe("schema (PGlite)", () => {
     expect(result.rows.every((r) => r.relrowsecurity)).toBe(true);
   });
 
+  it("has a NOT NULL last_synced_at that defaults to now", async () => {
+    const column = await ctx.client.query<{
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `select is_nullable, column_default from information_schema.columns
+        where table_name = 'shipments' and column_name = 'last_synced_at'`,
+    );
+    expect(column.rows[0]?.is_nullable).toBe("NO");
+    expect(column.rows[0]?.column_default).toContain("now()");
+
+    const user = await insertUser(ctx.db);
+    const shipment = await insertShipment(ctx.db, user.id);
+    expect(shipment.lastSyncedAt).toBeInstanceOf(Date);
+  });
+
+  it("creates partial indexes for the sync and archive jobs", async () => {
+    const result = await ctx.client.query<{
+      indexname: string;
+      indexdef: string;
+    }>(
+      `select indexname, indexdef from pg_indexes
+        where tablename = 'shipments' and indexname like 'shipments_%_due_idx'
+        order by indexname`,
+    );
+    const [archive, sync] = result.rows;
+    expect(archive?.indexname).toBe("shipments_archive_due_idx");
+    expect(archive?.indexdef).toMatch(/WHERE .*Delivered/);
+    expect(sync?.indexname).toBe("shipments_sync_due_idx");
+    expect(sync?.indexdef).toMatch(/WHERE .*archived_at IS NULL/);
+  });
+
   it("defaults shipment status to Pending", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);

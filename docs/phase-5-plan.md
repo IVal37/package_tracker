@@ -154,7 +154,7 @@ Commit: `feat(ui): settings page, Ordered section and order details`
 - `workers/inbound-email/` (`handler.ts`, `index.ts`, `wrangler.toml`, `package.json`, README) and its tests: the envelope recipient is forwarded (not `To:`), text and HTML are capped, oversized messages are skipped, the secret header is sent, a 5xx from the app throws so the sender retries, a 4xx is dropped quietly.
 - `docs/email-forwarding-setup.md`: buy or pick a domain, put its DNS on Cloudflare, enable Email Routing on `in.<domain>`, deploy the Worker with `wrangler`, set `INBOUND_WEBHOOK_SECRET` on both sides and `INBOUND_EMAIL_DOMAIN` in the app, Gmail filter and forwarding confirmation, Outlook rule, local testing with `curl` and a fixture (no Cloudflare or domain needed).
 - CLAUDE.md (Stack, folder layout, env keys, the two import restrictions, the untrusted-email rules), `docs/unresolved-issues.md` (see below).
-- **Optional live check, only with your approval** because it spends real money: `npm run eval:email` runs the fixtures through the real Haiku 4.5 and prints how many it got right. About 15 emails, a few cents. The build session asks before running it; without it, the model's real accuracy is untested (see Verification).
+- **Live check script, written but not run in this phase** (your decision, 2026-10-08): `npm run eval:email` runs a folder of emails through the real Haiku 4.5 and prints how many it got right. It reads the synthetic fixtures plus any real example emails you add later to `tests/fixtures/email/real/` (gitignored, so personal details never get committed). Running it spends a few cents, so it waits for your go-ahead; the deferral is logged in `docs/unresolved-issues.md` for the final sweep.
 
 Commit: `feat(email): Cloudflare Worker, setup docs and live eval`
 
@@ -191,5 +191,5 @@ Commit: `feat(email): Cloudflare Worker, setup docs and live eval`
    4. `curl` to a made-up address: 200 and nothing happens. Send the same email twice: one package.
    5. `curl` the Gmail confirmation fixture: the code shows in Settings.
    6. Regenerate the address: the old one is dropped.
-3. **Model accuracy** (needs your approval and `ANTHROPIC_API_KEY`): `npm run eval:email`. Everything above uses mocked model output, so this is the only check of what Haiku actually extracts.
+3. **Model accuracy: deferred** to the final sweep (see `docs/unresolved-issues.md`). Everything above uses mocked model output, so until `npm run eval:email` is run with real emails, what Haiku actually extracts is untested.
 4. **Real forwarding** (needs a domain): follow `docs/email-forwarding-setup.md`, forward a real order email from Gmail, and check the confirmation-code step.

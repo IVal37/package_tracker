@@ -107,6 +107,47 @@ describe("ShipmentDrawer", () => {
     expect(push).toHaveBeenCalledWith("/");
   });
 
+  it("closes to the given href, so a map-opened drawer returns to the map", async () => {
+    render(
+      <ShipmentDrawer
+        shipment={shipment}
+        checkpoints={[]}
+        now={NOW}
+        deleteAction={vi.fn(async () => {})}
+        closeHref="/?view=map"
+      />,
+    );
+    await userEvent.keyboard("{Escape}");
+    expect(push).toHaveBeenCalledWith("/?view=map");
+  });
+
+  it("labels the mode as a best guess, with its icon", () => {
+    render(
+      <ShipmentDrawer
+        shipment={shipment}
+        checkpoints={[]}
+        now={NOW}
+        deleteAction={vi.fn(async () => {})}
+        mode="plane"
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Moving by")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Plane", { selector: "span" }),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("(best guess)")).toBeInTheDocument();
+    expect(within(dialog).getByRole("img", { name: "Plane" })).toHaveAttribute(
+      "data-mode",
+      "plane",
+    );
+  });
+
+  it("leaves out the mode row when there is none", () => {
+    renderDrawer();
+    expect(screen.queryByText("Moving by")).not.toBeInTheDocument();
+  });
+
   it("asks for confirmation before deleting, and Cancel backs out", async () => {
     const { deleteAction } = renderDrawer();
 

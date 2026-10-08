@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { CheckpointRow, ShipmentRow } from "@/lib/db/shipments";
 import { formatEta } from "@/lib/shipments/format";
+import type { Mode } from "@/lib/tracking";
+import { ModeIcon, MODE_LABELS } from "./mode-icons";
 import { Modal } from "./modal";
 import { StatusChip } from "./status-chip";
 import { Timeline } from "./timeline";
@@ -14,18 +16,24 @@ interface ShipmentDrawerProps {
   checkpoints: CheckpointRow[];
   now: Date;
   deleteAction: (formData: FormData) => Promise<void>;
+  /** Where closing goes: the list, or the map, whichever it was opened from. */
+  closeHref?: string;
+  /** Best guess at how it is moving; omitted when unknown. */
+  mode?: Mode;
 }
 
-/** Detail drawer for one shipment. Closing it navigates back to the list. */
+/** Detail drawer for one shipment. Closing it navigates back to the view it came from. */
 export function ShipmentDrawer({
   shipment,
   checkpoints,
   now,
   deleteAction,
+  closeHref = "/",
+  mode,
 }: ShipmentDrawerProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
-  const close = useCallback(() => router.push("/"), [router]);
+  const close = useCallback(() => router.push(closeHref), [router, closeHref]);
 
   return (
     <Modal
@@ -44,6 +52,16 @@ export function ShipmentDrawer({
         </dd>
         <dt className="text-slate-500">Estimated delivery</dt>
         <dd>{formatEta(shipment.eta, now)}</dd>
+        {mode && (
+          <>
+            <dt className="text-slate-500">Moving by</dt>
+            <dd className="flex items-center gap-2">
+              <ModeIcon mode={mode} className="text-slate-600" />
+              <span>{MODE_LABELS[mode]}</span>
+              <span className="text-xs text-slate-500">(best guess)</span>
+            </dd>
+          </>
+        )}
       </dl>
 
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">

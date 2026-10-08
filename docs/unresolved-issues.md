@@ -17,6 +17,10 @@ Rule (also in `CLAUDE.md`): do not fix these mid-phase. Add the item here, say s
 | OpenFreeMap tiles have no SLA | Phase 4 | Phase 7 | Community-run. If it matters at launch, switch `MAP_STYLE_URL` in `src/lib/geo/map-style.ts` to a hosted style (a key would then be sent to the browser). |
 | Privacy policy must say location text goes to OpenStreetMap (geocoding) and map tile requests go to OpenFreeMap (the visitor's IP) | Phase 4 | Phase 7 | Only place text is sent to the geocoder: never names, street addresses or tracking numbers. |
 | A place whose geocode job failed for good is not queued again for up to 24 hours | Phase 4 | Phase 7 | Event ids are de-duplicated for 24 h. Add an alert (Sentry) for exhausted `geocode-place` retries. |
+| Privacy policy must say forwarded email text is sent to Anthropic (Claude) for reading and passes through Cloudflare, and that raw emails are kept 30 days | Phase 5 | Phase 7 | The model sees the email body, which can hold names and addresses. Nothing from an email is sent to the geocoder. |
+| Verify the three email jobs in production Inngest: `process-inbound-email`, `inbound-email-sweep` (hourly) and `inbound-email-cleanup` (daily) | Phase 5 | Phase 7 | Only run in tests and the dev server so far. |
+| Emails that could not be read show only as a count in Settings; no way to see or reprocess them | Phase 5 | Phase 7 | Also add an alert (Sentry) when `process-inbound-email` exhausts its retries. |
+| Per-user package cap and rate limiting beyond `INBOUND_DAILY_LIMIT` | Phase 5 | Phase 7 | Anyone who learns an alias can email it, so until then the daily cap is the only control on the Claude bill. |
 
 ## Final sweep (no phase yet)
 
@@ -32,4 +36,5 @@ Rule (also in `CLAUDE.md`): do not fix these mid-phase. Add the item here, say s
 | In development, adding a package waits up to 2 seconds if the Inngest dev server isn't running | Phase 4 | `requestGeocoding()` gives up after 2 s and logs a warning. Run `npm run jobs:dev` alongside `npm run dev`. |
 | The map is rebuilt (brief flash) whenever its data changes | Phase 4 | Intended trade-off for simplicity; a webhook arriving mid-view re-renders only on the next navigation anyway. |
 | What Claude Haiku 4.5 actually extracts from real order and shipping emails is untested | Phase 5 | The automated tests use a mocked model. Run `npm run eval:email` (a few cents; needs `ANTHROPIC_API_KEY`) with real example emails the user offered to share. Put redacted `.eml` or text files in `tests/fixtures/email/real/` (gitignored) so personal details are never committed; remove names, street addresses and phone numbers first. Also confirms the structured-output schema works with the installed Zod version. |
+| The Cloudflare Worker has never been deployed or run against Cloudflare | Phase 5 | Only its pure `handler.ts` is unit tested, and `index.ts` type-checks against Cloudflare's types. `npm install` in `workers/inbound-email/` warns that the `esbuild` and `workerd` install scripts were not run; the setup doc says to allow them before `wrangler deploy`. |
 | Real email forwarding hasn't been tried end to end | Phase 5 | Needs a domain and the Cloudflare Worker deployed (`docs/email-forwarding-setup.md`). Includes Gmail's forwarding-confirmation step. |

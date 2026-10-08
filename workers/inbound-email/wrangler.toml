@@ -1,0 +1,13 @@
+name = "wayfind-inbound-email"
+main = "index.ts"
+compatibility_date = "2025-01-01"
+
+# Email Routing delivers to this Worker through a custom address or catch-all
+# rule on in.<your domain>. See docs/email-forwarding-setup.md.
+
+[vars]
+# The app's public origin, no trailing path. Change it to your own.
+APP_URL = "https://wayfind.example"
+
+# The shared secret is not stored here. Set it with:
+#   npx wrangler secret put INBOUND_WEBHOOK_SECRET

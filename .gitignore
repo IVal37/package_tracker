@@ -22,3 +22,6 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# real example emails for npm run eval:email stay local (may hold personal details)
+/tests/fixtures/email/real/

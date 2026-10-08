@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "eval:email": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run --config vitest.eval.config.mts",
     "jobs:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest"
   },
   "dependencies": {

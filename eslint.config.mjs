@@ -147,6 +147,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "coverage/**",
     "public/**",
+    // Needs the Worker's own packages; its logic is in handler.ts.
+    "workers/*/index.ts",
     "next-env.d.ts",
   ]),
 ]);

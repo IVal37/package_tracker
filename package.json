@@ -19,6 +19,7 @@
     "jobs:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "drizzle-orm": "^0.45.3",

@@ -23,6 +23,8 @@ const shipment: ShipmentRow = {
   archivedAt: null,
   createdAt: NOW,
   updatedAt: NOW,
+  destinationText: null,
+  destinationKey: null,
   lastSyncedAt: NOW,
 };
 
@@ -35,9 +37,7 @@ const checkpoint = (id: string, hour: number): CheckpointRow => ({
   status: "InTransit",
   message: `message ${id}`,
   locationText: `place ${id}`,
-  lat: null,
-  lng: null,
-  mode: null,
+  locationKey: null,
   createdAt: NOW,
 });
 

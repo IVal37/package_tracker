@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   doublePrecision,
   index,
   integer,
@@ -12,10 +13,9 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 // Relative import: drizzle-kit loads this file outside Next/Vitest, so no "@/" alias.
-import { MODES, STATUSES } from "../tracking/status";
+import { STATUSES } from "../tracking/status";
 
 export const shipmentStatus = pgEnum("shipment_status", STATUSES);
-export const transportMode = pgEnum("transport_mode", MODES);
 export const parseStatus = pgEnum("parse_status", [
   "pending",
   "parsed",
@@ -24,6 +24,17 @@ export const parseStatus = pgEnum("parse_status", [
 ]);
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
+
+/**
+ * The key a free-text place is cached under: trimmed, lower-cased, inner
+ * whitespace collapsed; null when blank. Computed by Postgres (generated
+ * columns), so there is one definition and existing rows are backfilled. A
+ * place geocoded later shows up on every shipment that mentions it.
+ */
+const placeKeySql = (column: string) =>
+  sql.raw(
+    `nullif(lower(regexp_replace(trim(${column}), '[[:space:]]+', ' ', 'g')), '')`,
+  );
 
 // RLS is enabled on every table with no policies: Supabase's Data API
 // (anon/authenticated roles) is denied everything. The app itself connects as
@@ -50,6 +61,11 @@ export const shipments = pgTable(
     status: shipmentStatus("status").notNull().default("Pending"),
     eta: timestamptz("eta"),
     lastEventAt: timestamptz("last_event_at"),
+    // Geocodable text for where the parcel is going (city, postcode, country).
+    destinationText: text("destination_text"),
+    destinationKey: text("destination_key").generatedAlwaysAs(
+      placeKeySql("destination_text"),
+    ),
     // When we last asked the provider (webhook or re-fetch), as opposed to
     // last_event_at, which is when the courier last scanned the parcel.
     lastSyncedAt: timestamptz("last_synced_at").notNull().defaultNow(),
@@ -88,9 +104,10 @@ export const checkpoints = pgTable(
     status: shipmentStatus("status").notNull(),
     message: text("message"),
     locationText: text("location_text"),
-    lat: doublePrecision("lat"),
-    lng: doublePrecision("lng"),
-    mode: transportMode("mode"),
+    // Joins to places.query_key. Coordinates live in places, not here.
+    locationKey: text("location_key").generatedAlwaysAs(
+      placeKeySql("location_text"),
+    ),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -99,17 +116,30 @@ export const checkpoints = pgTable(
       t.providerEventId,
     ),
     index("checkpoints_shipment_occurred_idx").on(t.shipmentId, t.occurredAt),
+    index("checkpoints_location_key_idx").on(t.locationKey),
   ],
 ).enableRLS();
 
-export const places = pgTable("places", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  queryKey: text("query_key").notNull().unique(),
-  lat: doublePrecision("lat").notNull(),
-  lng: doublePrecision("lng").notNull(),
-  displayName: text("display_name"),
-  createdAt: timestamptz("created_at").notNull().defaultNow(),
-}).enableRLS();
+// A global geocode cache, not user data. lat/lng both null means "looked up,
+// nothing found": un-geocodable text is remembered so it is never retried.
+export const places = pgTable(
+  "places",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    queryKey: text("query_key").notNull().unique(),
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    displayName: text("display_name"),
+    geocoder: text("geocoder").notNull().default("unknown"),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "places_lat_lng_both_or_neither",
+      sql`(${t.lat} is null) = (${t.lng} is null)`,
+    ),
+  ],
+).enableRLS();
 
 export const inboundEmails = pgTable(
   "inbound_emails",

@@ -45,6 +45,8 @@ const item = (
   archivedAt: null,
   createdAt: NOW,
   updatedAt: NOW,
+  destinationText: null,
+  destinationKey: null,
   lastSyncedAt: NOW,
   lastCheckpoint: null,
 });

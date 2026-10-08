@@ -22,6 +22,20 @@
       "when": 1791422499462,
       "tag": "0002_flat_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791426879562,
+      "tag": "0003_ambitious_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791426893983,
+      "tag": "0004_bouncy_lyja",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,2 @@
+ALTER TABLE "checkpoints" ADD COLUMN "location_key" text GENERATED ALWAYS AS (nullif(lower(regexp_replace(trim(location_text), '[[:space:]]+', ' ', 'g')), '')) STORED;--> statement-breakpoint
+CREATE INDEX "checkpoints_location_key_idx" ON "checkpoints" USING btree ("location_key");

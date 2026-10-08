@@ -7,7 +7,7 @@ import {
   insertShipment,
   insertUser,
 } from "../../../tests/db/pglite";
-import { checkpoints, inboundEmails, shipments, users } from "./schema";
+import { checkpoints, inboundEmails, places, shipments, users } from "./schema";
 
 let ctx: Awaited<ReturnType<typeof createTestDb>>;
 
@@ -94,6 +94,105 @@ describe("schema (PGlite)", () => {
     expect(archive?.indexdef).toMatch(/WHERE .*Delivered/);
     expect(sync?.indexname).toBe("shipments_sync_due_idx");
     expect(sync?.indexdef).toMatch(/WHERE .*archived_at IS NULL/);
+  });
+
+  it("no longer stores coordinates or a mode on checkpoints", async () => {
+    const columns = await ctx.client.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_name = 'checkpoints'`,
+    );
+    const names = columns.rows.map((r) => r.column_name);
+    expect(names).toContain("location_key");
+    expect(names).not.toContain("lat");
+    expect(names).not.toContain("lng");
+    expect(names).not.toContain("mode");
+
+    const enums = await ctx.client.query<{ typname: string }>(
+      `select typname from pg_type where typname = 'transport_mode'`,
+    );
+    expect(enums.rows).toHaveLength(0);
+  });
+
+  describe("place keys", () => {
+    const cases: [string, string | null, string | null][] = [
+      ["lower-cases", "MEMPHIS, TN", "memphis, tn"],
+      ["trims the ends", "  Chicago, IL  ", "chicago, il"],
+      [
+        "collapses inner whitespace",
+        "San   Rafael,\tCA\n94901",
+        "san rafael, ca 94901",
+      ],
+      [
+        "keeps punctuation and digits",
+        "LOS ANGELES INTERNATIONAL AIRPORT, CA",
+        "los angeles international airport, ca",
+      ],
+      ["is null for blank text", "   ", null],
+      ["is null for empty text", "", null],
+      ["is null for null text", null, null],
+    ];
+
+    it.each(cases)("checkpoint location_key %s", async (_name, text, key) => {
+      const user = await insertUser(ctx.db);
+      const shipment = await insertShipment(ctx.db, user.id);
+      const [row] = await ctx.db
+        .insert(checkpoints)
+        .values({
+          ...checkpointValues(shipment.id, `key-${Math.random()}`),
+          locationText: text,
+        })
+        .returning();
+      expect(row?.locationKey).toBe(key);
+    });
+
+    it("shipment destination_key uses the same rule", async () => {
+      const user = await insertUser(ctx.db);
+      const [row] = await ctx.db
+        .insert(shipments)
+        .values({
+          userId: user.id,
+          trackingNumber: `DEST-${Math.random()}`,
+          provider: "fake",
+          destinationText: "  Oakland,  CA 94601 ",
+        })
+        .returning();
+      expect(row?.destinationKey).toBe("oakland, ca 94601");
+    });
+
+    it("indexes checkpoints.location_key", async () => {
+      const result = await ctx.client.query(
+        `select 1 from pg_indexes where indexname = 'checkpoints_location_key_idx'`,
+      );
+      expect(result.rows).toHaveLength(1);
+    });
+  });
+
+  describe("places", () => {
+    it("accepts a hit and a remembered miss", async () => {
+      await expect(
+        ctx.db.insert(places).values([
+          { queryKey: "hit-1", lat: 41.88, lng: -87.63, geocoder: "fake" },
+          { queryKey: "miss-1", lat: null, lng: null, geocoder: "fake" },
+        ]),
+      ).resolves.toBeDefined();
+    });
+
+    it("rejects a half-filled place", async () => {
+      await expect(
+        ctx.db.insert(places).values({ queryKey: "half-1", lat: 1, lng: null }),
+      ).rejects.toThrow();
+      await expect(
+        ctx.db.insert(places).values({ queryKey: "half-2", lat: null, lng: 1 }),
+      ).rejects.toThrow();
+    });
+
+    it("records which geocoder answered, defaulting to unknown", async () => {
+      const [row] = await ctx.db
+        .insert(places)
+        .values({ queryKey: "default-geocoder", lat: 1, lng: 1 })
+        .returning();
+      expect(row?.geocoder).toBe("unknown");
+    });
   });
 
   it("defaults shipment status to Pending", async () => {

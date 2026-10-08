@@ -60,6 +60,23 @@ describe("createTracking", () => {
     );
   });
 
+  it("builds the destination from city, region, postcode and country only", async () => {
+    const shipment = await provider.createTracking({
+      trackingNumber: VALID_NUMBER,
+    });
+    expect(shipment.destination).toBe("SAN RAFAEL, CA, 94901, US");
+    // The fixture's recipient name and street must never reach our model.
+    expect(JSON.stringify(shipment)).not.toContain("Jane");
+    expect(JSON.stringify(shipment)).not.toContain("Main Street");
+  });
+
+  it("falls back to the destination country when there is no recipient", async () => {
+    const shipment = await provider.createTracking({
+      trackingNumber: DELIVERED_NUMBER,
+    });
+    expect(shipment.destination).toBe("US");
+  });
+
   it("returns events newest first, with offset-less and date-only dates as UTC", async () => {
     const { events } = await provider.createTracking({
       trackingNumber: VALID_NUMBER,

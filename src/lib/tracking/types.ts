@@ -20,6 +20,9 @@ export const normalizedShipmentSchema = z.object({
   status: z.enum(STATUSES),
   eta: z.date().nullable(),
   lastEventAt: z.date().nullable(),
+  // Where it is going, as geocodable text ("SAN RAFAEL, CA, 94901, US"): city,
+  // region, postcode and country only, never the recipient's name or street.
+  destination: z.string().nullable(),
   // Newest first, de-duplicated by providerEventId.
   events: z.array(normalizedEventSchema),
 });

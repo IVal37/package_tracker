@@ -77,6 +77,7 @@ export async function addShipment(params: {
         status: tracked.status,
         eta: tracked.eta,
         lastEventAt: tracked.lastEventAt,
+        destinationText: tracked.destination,
       },
       tracked.events,
     );

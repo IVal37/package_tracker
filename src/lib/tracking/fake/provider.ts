@@ -38,6 +38,8 @@ interface Scenario {
   status: Status;
   /** Hours from creation until the ETA; null for no ETA. */
   etaInHours: number | null;
+  /** Geocodable destination text. */
+  destination: string;
   /** Newest first. */
   events: EventSpec[];
 }
@@ -53,6 +55,7 @@ const SCENARIOS: Record<string, Scenario> = {
   TRANSIT: {
     status: "InTransit",
     etaInHours: 48,
+    destination: "SAN FRANCISCO, CA, US",
     events: [
       {
         hoursAgo: 6,
@@ -72,6 +75,7 @@ const SCENARIOS: Record<string, Scenario> = {
   OFD: {
     status: "OutForDelivery",
     etaInHours: 8,
+    destination: "SAN FRANCISCO, CA, US",
     events: [
       {
         hoursAgo: 1,
@@ -91,6 +95,7 @@ const SCENARIOS: Record<string, Scenario> = {
   DELIVERED: {
     status: "Delivered",
     etaInHours: null,
+    destination: "SAN FRANCISCO, CA, US",
     events: [
       {
         hoursAgo: 2,
@@ -122,6 +127,7 @@ const SCENARIOS: Record<string, Scenario> = {
   EXCEPTION: {
     status: "Exception",
     etaInHours: null,
+    destination: "DENVER, CO, US",
     events: [
       {
         hoursAgo: 4,
@@ -138,11 +144,18 @@ const SCENARIOS: Record<string, Scenario> = {
       infoReceived(72),
     ],
   },
-  PENDING: { status: "Pending", etaInHours: null, events: [] },
-  // Airport wording gives Phase 4's inferMode() something to match.
+  // No events, but a destination: the map shows a destination pin.
+  PENDING: {
+    status: "Pending",
+    etaInHours: null,
+    destination: "PORTLAND, OR, US",
+    events: [],
+  },
+  // Airport wording gives inferMode() something to match.
   AIR: {
     status: "InTransit",
     etaInHours: 72,
+    destination: "SAN DIEGO, CA, US",
     events: [
       {
         hoursAgo: 6,
@@ -179,6 +192,7 @@ const fakeWebhookSchema = z.object({
     normalizedShipmentSchema.extend({
       eta: z.coerce.date().nullable(),
       lastEventAt: z.coerce.date().nullable(),
+      destination: z.string().nullable().default(null),
       events: z.array(
         normalizedEventSchema.extend({ occurredAt: z.coerce.date() }),
       ),
@@ -278,6 +292,7 @@ export class FakeProvider implements TrackingProvider {
           ? null
           : new Date(created.getTime() + scenario.etaInHours * HOUR_MS),
       lastEventAt: events[0]?.occurredAt ?? null,
+      destination: scenario.destination,
       events,
     };
   }

@@ -18,6 +18,13 @@
           "statusMilestone": "in_transit",
           "originCountryCode": "CN",
           "destinationCountryCode": "US",
+          "recipient": {
+            "name": "Jane Q. Recipient",
+            "address": "123 Main Street, Apt 4",
+            "postCode": "94901",
+            "city": "SAN RAFAEL",
+            "subdivision": "CA"
+          },
           "delivery": {
             "estimatedDeliveryDate": "2021-03-05T17:00:00.000Z",
             "courierEstimatedDeliveryDate": {

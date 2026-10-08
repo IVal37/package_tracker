@@ -12,6 +12,7 @@ import type {
 } from "../types";
 import { verifyBearerSecret } from "../webhook-auth";
 import { ship24Request, type Ship24ClientConfig } from "./client";
+import { ship24Destination } from "./destination";
 import {
   ship24TrackingsResponseSchema,
   ship24WebhookSchema,
@@ -54,6 +55,7 @@ function toNormalizedShipment(tracking: Ship24Tracking): NormalizedShipment {
     ),
     eta: etaText ? parseLogisticsDate(etaText) : null,
     lastEventAt: events[0]?.occurredAt ?? null,
+    destination: ship24Destination(tracking.shipment),
     events,
   };
 }

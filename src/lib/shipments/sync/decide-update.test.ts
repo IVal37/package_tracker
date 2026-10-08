@@ -31,6 +31,7 @@ const incoming = (
   status,
   eta,
   lastEventAt: hours[0] === undefined ? null : at(hours[0]),
+  destination: null,
   events: hours.map((h) => event(h, status)),
 });
 

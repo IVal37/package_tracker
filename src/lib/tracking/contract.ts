@@ -59,6 +59,10 @@ export function runProviderContract(
 
       expect(normalizedShipmentSchema.safeParse(shipment).success).toBe(true);
       expect(shipment.providerTrackerId).not.toBe("");
+      // Geocodable text or null; never an empty string.
+      expect(
+        shipment.destination === null || shipment.destination.trim() !== "",
+      ).toBe(true);
       expectNewestFirstAndUnique(shipment);
       expect(shipment.lastEventAt).toEqual(
         shipment.events[0]?.occurredAt ?? null,

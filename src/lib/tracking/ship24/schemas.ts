@@ -28,9 +28,19 @@ const ship24DeliverySchema = z.object({
     .nullish(),
 });
 
+// Only the non-identifying parts of the recipient; name and street address are
+// deliberately not declared, so zod strips them.
+const ship24RecipientSchema = z.object({
+  city: nullableString,
+  subdivision: nullableString,
+  postCode: nullableString,
+});
+
 export const ship24ShipmentSchema = z.object({
   statusCode: nullableString,
   statusMilestone: z.string(),
+  destinationCountryCode: nullableString,
+  recipient: ship24RecipientSchema.nullish(),
   delivery: ship24DeliverySchema.nullish(),
 });
 

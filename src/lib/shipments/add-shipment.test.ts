@@ -87,6 +87,16 @@ describe("addShipment: success", () => {
     expect(detail?.checkpoints).toHaveLength(3);
   });
 
+  it("stores the provider's destination text", async () => {
+    const user = await insertUser(ctx.db);
+    const result = await add(user.id, { trackingNumber: "FAKE-PENDING-1" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const detail = await getShipmentDetail(ctx.db, user.id, result.shipmentId);
+    expect(detail?.shipment.destinationText).toBe("PORTLAND, OR, US");
+    expect(detail?.shipment.destinationKey).toBe("portland, or, us");
+  });
+
   it("stores a null nickname when none is given", async () => {
     const user = await insertUser(ctx.db);
     const result = await add(user.id, { trackingNumber: "FAKE-TRANSIT-1" });

@@ -30,6 +30,27 @@ describe("FakeProvider scenarios", () => {
     expect(shipment.events).toHaveLength(eventCount);
   });
 
+  it.each([
+    ["FAKE-TRANSIT-1", "SAN FRANCISCO, CA, US"],
+    ["FAKE-OFD-1", "SAN FRANCISCO, CA, US"],
+    ["FAKE-DELIVERED-1", "SAN FRANCISCO, CA, US"],
+    ["FAKE-EXCEPTION-1", "DENVER, CO, US"],
+    ["FAKE-PENDING-1", "PORTLAND, OR, US"],
+    ["FAKE-AIR-1", "SAN DIEGO, CA, US"],
+    ["PLAINNUMBER123", "SAN FRANCISCO, CA, US"],
+  ])("%s heads to %s", async (number, destination) => {
+    const shipment = await make().createTracking({ trackingNumber: number });
+    expect(shipment.destination).toBe(destination);
+  });
+
+  it("a pending package has a destination but no events (destination-pin case)", async () => {
+    const shipment = await make().createTracking({
+      trackingNumber: "FAKE-PENDING-1",
+    });
+    expect(shipment.events).toHaveLength(0);
+    expect(shipment.destination).not.toBeNull();
+  });
+
   it("throws InvalidTrackingNumberError for FAKE-INVALID-*", async () => {
     await expect(
       make().createTracking({ trackingNumber: "FAKE-INVALID-1" }),

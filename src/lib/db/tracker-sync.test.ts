@@ -82,6 +82,7 @@ const update = (
   trackerId: string,
   status: Status,
   events: NormalizedEvent[],
+  destination: string | null = null,
 ): NormalizedShipment => ({
   providerTrackerId: trackerId,
   trackingNumber: "IGNORED",
@@ -89,6 +90,7 @@ const update = (
   status,
   eta: null,
   lastEventAt: events[0]?.occurredAt ?? null,
+  destination,
   events,
 });
 
@@ -163,6 +165,40 @@ describe("applyTrackerUpdate", () => {
     expect(reloaded.status).toBe("OutForDelivery");
     expect(reloaded.lastEventAt).toEqual(ago(1000));
     expect(await eventsOf(row.id)).toHaveLength(2);
+  });
+
+  it("stores the destination, and a later update without one keeps it", async () => {
+    const user = await insertUser(ctx.db);
+    const row = await addShipment({ userId: user.id });
+    const trackerId = row.providerTrackerId!;
+
+    await applyTrackerUpdate(
+      ctx.db,
+      "fake",
+      update(trackerId, "InTransit", [], "SAN RAFAEL, CA, 94901, US"),
+      NOW,
+    );
+    expect((await reload(row.id)).destinationText).toBe(
+      "SAN RAFAEL, CA, 94901, US",
+    );
+
+    await applyTrackerUpdate(
+      ctx.db,
+      "fake",
+      update(trackerId, "InTransit", [], null),
+      NOW,
+    );
+    expect((await reload(row.id)).destinationText).toBe(
+      "SAN RAFAEL, CA, 94901, US",
+    );
+
+    await applyTrackerUpdate(
+      ctx.db,
+      "fake",
+      update(trackerId, "InTransit", [], "OAKLAND, CA, US"),
+      NOW,
+    );
+    expect((await reload(row.id)).destinationText).toBe("OAKLAND, CA, US");
   });
 
   it("does nothing for an unknown tracker", async () => {

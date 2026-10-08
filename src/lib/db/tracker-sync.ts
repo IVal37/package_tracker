@@ -67,7 +67,14 @@ export async function applyTrackerUpdate(
       newCheckpoints += await insertCheckpoints(tx, row.id, incoming.events);
       await tx
         .update(shipments)
-        .set({ ...decideShipmentUpdate(row, incoming, now), updatedAt: now })
+        .set({
+          ...decideShipmentUpdate(row, incoming, now),
+          updatedAt: now,
+          // A provider that drops the destination doesn't erase what we have.
+          ...(incoming.destination && {
+            destinationText: incoming.destination,
+          }),
+        })
         .where(eq(shipments.id, row.id));
     }
     return { shipments: rows.length, newCheckpoints };

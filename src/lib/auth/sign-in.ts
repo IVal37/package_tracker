@@ -28,14 +28,21 @@ export async function requestMagicLink(
   return error ? { ok: false, error: "send_failed" } : { ok: true };
 }
 
-/** Starts the Google flow and returns the URL to send the browser to. */
+/**
+ * Starts the Google flow and returns the URL to send the browser to.
+ * `select_account` makes Google show its account picker every time, so after
+ * signing out the user isn't silently signed back in with the same account.
+ */
 export async function startGoogleSignIn(
   supabase: AuthClient,
   appUrl: string,
 ): Promise<OAuthResult> {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: callbackUrl(appUrl) },
+    options: {
+      redirectTo: callbackUrl(appUrl),
+      queryParams: { prompt: "select_account" },
+    },
   });
   return error || !data.url ? { ok: false } : { ok: true, url: data.url };
 }

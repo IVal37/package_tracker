@@ -53,7 +53,7 @@ describe("requestMagicLink", () => {
 });
 
 describe("startGoogleSignIn", () => {
-  it("requests the google provider with the callback redirect", async () => {
+  it("requests the google provider with the callback redirect and account picker", async () => {
     const client = fakeClient({
       signInWithOAuth: vi.fn().mockResolvedValue({
         data: { url: "https://accounts.google.test/x" },
@@ -66,7 +66,10 @@ describe("startGoogleSignIn", () => {
     });
     expect(client.auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
-      options: { redirectTo: `${APP_URL}/auth/callback` },
+      options: {
+        redirectTo: `${APP_URL}/auth/callback`,
+        queryParams: { prompt: "select_account" },
+      },
     });
   });
 

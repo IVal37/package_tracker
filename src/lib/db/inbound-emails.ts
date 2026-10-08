@@ -1,6 +1,7 @@
 // Stored inbound emails. Every function takes the userId the email belongs to
 // (found from its address by the webhook) and filters by it.
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt } from "drizzle-orm";
+import { z } from "zod";
 import type { Db } from "./client";
 import { inboundEmails } from "./schema";
 import { isUniqueViolation } from "./shipments";
@@ -12,6 +13,62 @@ export interface NewInboundEmail {
   fromAddress: string | null;
   subject: string | null;
   receivedAt: Date;
+}
+
+const gmailConfirmationSchema = z.object({
+  kind: z.literal("gmail_forwarding_confirmation"),
+  code: z.string().regex(/^\d{6,10}$/),
+});
+
+/**
+ * The newest Gmail forwarding confirmation code this user received since the
+ * given moment, for the Settings page. Only the digits are ever stored.
+ */
+export async function latestGmailConfirmation(
+  db: Db,
+  userId: string,
+  since: Date,
+): Promise<{ code: string; receivedAt: Date } | null> {
+  const rows = await db
+    .select({
+      extracted: inboundEmails.extracted,
+      receivedAt: inboundEmails.receivedAt,
+    })
+    .from(inboundEmails)
+    .where(
+      and(
+        eq(inboundEmails.userId, userId),
+        eq(inboundEmails.parseStatus, "ignored"),
+        gt(inboundEmails.receivedAt, since),
+      ),
+    )
+    .orderBy(desc(inboundEmails.receivedAt))
+    .limit(20);
+
+  for (const row of rows) {
+    const parsed = gmailConfirmationSchema.safeParse(row.extracted);
+    if (parsed.success) {
+      return { code: parsed.data.code, receivedAt: row.receivedAt };
+    }
+  }
+  return null;
+}
+
+/** How many of this user's emails could not be read. */
+export async function countFailedEmails(
+  db: Db,
+  userId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(inboundEmails)
+    .where(
+      and(
+        eq(inboundEmails.userId, userId),
+        eq(inboundEmails.parseStatus, "failed"),
+      ),
+    );
+  return row?.total ?? 0;
 }
 
 /** How many emails this user received since the given moment. */

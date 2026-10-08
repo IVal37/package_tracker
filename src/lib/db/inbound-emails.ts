@@ -50,6 +50,32 @@ export async function hasMessageId(
 }
 
 /**
+ * Records what became of a pending email. Only a pending email can be
+ * finished, so a second run cannot overwrite the first result. Returns whether
+ * a row changed.
+ */
+export async function finishEmail(
+  db: Db,
+  userId: string,
+  emailId: string,
+  status: "parsed" | "ignored" | "failed",
+  extracted: unknown,
+): Promise<boolean> {
+  const updated = await db
+    .update(inboundEmails)
+    .set({ parseStatus: status, extracted })
+    .where(
+      and(
+        eq(inboundEmails.id, emailId),
+        eq(inboundEmails.userId, userId),
+        eq(inboundEmails.parseStatus, "pending"),
+      ),
+    )
+    .returning({ id: inboundEmails.id });
+  return updated.length > 0;
+}
+
+/**
  * Stores an email for the user and returns its id, or null if the same
  * Message-ID is already stored for them (also when two deliveries race).
  */

@@ -45,7 +45,7 @@ export type NewShipment = Pick<
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Postgres rejects a malformed uuid with an error; treat it as "not found". */
-const isUuid = (value: string) => UUID.test(value);
+export const isUuid = (value: string) => UUID.test(value);
 
 /** True for a Postgres unique-constraint violation, however the driver wraps it. */
 export function isUniqueViolation(error: unknown): boolean {

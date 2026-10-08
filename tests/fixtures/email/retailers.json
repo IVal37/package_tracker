@@ -1,0 +1,355 @@
+[
+  {
+    "name": "amazon-order",
+    "email": {
+      "from": "Amazon.com <auto-confirm@amazon.com>",
+      "subject": "Your Amazon.com order of Merino running socks.",
+      "text": "Hello Sam,\nThank you for shopping with us. We'll send a confirmation when your item ships.\n\nOrder #112-4455667-8899001\nArriving: Thursday, June 25\nMerino running socks (3 pairs)\nOrder Total: $38.97\n"
+    },
+    "model": {
+      "email_type": "order_confirmation",
+      "retailer": "Amazon",
+      "item": "Merino running socks",
+      "order_number": "112-4455667-8899001",
+      "tracking_numbers": []
+    },
+    "expect": { "shipments": [], "placeholders": 1, "shippedOrders": 0 }
+  },
+  {
+    "name": "amazon-shipped",
+    "email": {
+      "from": "Amazon.com <shipment-tracking@amazon.com>",
+      "subject": "Shipped: Merino running socks",
+      "text": "Hello Sam,\nYour package has shipped.\n\nCarrier: Amazon Logistics\nTracking ID: TBA309876543210\nOrder #112-4455667-8899001\nArriving Thursday, June 25\nMerino running socks (3 pairs)\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Amazon.com",
+      "item": "Merino running socks",
+      "order_number": "112-4455667-8899001",
+      "tracking_numbers": [
+        { "tracking_number": "TBA309876543210", "carrier": "Amazon Logistics" }
+      ]
+    },
+    "expect": {
+      "shipments": ["TBA309876543210"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "amazon-two-packages",
+    "email": {
+      "from": "Amazon.com <shipment-tracking@amazon.com>",
+      "subject": "Your packages have shipped",
+      "text": "Hello Sam,\nYour order will arrive in 2 packages.\n\nPackage 1 of 2 - Tracking ID: TBA301111111111\nPackage 2 of 2 - Tracking ID: TBA302222222222\nOrder #113-9988776-5544332\nTrail socks, Water bottle, Headlamp\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Amazon",
+      "item": "Trail socks + 2 more items",
+      "order_number": "113-9988776-5544332",
+      "tracking_numbers": [
+        { "tracking_number": "TBA301111111111", "carrier": "Amazon Logistics" },
+        { "tracking_number": "TBA302222222222", "carrier": "Amazon Logistics" }
+      ]
+    },
+    "expect": {
+      "shipments": ["TBA301111111111", "TBA302222222222"],
+      "placeholders": 0,
+      "shippedOrders": 2
+    }
+  },
+  {
+    "name": "target-shipped",
+    "email": {
+      "from": "Target <orders@oe1.target.com>",
+      "subject": "Your Target order has shipped",
+      "text": "Hi Sam, good news! Your order #102003004567890 is on its way.\n\nDesk lamp, white  Qty: 1\n\nShipped via USPS\nTracking number: 9400111899223197428490\nEstimated delivery: June 27\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Target",
+      "item": "Desk lamp",
+      "order_number": "102003004567890",
+      "tracking_numbers": [
+        { "tracking_number": "9400111899223197428490", "carrier": "USPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["9400111899223197428490"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "walmart-shipped",
+    "email": {
+      "from": "Walmart.com <help@walmart.com>",
+      "subject": "Your order has shipped",
+      "text": "Hi Sam,\nYour Walmart.com order 2000123-456789 has shipped.\n\nCast iron skillet, 12 inch\nCarrier: FedEx\nFedEx tracking number: 770123456789\nExpected delivery: Fri, Jun 26\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Walmart",
+      "item": "Cast iron skillet, 12 inch",
+      "order_number": "2000123-456789",
+      "tracking_numbers": [
+        { "tracking_number": "770123456789", "carrier": "FedEx" }
+      ]
+    },
+    "expect": {
+      "shipments": ["770123456789"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "ebay-shipped",
+    "email": {
+      "from": "eBay <ebay@ebay.com>",
+      "subject": "Your item has shipped: Vintage 50mm camera lens",
+      "text": "Hi sam_k,\nThe seller has shipped your item.\n\nVintage 50mm camera lens\nOrder number: 27-12345-67890\nShipping service: USPS Ground Advantage\nTracking number: 9261290100130456018766\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "eBay",
+      "item": "Vintage 50mm camera lens",
+      "order_number": "27-12345-67890",
+      "tracking_numbers": [
+        { "tracking_number": "9261290100130456018766", "carrier": "USPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["9261290100130456018766"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "bestbuy-order",
+    "email": {
+      "from": "Best Buy <BestBuyInfo@emailinfo.bestbuy.com>",
+      "subject": "Thanks for your order, Sam",
+      "text": "We've received your order.\n\nOrder number: BBY01-806123456789\n27-inch 4K monitor  Qty: 1\nItem total: $329.99\n\nWe'll email you again as soon as your order ships.\n"
+    },
+    "model": {
+      "email_type": "order_confirmation",
+      "retailer": "Best Buy",
+      "item": "27-inch 4K monitor",
+      "order_number": "BBY01-806123456789",
+      "tracking_numbers": []
+    },
+    "expect": { "shipments": [], "placeholders": 1, "shippedOrders": 0 }
+  },
+  {
+    "name": "bestbuy-shipped",
+    "email": {
+      "from": "Best Buy <BestBuyInfo@emailinfo.bestbuy.com>",
+      "subject": "Your Best Buy order has shipped",
+      "text": "Sam, your order is on its way.\n\nOrder number: BBY01-806123456789\nShipped with UPS\nUPS tracking number: 1Z999AA10123456784\nDelivery estimate: Mon, Jun 29\n",
+      "html": "<html><body><p>Sam, your order is on its way.</p><p>Order number: BBY01-806123456789</p><p>Shipped with UPS</p><p><a href=\"https://wwwapps.ups.com/WebTracking/track?tracknum=1Z999AA10123456784\">Track your package</a></p></body></html>"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Best Buy",
+      "item": "27-inch 4K monitor",
+      "order_number": "BBY01-806123456789",
+      "tracking_numbers": [
+        { "tracking_number": "1Z999AA10123456784", "carrier": "UPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["1Z999AA10123456784"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "etsy-shipped",
+    "email": {
+      "from": "Etsy Transactions <transaction@etsy.com>",
+      "subject": "Your order from WoodlandStudio has shipped",
+      "text": "Hi Sam, WoodlandStudio shipped your order!\n\nHand-carved spoon set\nOrder #3012345678\nCarrier: USPS\nTracking number: 9405 5118 9922 3197 4284 91\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Etsy",
+      "item": "Hand-carved spoon set",
+      "order_number": "3012345678",
+      "tracking_numbers": [
+        { "tracking_number": "9405 5118 9922 3197 4284 91", "carrier": "USPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["9405511899223197428491"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "apple-shipped",
+    "email": {
+      "from": "Apple <no_reply@email.apple.com>",
+      "subject": "Your order is on its way",
+      "text": "Your order is on its way.\n\nOrder Number: W1234567890\nUSB-C charge cable (2 m)\nCarrier: FedEx\nTracking Number: 6129 3218 5412\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Apple",
+      "item": "USB-C charge cable (2 m)",
+      "order_number": "W1234567890",
+      "tracking_numbers": [
+        { "tracking_number": "612932185412", "carrier": "FedEx" }
+      ]
+    },
+    "expect": {
+      "shipments": ["612932185412"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "nike-shipped",
+    "email": {
+      "from": "Nike <nike@notifications.nike.com>",
+      "subject": "It's on its way: your Nike order",
+      "text": "Get ready, Sam. Your order is on its way.\n\nOrder No.: C01234567890\nPegasus 41 road running shoes, size 10\nCarrier: UPS\nTracking Number: 1Z12E46A0398765435\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Nike",
+      "item": "Pegasus 41 road running shoes",
+      "order_number": "C01234567890",
+      "tracking_numbers": [
+        { "tracking_number": "1Z12E46A0398765435", "carrier": "UPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["1Z12E46A0398765435"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "homedepot-shipped",
+    "email": {
+      "from": "The Home Depot <HomeDepotCustomerCare@homedepot.com>",
+      "subject": "Your order has shipped",
+      "text": "Your Home Depot order W123456789 has shipped.\n\nCordless drill, 18V\nFedEx Ground tracking number: 273125000123456\nEstimated arrival: Jun 30\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "The Home Depot",
+      "item": "Cordless drill, 18V",
+      "order_number": "W123456789",
+      "tracking_numbers": [
+        { "tracking_number": "273125000123456", "carrier": "FedEx" }
+      ]
+    },
+    "expect": {
+      "shipments": ["273125000123456"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "shopify-one-order",
+    "email": {
+      "from": "Trail & Tide <orders@trailandtide.example>",
+      "subject": "Order #1001 confirmed",
+      "text": "Thank you for your purchase!\n\nOrder #1001\nCanvas day pack  Qty 1  $64.00\nSubtotal $64.00\n\nWe'll let you know when your order ships.\n"
+    },
+    "model": {
+      "email_type": "order_confirmation",
+      "retailer": "Trail & Tide",
+      "item": "Canvas day pack",
+      "order_number": "#1001",
+      "tracking_numbers": []
+    },
+    "expect": { "shipments": [], "placeholders": 1, "shippedOrders": 0 }
+  },
+  {
+    "name": "shopify-one-shipped",
+    "email": {
+      "from": "Trail & Tide <orders@trailandtide.example>",
+      "subject": "A shipment from order #1001 is on the way",
+      "text": "Your order is on the way. Track your shipment to see the delivery status.\n\nOrder #1001\nCanvas day pack  Qty 1\nUSPS tracking number: 9205590123456789012345\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Trail & Tide",
+      "item": "Canvas day pack",
+      "order_number": "#1001",
+      "tracking_numbers": [
+        { "tracking_number": "9205590123456789012345", "carrier": "USPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["9205590123456789012345"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "shopify-two-order",
+    "email": {
+      "from": "Moss & Pine <hello@mossandpine.example>",
+      "subject": "Order #1001 confirmed",
+      "text": "Thanks for shopping with Moss & Pine.\n\nOrder #1001\nLinen napkins, set of 4  Qty 2  $48.00\n\nWe'll send tracking as soon as it's packed.\n"
+    },
+    "model": {
+      "email_type": "order_confirmation",
+      "retailer": "Moss & Pine",
+      "item": "Linen napkins, set of 4",
+      "order_number": "#1001",
+      "tracking_numbers": []
+    },
+    "expect": { "shipments": [], "placeholders": 1, "shippedOrders": 0 }
+  },
+  {
+    "name": "shopify-two-shipped",
+    "email": {
+      "from": "Moss & Pine <hello@mossandpine.example>",
+      "subject": "Your order #1001 is on its way",
+      "text": "Good news: order #1001 has shipped.\n\nLinen napkins, set of 4  Qty 2\nTracking: 9202 1901 2345 6789 0123 99 (USPS)\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Moss & Pine",
+      "item": "Linen napkins, set of 4",
+      "order_number": "#1001",
+      "tracking_numbers": [
+        { "tracking_number": "9202190123456789012399", "carrier": "USPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["9202190123456789012399"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  },
+  {
+    "name": "shopify-three-shipped",
+    "email": {
+      "from": "Fern Studio <shop@fernstudio.example>",
+      "subject": "Your Fern Studio order has shipped",
+      "text": "Hi Sam, your order #88 shipped today.\n\nCeramic planter, sage\nTracking number: 9407309999999999999999\n",
+      "html": "<div><p>Hi Sam, your order #88 shipped today.</p><table><tr><td>Ceramic planter, sage</td></tr></table><p>Tracking number: <a href=\"https://tools.usps.com/go/TrackConfirmAction?tLabels=9407309999999999999999\">9407309999999999999999</a></p></div>"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Fern Studio",
+      "item": "Ceramic planter, sage",
+      "order_number": "#88",
+      "tracking_numbers": [
+        { "tracking_number": "9407309999999999999999", "carrier": "USPS" }
+      ]
+    },
+    "expect": {
+      "shipments": ["9407309999999999999999"],
+      "placeholders": 0,
+      "shippedOrders": 1
+    }
+  }
+]

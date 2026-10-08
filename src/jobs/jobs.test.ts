@@ -14,10 +14,14 @@ vi.mock("@/lib/shipments/sync/archive-delivered", () => ({
   archiveDeliveredShipments,
 }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
-vi.mock("@/lib/tracking", () => ({ getTrackingProvider: () => "provider" }));
+vi.mock("@/lib/tracking", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/tracking")>()),
+  getTrackingProvider: () => "provider",
+}));
 
 import { archiveDelivered } from "./archive-delivered";
 import { geocodePlaceJob, geocodeSweep } from "./geocode";
+import { emailCleanup, emailSweep, processEmailJob } from "./inbound-email";
 import { functions } from "./index";
 import { refetchStale } from "./refetch-stale";
 
@@ -113,6 +117,9 @@ describe("function list", () => {
       archiveDelivered,
       geocodeSweep,
       geocodePlaceJob,
+      processEmailJob,
+      emailSweep,
+      emailCleanup,
     ]);
   });
 });

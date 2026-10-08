@@ -1,3 +1,4 @@
+import { requestGeocoding } from "@/jobs/events";
 import { getDb } from "@/lib/db/client";
 import { handleTrackingWebhook } from "@/lib/shipments/sync/handle-webhook";
 import { getTrackingProvider } from "@/lib/tracking";
@@ -23,6 +24,9 @@ export async function POST(request: Request): Promise<Response> {
       applied: outcome.applied,
       newCheckpoints: outcome.newCheckpoints,
     });
+    // New checkpoints may mention places we haven't geocoded. Best effort: it
+    // never changes this response (the hourly sweep is the backstop).
+    if (outcome.newCheckpoints > 0) await requestGeocoding();
     return new Response(null, { status: outcome.status });
   } catch (error) {
     // Name only: never the body, headers or secret.

@@ -8,6 +8,8 @@ const { handleTrackingWebhook } = vi.hoisted(() => ({
 vi.mock("@/lib/shipments/sync/handle-webhook", () => ({
   handleTrackingWebhook,
 }));
+const { requestGeocoding } = vi.hoisted(() => ({ requestGeocoding: vi.fn() }));
+vi.mock("@/jobs/events", () => ({ requestGeocoding }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/tracking", () => ({ getTrackingProvider: () => "provider" }));
 
@@ -23,6 +25,7 @@ const request = (body = '{"private":"payload"}') =>
 
 beforeEach(() => {
   handleTrackingWebhook.mockReset();
+  requestGeocoding.mockReset();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -56,6 +59,28 @@ describe("POST /api/webhooks/tracking", () => {
     expect(args.db).toBe("db");
     expect(args.provider).toBe("provider");
     expect(args.now).toBeInstanceOf(Date);
+  });
+
+  it("asks for geocoding only when the webhook brought new checkpoints", async () => {
+    handleTrackingWebhook.mockResolvedValueOnce({
+      status: 200,
+      applied: 1,
+      newCheckpoints: 2,
+    });
+    await POST(request());
+    expect(requestGeocoding).toHaveBeenCalledOnce();
+
+    requestGeocoding.mockClear();
+    for (const outcome of [
+      { status: 200, applied: 1, newCheckpoints: 0 },
+      { status: 200, applied: 0, newCheckpoints: 0 },
+      { status: 401, applied: 0, newCheckpoints: 0 },
+      { status: 422, applied: 0, newCheckpoints: 0 },
+    ]) {
+      handleTrackingWebhook.mockResolvedValueOnce(outcome);
+      await POST(request());
+    }
+    expect(requestGeocoding).not.toHaveBeenCalled();
   });
 
   it("answers 500 when the handler throws, so the provider retries", async () => {

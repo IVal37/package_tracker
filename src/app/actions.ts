@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requestGeocoding } from "@/jobs/events";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { ensureUser } from "@/lib/db/users";
@@ -36,7 +37,11 @@ export async function addPackageAction(
     userId: user.id,
     input: values,
   });
-  if (result.ok) revalidatePath("/");
+  if (result.ok) {
+    revalidatePath("/");
+    // The new package's places need coordinates for the map. Best effort.
+    await requestGeocoding();
+  }
   return toAddPackageState(result, values);
 }
 

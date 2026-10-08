@@ -17,6 +17,7 @@ vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/tracking", () => ({ getTrackingProvider: () => "provider" }));
 
 import { archiveDelivered } from "./archive-delivered";
+import { geocodePlaceJob, geocodeSweep } from "./geocode";
 import { functions } from "./index";
 import { refetchStale } from "./refetch-stale";
 
@@ -32,7 +33,9 @@ describe("refetchStale job", () => {
 
     const { result } = await new InngestTestEngine({
       function: refetchStale,
-    }).execute();
+    }).execute({
+      steps: [{ id: "request-geocoding", handler: () => ({ ids: [] }) }],
+    });
 
     expect(result).toEqual(summary);
     const args = refetchStaleShipments.mock.calls[0]?.[0];
@@ -40,6 +43,41 @@ describe("refetchStale job", () => {
     expect(args.provider).toBe("provider");
     expect(args.now).toBeInstanceOf(Date);
     expect(args.limit).toBe(100);
+  });
+
+  it("asks for geocoding when the re-fetch brought something new", async () => {
+    refetchStaleShipments.mockResolvedValue({
+      checked: 1,
+      updated: 1,
+      failed: 0,
+      stoppedEarly: false,
+    });
+
+    const { ctx } = await new InngestTestEngine({
+      function: refetchStale,
+    }).execute({
+      steps: [{ id: "request-geocoding", handler: () => ({ ids: [] }) }],
+    });
+
+    expect(ctx.step.sendEvent).toHaveBeenCalledExactlyOnceWith(
+      "request-geocoding",
+      { name: "wayfind/geocode.requested" },
+    );
+  });
+
+  it("does not ask for geocoding when nothing changed", async () => {
+    refetchStaleShipments.mockResolvedValue({
+      checked: 4,
+      updated: 0,
+      failed: 1,
+      stoppedEarly: false,
+    });
+
+    const { ctx } = await new InngestTestEngine({
+      function: refetchStale,
+    }).execute();
+
+    expect(ctx.step.sendEvent).not.toHaveBeenCalled();
   });
 
   it("is an hourly cron job", () => {
@@ -69,7 +107,12 @@ describe("archiveDelivered job", () => {
 });
 
 describe("function list", () => {
-  it("registers both jobs", () => {
-    expect(functions).toEqual([refetchStale, archiveDelivered]);
+  it("registers every job", () => {
+    expect(functions).toEqual([
+      refetchStale,
+      archiveDelivered,
+      geocodeSweep,
+      geocodePlaceJob,
+    ]);
   });
 });

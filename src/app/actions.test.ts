@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   addShipment: vi.fn(),
   removeShipment: vi.fn(),
   revalidatePath: vi.fn(),
+  requestGeocoding: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT ${path}`);
   }),
@@ -14,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   provider: { marker: "provider" },
 }));
 
+vi.mock("@/jobs/events", () => ({
+  requestGeocoding: mocks.requestGeocoding,
+}));
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
@@ -87,6 +91,24 @@ describe("addPackageAction", () => {
     );
     expect(state).toEqual({ status: "success" });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("asks for geocoding after a successful add", async () => {
+    mocks.addShipment.mockResolvedValue({ ok: true, shipmentId: "s1" });
+    await addPackageAction(
+      { status: "idle" },
+      form({ trackingNumber: "ABC12345" }),
+    );
+    expect(mocks.requestGeocoding).toHaveBeenCalledOnce();
+  });
+
+  it("does not ask for geocoding when the add fails", async () => {
+    mocks.addShipment.mockResolvedValue({ ok: false, error: "duplicate" });
+    await addPackageAction(
+      { status: "idle" },
+      form({ trackingNumber: "ABC12345" }),
+    );
+    expect(mocks.requestGeocoding).not.toHaveBeenCalled();
   });
 
   it("returns the error state with the typed values and does not revalidate", async () => {

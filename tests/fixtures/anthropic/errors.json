@@ -1,0 +1,25 @@
+{
+  "401": {
+    "type": "error",
+    "error": { "type": "authentication_error", "message": "invalid x-api-key" }
+  },
+  "400": {
+    "type": "error",
+    "error": {
+      "type": "invalid_request_error",
+      "message": "output_config.format: schema is not supported"
+    }
+  },
+  "429": {
+    "type": "error",
+    "error": { "type": "rate_limit_error", "message": "Rate limit exceeded" }
+  },
+  "500": {
+    "type": "error",
+    "error": { "type": "api_error", "message": "Internal server error" }
+  },
+  "529": {
+    "type": "error",
+    "error": { "type": "overloaded_error", "message": "Overloaded" }
+  }
+}

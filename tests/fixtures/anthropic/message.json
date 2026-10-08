@@ -1,0 +1,10 @@
+{
+  "id": "msg_01FixtureEnvelope",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-4-5",
+  "content": [{ "type": "text", "text": "__REPLACED_BY_THE_TEST__" }],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": { "input_tokens": 1450, "output_tokens": 92 }
+}

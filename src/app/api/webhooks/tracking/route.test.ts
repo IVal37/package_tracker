@@ -64,6 +64,11 @@ describe("POST /api/webhooks/tracking", () => {
     expect(response.status).toBe(500);
   });
 
+  it("answers 500 even when something that is not an Error is thrown", async () => {
+    handleTrackingWebhook.mockRejectedValue("a bare string");
+    expect((await POST(request())).status).toBe(500);
+  });
+
   it("never logs the body, headers, secret or error message", async () => {
     handleTrackingWebhook.mockRejectedValueOnce(new Error(`boom ${SECRET}`));
     await POST(request());

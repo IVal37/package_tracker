@@ -211,6 +211,16 @@ describe("handleTrackingWebhook (fake provider)", () => {
     expect((await reload(row.id)).status).toBe("OutForDelivery");
   });
 
+  it("lets an unexpected parse error escape rather than hiding it as 401/422", async () => {
+    const exploding = {
+      ...fake,
+      name: fake.name,
+      parseWebhook: () => Promise.reject(new Error("unexpected")),
+    } as typeof fake;
+
+    await expect(handle("{}", auth(), exploding)).rejects.toThrow("unexpected");
+  });
+
   it("lets a database error escape so the route can answer 500", async () => {
     const broken = {
       transaction: () => Promise.reject(new Error("db down")),

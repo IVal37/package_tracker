@@ -4,12 +4,6 @@ Things found during a phase that are not pressing and do not block development, 
 
 Rule (also in `CLAUDE.md`): do not fix these mid-phase. Add the item here, say so in the end-of-phase summary, and carry on. Remove an item (or mark it done with the commit) when it is resolved.
 
-## Needs you
-
-| Item | Found in | Notes |
-| --- | --- | --- |
-| Add `INNGEST_SIGNING_KEY=` and `INNGEST_DEV=1` to `.env.example` | Phase 3 | Claude cannot edit that file (it is on the deny list). Not blocking: `docs/webhooks-and-jobs-setup.md` lists both. |
-
 ## Targeted at a later phase
 
 | Item | Found in | Target | Notes |

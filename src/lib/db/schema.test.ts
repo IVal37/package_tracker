@@ -7,7 +7,14 @@ import {
   insertShipment,
   insertUser,
 } from "../../../tests/db/pglite";
-import { checkpoints, inboundEmails, places, shipments, users } from "./schema";
+import {
+  checkpoints,
+  inboundEmails,
+  orders,
+  places,
+  shipments,
+  users,
+} from "./schema";
 
 let ctx: Awaited<ReturnType<typeof createTestDb>>;
 
@@ -57,6 +64,7 @@ describe("schema (PGlite)", () => {
     expect(tables).toEqual([
       "checkpoints",
       "inbound_emails",
+      "orders",
       "places",
       "shipments",
       "users",
@@ -251,6 +259,154 @@ describe("schema (PGlite)", () => {
         .from(checkpoints)
         .where(eq(checkpoints.shipmentId, shipment.id)),
     ).toHaveLength(0);
+  });
+});
+
+describe("orders (placeholders and shipments)", () => {
+  const placeholder = (
+    userId: string,
+    retailerKey: string | null,
+    orderNumber: string | null,
+  ) => ({ userId, retailer: "Shop", retailerKey, orderNumber });
+
+  it("allows one placeholder per user, retailer and order number", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db.insert(orders).values(placeholder(user.id, "amazon", "111"));
+    await expect(
+      ctx.db.insert(orders).values(placeholder(user.id, "amazon", "111")),
+    ).rejects.toThrow();
+  });
+
+  it("allows the same order number at a different retailer or for another user", async () => {
+    const a = await insertUser(ctx.db);
+    const b = await insertUser(ctx.db);
+    await ctx.db.insert(orders).values(placeholder(a.id, "storeone", "1001"));
+    await expect(
+      ctx.db.insert(orders).values(placeholder(a.id, "storetwo", "1001")),
+    ).resolves.toBeDefined();
+    await expect(
+      ctx.db.insert(orders).values(placeholder(b.id, "storeone", "1001")),
+    ).resolves.toBeDefined();
+  });
+
+  it("does not limit placeholders that can never match (no retailer or no order number)", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db.insert(orders).values(placeholder(user.id, null, "5"));
+    await expect(
+      ctx.db.insert(orders).values(placeholder(user.id, null, "5")),
+    ).resolves.toBeDefined();
+    await ctx.db.insert(orders).values(placeholder(user.id, "shop", null));
+    await expect(
+      ctx.db.insert(orders).values(placeholder(user.id, "shop", null)),
+    ).resolves.toBeDefined();
+  });
+
+  it("allows several shipped orders with the same number but one order row per shipment", async () => {
+    const user = await insertUser(ctx.db);
+    const first = await insertShipment(ctx.db, user.id);
+    const second = await insertShipment(ctx.db, user.id);
+    const shipped = (shipmentId: string) => ({
+      ...placeholder(user.id, "amazon", "222"),
+      shipmentId,
+    });
+
+    await ctx.db.insert(orders).values(shipped(first.id));
+    await expect(
+      ctx.db.insert(orders).values(shipped(second.id)),
+    ).resolves.toBeDefined();
+    await expect(
+      ctx.db.insert(orders).values(shipped(first.id)),
+    ).rejects.toThrow();
+  });
+
+  it("deletes an order row with its shipment, and keeps one when its email is deleted", async () => {
+    const user = await insertUser(ctx.db);
+    const shipment = await insertShipment(ctx.db, user.id);
+    const [email] = await ctx.db
+      .insert(inboundEmails)
+      .values({ userId: user.id, raw: "{}" })
+      .returning();
+    const [order] = await ctx.db
+      .insert(orders)
+      .values({
+        ...placeholder(user.id, "amazon", "333"),
+        shipmentId: shipment.id,
+        sourceEmailId: email!.id,
+      })
+      .returning();
+
+    await ctx.db.delete(inboundEmails).where(eq(inboundEmails.id, email!.id));
+    const kept = await ctx.db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, order!.id));
+    expect(kept[0]?.sourceEmailId).toBeNull();
+
+    await ctx.db.delete(shipments).where(eq(shipments.id, shipment.id));
+    expect(
+      await ctx.db.select().from(orders).where(eq(orders.id, order!.id)),
+    ).toHaveLength(0);
+  });
+});
+
+describe("inbound_emails", () => {
+  it("stores each message id once per user, but allows it for another user", async () => {
+    const a = await insertUser(ctx.db);
+    const b = await insertUser(ctx.db);
+    const email = (userId: string, messageId: string | null) => ({
+      userId,
+      raw: "{}",
+      messageId,
+    });
+
+    await ctx.db.insert(inboundEmails).values(email(a.id, "<m1@example.test>"));
+    await expect(
+      ctx.db.insert(inboundEmails).values(email(a.id, "<m1@example.test>")),
+    ).rejects.toThrow();
+    await expect(
+      ctx.db.insert(inboundEmails).values(email(b.id, "<m1@example.test>")),
+    ).resolves.toBeDefined();
+  });
+
+  it("does not constrain emails that have no message id", async () => {
+    const user = await insertUser(ctx.db);
+    await ctx.db.insert(inboundEmails).values([
+      { userId: user.id, raw: "{}", messageId: null },
+      { userId: user.id, raw: "{}", messageId: null },
+    ]);
+  });
+});
+
+describe("users.forwarding_alias", () => {
+  it("must be lower-case", async () => {
+    const user = await insertUser(ctx.db);
+    await expect(
+      ctx.db
+        .update(users)
+        .set({ forwardingAlias: "Izaak-7F3K" })
+        .where(eq(users.id, user.id)),
+    ).rejects.toThrow();
+    await expect(
+      ctx.db
+        .update(users)
+        .set({ forwardingAlias: "izaak-7f3k" })
+        .where(eq(users.id, user.id)),
+    ).resolves.toBeDefined();
+  });
+
+  it("is unique, and a user may have none", async () => {
+    const a = await insertUser(ctx.db);
+    const b = await insertUser(ctx.db);
+    await ctx.db
+      .update(users)
+      .set({ forwardingAlias: "dup-alias" })
+      .where(eq(users.id, a.id));
+    await expect(
+      ctx.db
+        .update(users)
+        .set({ forwardingAlias: "dup-alias" })
+        .where(eq(users.id, b.id)),
+    ).rejects.toThrow();
   });
 });
 

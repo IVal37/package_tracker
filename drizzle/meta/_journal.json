@@ -36,6 +36,13 @@
       "when": 1791426893983,
       "tag": "0004_bouncy_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791488406617,
+      "tag": "0005_elite_giant_girl",
+      "breakpoints": true
     }
   ]
 }

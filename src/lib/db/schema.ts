@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 // Relative import: drizzle-kit loads this file outside Next/Vitest, so no "@/" alias.
@@ -39,12 +40,22 @@ const placeKeySql = (column: string) =>
 // RLS is enabled on every table with no policies: Supabase's Data API
 // (anon/authenticated roles) is denied everything. The app itself connects as
 // the table owner and enforces ownership in the query layer.
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  forwardingAlias: text("forwarding_alias").unique(),
-  createdAt: timestamptz("created_at").notNull().defaultNow(),
-}).enableRLS();
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull().unique(),
+    // Private forwarding address local part, e.g. "izaak-7f3k". Lower-case.
+    forwardingAlias: text("forwarding_alias").unique(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "users_forwarding_alias_lowercase",
+      sql`${t.forwardingAlias} = lower(${t.forwardingAlias})`,
+    ),
+  ],
+).enableRLS();
 
 export const shipments = pgTable(
   "shipments",
@@ -149,10 +160,63 @@ export const inboundEmails = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     receivedAt: timestamptz("received_at").notNull().defaultNow(),
+    // The normalized email as JSON text. Deleted with the row after 30 days.
     raw: text("raw").notNull(),
+    // The sender's Message-ID: a forwarder can deliver the same email twice.
+    messageId: text("message_id"),
+    fromAddress: text("from_address"),
+    subject: text("subject"),
     parseStatus: parseStatus("parse_status").notNull().default("pending"),
     extracted: jsonb("extracted"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
-  (t) => [index("inbound_emails_received_at_idx").on(t.receivedAt)],
+  (t) => [
+    index("inbound_emails_received_at_idx").on(t.receivedAt),
+    uniqueIndex("inbound_emails_user_message_unique")
+      .on(t.userId, t.messageId)
+      .where(sql`${t.messageId} is not null`),
+    // The hourly sweep looks for emails whose processing event never ran.
+    index("inbound_emails_pending_idx")
+      .on(t.receivedAt)
+      .where(sql`${t.parseStatus} = 'pending'`),
+  ],
+).enableRLS();
+
+// An order from a retailer, with or without a shipment yet. Without one it is
+// the "Ordered" placeholder; the shipping email attaches it later.
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    retailer: text("retailer"),
+    // Retailer name lower-cased with suffixes and punctuation removed. Order
+    // numbers are only unique per retailer (many Shopify stores start at #1001).
+    retailerKey: text("retailer_key"),
+    item: text("item"),
+    orderNumber: text("order_number"),
+    // Deleting the shipment deletes its order row.
+    shipmentId: uuid("shipment_id").references(() => shipments.id, {
+      onDelete: "cascade",
+    }),
+    sourceEmailId: uuid("source_email_id").references(() => inboundEmails.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // At most one placeholder per order...
+    uniqueIndex("orders_placeholder_unique")
+      .on(t.userId, t.retailerKey, t.orderNumber)
+      .where(
+        sql`${t.shipmentId} is null and ${t.retailerKey} is not null and ${t.orderNumber} is not null`,
+      ),
+    // ...and one order row per shipment.
+    uniqueIndex("orders_shipment_unique")
+      .on(t.shipmentId)
+      .where(sql`${t.shipmentId} is not null`),
+    index("orders_user_created_idx").on(t.userId, t.createdAt),
+  ],
 ).enableRLS();

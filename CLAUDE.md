@@ -6,7 +6,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 ## Current phase
 
-**Phase 2 — Accounts, manual add, list view.** (Update this line each time a phase is tagged done.)
+**Phase 3 — Live updates.** (Update this line each time a phase is tagged done.)
 
 ## Stack
 

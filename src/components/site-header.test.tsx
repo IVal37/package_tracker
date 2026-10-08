@@ -16,6 +16,14 @@ describe("SiteHeader", () => {
     ).toBeInTheDocument();
   });
 
+  it("links to Settings", () => {
+    render(<SiteHeader email="a@example.test" signOutAction={vi.fn()} />);
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+  });
+
   it("submits the sign-out action", async () => {
     const signOutAction = vi.fn(async () => {});
     render(<SiteHeader email="a@example.test" signOutAction={signOutAction} />);

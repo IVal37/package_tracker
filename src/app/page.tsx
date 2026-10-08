@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { ViewToggle } from "@/components/view-toggle";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
+import { getOrderForShipment, listOrderPlaceholders } from "@/lib/db/orders";
 import {
   getShipmentDetail,
   listMapShipments,
@@ -16,7 +17,11 @@ import { shipmentMode, type ModeCheckpoint } from "@/lib/geo/infer-mode";
 import { buildMapData } from "@/lib/geo/map-data";
 import { groupShipmentsByStatus } from "@/lib/shipments/grouping";
 import { signOut } from "./sign-in/actions";
-import { addPackageAction, deletePackageAction } from "./actions";
+import {
+  addPackageAction,
+  deletePackageAction,
+  dismissOrderAction,
+} from "./actions";
 
 type Param = string | string[] | undefined;
 
@@ -54,11 +59,26 @@ export default async function Home({
   const now = new Date();
   // Every lookup is scoped to the signed-in user; a shipment id that belongs
   // to someone else simply yields no drawer.
-  const [content, detail] = await Promise.all([
+  const [content, orders, detail] = await Promise.all([
     view === "map"
       ? listMapShipments(db, user.id).then(buildMapData)
       : listShipments(db, user.id).then(groupShipmentsByStatus),
-    shipmentId ? getShipmentDetail(db, user.id, shipmentId) : null,
+    // Only the list has an "Ordered" section.
+    view === "map" ? [] : listOrderPlaceholders(db, user.id),
+    shipmentId
+      ? getShipmentDetail(db, user.id, shipmentId).then(async (found) =>
+          found
+            ? {
+                ...found,
+                order: await getOrderForShipment(
+                  db,
+                  user.id,
+                  found.shipment.id,
+                ),
+              }
+            : null,
+        )
+      : null,
   ]);
 
   return (
@@ -70,7 +90,12 @@ export default async function Home({
         {"placed" in content ? (
           <ShipmentMap data={content} />
         ) : (
-          <ShipmentList groups={content} now={now} />
+          <ShipmentList
+            groups={content}
+            now={now}
+            orders={orders}
+            dismissOrderAction={dismissOrderAction}
+          />
         )}
       </main>
       {detail && (
@@ -81,6 +106,7 @@ export default async function Home({
           deleteAction={deletePackageAction}
           closeHref={view === "map" ? "/?view=map" : "/"}
           mode={detailMode(detail)}
+          order={detail.order}
         />
       )}
     </>

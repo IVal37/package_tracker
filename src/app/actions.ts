@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requestGeocoding } from "@/jobs/events";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
+import { dismissOrder } from "@/lib/db/orders";
 import { ensureUser } from "@/lib/db/users";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import { removeShipment } from "@/lib/shipments/delete-shipment";
@@ -57,4 +58,13 @@ export async function deletePackageAction(formData: FormData): Promise<void> {
 
   revalidatePath("/");
   redirect("/");
+}
+
+export async function dismissOrderAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+
+  // Only the user's own unshipped orders can be dismissed; anything else is a no-op.
+  await dismissOrder(getDb(), user.id, String(formData.get("orderId") ?? ""));
+
+  revalidatePath("/");
 }

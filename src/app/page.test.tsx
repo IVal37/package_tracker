@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   listShipments: vi.fn(),
   listMapShipments: vi.fn(),
   getShipmentDetail: vi.fn(),
+  listOrderPlaceholders: vi.fn(),
+  getOrderForShipment: vi.fn(),
   push: vi.fn(),
   db: { marker: "db" },
 }));
@@ -23,6 +25,10 @@ vi.mock("@/lib/db/shipments", () => ({
   listShipments: mocks.listShipments,
   listMapShipments: mocks.listMapShipments,
   getShipmentDetail: mocks.getShipmentDetail,
+}));
+vi.mock("@/lib/db/orders", () => ({
+  listOrderPlaceholders: mocks.listOrderPlaceholders,
+  getOrderForShipment: mocks.getOrderForShipment,
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 // The real map needs WebGL; it has its own tests. This stub shows what it got.
@@ -38,6 +44,7 @@ vi.mock("@/components/shipment-map", () => ({
 vi.mock("./actions", () => ({
   addPackageAction: vi.fn(),
   deletePackageAction: vi.fn(),
+  dismissOrderAction: vi.fn(),
 }));
 vi.mock("./sign-in/actions", () => ({ signOut: vi.fn() }));
 
@@ -113,6 +120,8 @@ beforeEach(() => {
   mocks.listShipments.mockResolvedValue([]);
   mocks.listMapShipments.mockResolvedValue([]);
   mocks.getShipmentDetail.mockResolvedValue(null);
+  mocks.listOrderPlaceholders.mockResolvedValue([]);
+  mocks.getOrderForShipment.mockResolvedValue(null);
 });
 
 describe("Home page", () => {
@@ -176,6 +185,70 @@ describe("Home page", () => {
   it("ignores an array-valued ?shipment= param", async () => {
     await renderHome({ shipment: ["a", "b"] });
     expect(mocks.getShipmentDetail).not.toHaveBeenCalled();
+  });
+});
+
+describe("Home page: orders from forwarded email", () => {
+  const placeholder = {
+    id: "o1",
+    userId: USER.id,
+    retailer: "Target",
+    retailerKey: "target",
+    item: "Desk lamp",
+    orderNumber: "1001",
+    shipmentId: null,
+    sourceEmailId: null,
+    createdAt: NOW,
+  };
+
+  it("lists the session user's unshipped orders in an Ordered section", async () => {
+    mocks.listShipments.mockResolvedValue([item("a", "Delivered")]);
+    mocks.listOrderPlaceholders.mockResolvedValue([placeholder]);
+    await renderHome();
+
+    expect(mocks.listOrderPlaceholders).toHaveBeenCalledExactlyOnceWith(
+      mocks.db,
+      "session-user",
+    );
+    expect(screen.getByText("Desk lamp")).toBeInTheDocument();
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent?.replace(/\s+/g, " ").trim());
+    expect(headings.indexOf("Ordered (1)")).toBeLessThan(
+      headings.indexOf("Delivered (1)"),
+    );
+  });
+
+  it("does not load orders for the map", async () => {
+    await renderHome({ view: "map" });
+    expect(mocks.listOrderPlaceholders).not.toHaveBeenCalled();
+  });
+
+  it("shows the order in the drawer, looked up for the session user and the found shipment", async () => {
+    mocks.getShipmentDetail.mockResolvedValue({
+      shipment: item("abc", "InTransit"),
+      checkpoints: [],
+    });
+    mocks.getOrderForShipment.mockResolvedValue({
+      ...placeholder,
+      shipmentId: "abc",
+    });
+    await renderHome({ shipment: "abc" });
+
+    expect(mocks.getOrderForShipment).toHaveBeenCalledWith(
+      mocks.db,
+      "session-user",
+      "abc",
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "Ordered from Target · #1001",
+    );
+  });
+
+  it("does not look up an order when there is no drawer", async () => {
+    mocks.getShipmentDetail.mockResolvedValue(null);
+    await renderHome({ shipment: "someone-elses-id" });
+    expect(mocks.getOrderForShipment).not.toHaveBeenCalled();
   });
 });
 

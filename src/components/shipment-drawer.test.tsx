@@ -172,3 +172,49 @@ describe("ShipmentDrawer", () => {
     expect(deleteAction).toHaveBeenCalledOnce();
   });
 });
+
+describe("ShipmentDrawer: order", () => {
+  const renderWithOrder = (
+    order: { retailer: string | null; orderNumber: string | null } | null,
+  ) =>
+    render(
+      <ShipmentDrawer
+        shipment={shipment}
+        checkpoints={[]}
+        now={NOW}
+        deleteAction={vi.fn(async () => {})}
+        order={order}
+      />,
+    );
+
+  it.each([
+    [
+      { retailer: "Target", orderNumber: "1001" },
+      "Ordered from Target · #1001",
+    ],
+    [{ retailer: "Target", orderNumber: null }, "Ordered from Target"],
+    [{ retailer: null, orderNumber: "1001" }, "Ordered · #1001"],
+  ])("shows %j as %s", (order, text) => {
+    renderWithOrder(order);
+    expect(screen.getByText(text)).toBeInTheDocument();
+  });
+
+  it("shows nothing for an order with neither retailer nor number", () => {
+    renderWithOrder({ retailer: null, orderNumber: null });
+    expect(screen.queryByText("Order")).not.toBeInTheDocument();
+  });
+
+  it("shows no order line for a package added by hand", () => {
+    renderWithOrder(null);
+    expect(screen.queryByText(/Ordered/)).not.toBeInTheDocument();
+  });
+
+  it("renders the retailer as text, not HTML", () => {
+    const { baseElement } = renderWithOrder({
+      retailer: "<b>Evil</b>",
+      orderNumber: null,
+    });
+    expect(screen.getByText("Ordered from <b>Evil</b>")).toBeInTheDocument();
+    expect(baseElement.querySelector("b")).toBeNull();
+  });
+});

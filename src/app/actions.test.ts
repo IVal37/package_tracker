@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   ensureUser: vi.fn(),
   addShipment: vi.fn(),
   removeShipment: vi.fn(),
+  dismissOrder: vi.fn(),
   revalidatePath: vi.fn(),
   requestGeocoding: vi.fn(),
   redirect: vi.fn((path: string) => {
@@ -20,6 +21,7 @@ vi.mock("@/jobs/events", () => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
+vi.mock("@/lib/db/orders", () => ({ dismissOrder: mocks.dismissOrder }));
 vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
 vi.mock("@/lib/shipments/add-shipment", () => ({
   addShipment: mocks.addShipment,
@@ -33,7 +35,11 @@ vi.mock("@/lib/tracking", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
-import { addPackageAction, deletePackageAction } from "./actions";
+import {
+  addPackageAction,
+  deletePackageAction,
+  dismissOrderAction,
+} from "./actions";
 
 const USER = { id: "session-user", email: "a@example.test" };
 
@@ -171,6 +177,41 @@ describe("deletePackageAction", () => {
     );
     expect(mocks.removeShipment).toHaveBeenCalledWith(
       expect.objectContaining({ shipmentId: "" }),
+    );
+  });
+});
+
+describe("dismissOrderAction", () => {
+  it("redirects an unauthenticated caller and does nothing else", async () => {
+    mocks.requireUser.mockRejectedValue(new Error("NEXT_REDIRECT /sign-in"));
+    await expect(dismissOrderAction(form({ orderId: "o1" }))).rejects.toThrow(
+      "NEXT_REDIRECT /sign-in",
+    );
+    expect(mocks.dismissOrder).not.toHaveBeenCalled();
+  });
+
+  it("dismisses as the session user, ignoring any user id in the form", async () => {
+    mocks.dismissOrder.mockResolvedValue(true);
+
+    await dismissOrderAction(
+      form({ orderId: "o1", userId: "someone-else", user_id: "someone-else" }),
+    );
+
+    expect(mocks.dismissOrder).toHaveBeenCalledExactlyOnceWith(
+      mocks.db,
+      "session-user",
+      "o1",
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("passes an empty id through when the field is missing", async () => {
+    mocks.dismissOrder.mockResolvedValue(false);
+    await dismissOrderAction(new FormData());
+    expect(mocks.dismissOrder).toHaveBeenCalledWith(
+      mocks.db,
+      "session-user",
+      "",
     );
   });
 });

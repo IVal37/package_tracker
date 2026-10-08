@@ -20,6 +20,16 @@ interface ShipmentDrawerProps {
   closeHref?: string;
   /** Best guess at how it is moving; omitted when unknown. */
   mode?: Mode;
+  /** The order this package came from, when it was captured from an email. */
+  order?: { retailer: string | null; orderNumber: string | null } | null;
+}
+
+/** "Ordered from Target · #1001", or null when the email gave neither part. */
+function describeOrder(order: NonNullable<ShipmentDrawerProps["order"]>) {
+  const from = order.retailer ? `Ordered from ${order.retailer}` : "Ordered";
+  const number = order.orderNumber ? `#${order.orderNumber}` : null;
+  if (!order.retailer && !number) return null;
+  return [from, number].filter(Boolean).join(" · ");
 }
 
 /** Detail drawer for one shipment. Closing it navigates back to the view it came from. */
@@ -30,10 +40,12 @@ export function ShipmentDrawer({
   deleteAction,
   closeHref = "/",
   mode,
+  order,
 }: ShipmentDrawerProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const close = useCallback(() => router.push(closeHref), [router, closeHref]);
+  const orderLine = order ? describeOrder(order) : null;
 
   return (
     <Modal
@@ -44,6 +56,12 @@ export function ShipmentDrawer({
       <dl className="mb-6 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
         <dt className="text-slate-500">Tracking number</dt>
         <dd>{shipment.trackingNumber}</dd>
+        {orderLine && (
+          <>
+            <dt className="text-slate-500">Order</dt>
+            <dd>{orderLine}</dd>
+          </>
+        )}
         <dt className="text-slate-500">Courier</dt>
         <dd>{shipment.courier ?? "Unknown"}</dd>
         <dt className="text-slate-500">Status</dt>

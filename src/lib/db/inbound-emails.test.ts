@@ -25,7 +25,9 @@ const NOW = new Date("2026-06-20T12:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * DAY);
 
-const email = (extra: Partial<Parameters<typeof insertInboundEmail>[2]> = {}) => ({
+const email = (
+  extra: Partial<Parameters<typeof insertInboundEmail>[2]> = {},
+) => ({
   raw: "{}",
   messageId: null,
   fromAddress: null,
@@ -34,18 +36,32 @@ const email = (extra: Partial<Parameters<typeof insertInboundEmail>[2]> = {}) =>
   ...extra,
 });
 
-async function addIgnored(userId: string, extracted: unknown, receivedAt: Date) {
-  await ctx.db
-    .insert(inboundEmails)
-    .values({ userId, raw: "{}", parseStatus: "ignored", extracted, receivedAt });
+async function addIgnored(
+  userId: string,
+  extracted: unknown,
+  receivedAt: Date,
+) {
+  await ctx.db.insert(inboundEmails).values({
+    userId,
+    raw: "{}",
+    parseStatus: "ignored",
+    extracted,
+    receivedAt,
+  });
 }
 
 describe("insertInboundEmail and hasMessageId", () => {
   it("returns the new id, and null for the same Message-ID again", async () => {
     const user = await insertUser(ctx.db);
-    const first = await insertInboundEmail(ctx.db, user.id, email({ messageId: "<a@x>" }));
+    const first = await insertInboundEmail(
+      ctx.db,
+      user.id,
+      email({ messageId: "<a@x>" }),
+    );
     expect(first).toEqual(expect.any(String));
-    expect(await insertInboundEmail(ctx.db, user.id, email({ messageId: "<a@x>" }))).toBeNull();
+    expect(
+      await insertInboundEmail(ctx.db, user.id, email({ messageId: "<a@x>" })),
+    ).toBeNull();
     expect(await hasMessageId(ctx.db, user.id, "<a@x>")).toBe(true);
     expect(await hasMessageId(ctx.db, user.id, "<other@x>")).toBe(false);
   });
@@ -77,8 +93,12 @@ describe("finishEmail", () => {
     const user = await insertUser(ctx.db);
     const id = (await insertInboundEmail(ctx.db, user.id, email()))!;
 
-    expect(await finishEmail(ctx.db, user.id, id, "parsed", { a: 1 })).toBe(true);
-    expect(await finishEmail(ctx.db, user.id, id, "failed", { b: 2 })).toBe(false);
+    expect(await finishEmail(ctx.db, user.id, id, "parsed", { a: 1 })).toBe(
+      true,
+    );
+    expect(await finishEmail(ctx.db, user.id, id, "failed", { b: 2 })).toBe(
+      false,
+    );
 
     const [row] = await ctx.db.select().from(inboundEmails);
     expect(row).toBeDefined();
@@ -88,7 +108,9 @@ describe("finishEmail", () => {
     const owner = await insertUser(ctx.db);
     const intruder = await insertUser(ctx.db);
     const id = (await insertInboundEmail(ctx.db, owner.id, email()))!;
-    expect(await finishEmail(ctx.db, intruder.id, id, "parsed", {})).toBe(false);
+    expect(await finishEmail(ctx.db, intruder.id, id, "parsed", {})).toBe(
+      false,
+    );
     expect(await finishEmail(ctx.db, owner.id, id, "parsed", {})).toBe(true);
   });
 });
@@ -113,7 +135,9 @@ describe("latestGmailConfirmation", () => {
   it("ignores codes older than the window", async () => {
     const user = await insertUser(ctx.db);
     await addIgnored(user.id, confirmation("33333333"), daysAgo(5));
-    expect(await latestGmailConfirmation(ctx.db, user.id, daysAgo(3))).toBeNull();
+    expect(
+      await latestGmailConfirmation(ctx.db, user.id, daysAgo(3)),
+    ).toBeNull();
   });
 
   it("is only ever the user's own code", async () => {
@@ -125,22 +149,35 @@ describe("latestGmailConfirmation", () => {
 
   it.each([
     ["another kind of ignored email", { kind: "other" }],
-    ["a code with letters", { kind: "gmail_forwarding_confirmation", code: "12ab34cd" }],
-    ["a code that is too short", { kind: "gmail_forwarding_confirmation", code: "123" }],
-    ["a link instead of a code", { kind: "gmail_forwarding_confirmation", code: "https://evil.test" }],
+    [
+      "a code with letters",
+      { kind: "gmail_forwarding_confirmation", code: "12ab34cd" },
+    ],
+    [
+      "a code that is too short",
+      { kind: "gmail_forwarding_confirmation", code: "123" },
+    ],
+    [
+      "a link instead of a code",
+      { kind: "gmail_forwarding_confirmation", code: "https://evil.test" },
+    ],
     ["no extraction", null],
     ["a non-object", "text"],
   ])("skips %s", async (_name, extracted) => {
     const user = await insertUser(ctx.db);
     await addIgnored(user.id, extracted, daysAgo(1));
-    expect(await latestGmailConfirmation(ctx.db, user.id, daysAgo(3))).toBeNull();
+    expect(
+      await latestGmailConfirmation(ctx.db, user.id, daysAgo(3)),
+    ).toBeNull();
   });
 
   it("skips a bad newer row and still finds an older valid one", async () => {
     const user = await insertUser(ctx.db);
     await addIgnored(user.id, confirmation("55555555"), daysAgo(2));
     await addIgnored(user.id, { kind: "other" }, daysAgo(1));
-    expect((await latestGmailConfirmation(ctx.db, user.id, daysAgo(3)))?.code).toBe("55555555");
+    expect(
+      (await latestGmailConfirmation(ctx.db, user.id, daysAgo(3)))?.code,
+    ).toBe("55555555");
   });
 });
 
@@ -153,7 +190,9 @@ describe("countFailedEmails", () => {
         .insert(inboundEmails)
         .values({ userId: a.id, raw: "{}", parseStatus: status });
     }
-    await ctx.db.insert(inboundEmails).values({ userId: b.id, raw: "{}", parseStatus: "failed" });
+    await ctx.db
+      .insert(inboundEmails)
+      .values({ userId: b.id, raw: "{}", parseStatus: "failed" });
 
     expect(await countFailedEmails(ctx.db, a.id)).toBe(2);
     expect(await countFailedEmails(ctx.db, b.id)).toBe(1);

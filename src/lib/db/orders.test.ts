@@ -1,7 +1,11 @@
 // @vitest-environment node
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestDb, insertShipment, insertUser } from "../../../tests/db/pglite";
+import {
+  createTestDb,
+  insertShipment,
+  insertUser,
+} from "../../../tests/db/pglite";
 import {
   attachShipment,
   createPlaceholder,
@@ -24,7 +28,9 @@ afterAll(async () => {
 });
 
 const NO_SUCH_ID = "99999999-9999-4999-8999-999999999999";
-const order = (extra: Partial<Parameters<typeof createPlaceholder>[2]> = {}) => ({
+const order = (
+  extra: Partial<Parameters<typeof createPlaceholder>[2]> = {},
+) => ({
   retailer: "Amazon",
   retailerKey: "amazon",
   item: "Socks",
@@ -36,9 +42,17 @@ const order = (extra: Partial<Parameters<typeof createPlaceholder>[2]> = {}) => 
 describe("placeholders", () => {
   it("creates one and lists it for its owner, newest first", async () => {
     const user = await insertUser(ctx.db);
-    const first = await createPlaceholder(ctx.db, user.id, order({ item: "First" }));
+    const first = await createPlaceholder(
+      ctx.db,
+      user.id,
+      order({ item: "First" }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 5));
-    const second = await createPlaceholder(ctx.db, user.id, order({ item: "Second" }));
+    const second = await createPlaceholder(
+      ctx.db,
+      user.id,
+      order({ item: "Second" }),
+    );
 
     const listed = await listOrderPlaceholders(ctx.db, user.id);
     expect(listed.map((o) => o.id)).toEqual([second, first]);
@@ -55,7 +69,10 @@ describe("placeholders", () => {
   it("does not list shipped orders as placeholders", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    await createShippedOrder(ctx.db, user.id, { ...order(), shipmentId: shipment.id });
+    await createShippedOrder(ctx.db, user.id, {
+      ...order(),
+      shipmentId: shipment.id,
+    });
     expect(await listOrderPlaceholders(ctx.db, user.id)).toEqual([]);
   });
 
@@ -78,15 +95,27 @@ describe("findOrdersByKey", () => {
       shipmentId: shipment.id,
     });
 
-    expect(await findOrdersByKey(ctx.db, user.id, "amazon", "K-1")).toHaveLength(2);
+    expect(
+      await findOrdersByKey(ctx.db, user.id, "amazon", "K-1"),
+    ).toHaveLength(2);
   });
 
   it("matches on both retailer and order number", async () => {
     const user = await insertUser(ctx.db);
-    await createPlaceholder(ctx.db, user.id, order({ retailerKey: "storeone", orderNumber: "#1001" }));
-    expect(await findOrdersByKey(ctx.db, user.id, "storeone", "#1001")).toHaveLength(1);
-    expect(await findOrdersByKey(ctx.db, user.id, "storetwo", "#1001")).toHaveLength(0);
-    expect(await findOrdersByKey(ctx.db, user.id, "storeone", "#1002")).toHaveLength(0);
+    await createPlaceholder(
+      ctx.db,
+      user.id,
+      order({ retailerKey: "storeone", orderNumber: "#1001" }),
+    );
+    expect(
+      await findOrdersByKey(ctx.db, user.id, "storeone", "#1001"),
+    ).toHaveLength(1);
+    expect(
+      await findOrdersByKey(ctx.db, user.id, "storetwo", "#1001"),
+    ).toHaveLength(0);
+    expect(
+      await findOrdersByKey(ctx.db, user.id, "storeone", "#1002"),
+    ).toHaveLength(0);
   });
 
   it("never returns another user's order", async () => {
@@ -106,13 +135,18 @@ describe("attachShipment", () => {
 
     expect(await attachShipment(ctx.db, user.id, id, shipment.id)).toBe(true);
     expect(await attachShipment(ctx.db, user.id, id, other.id)).toBe(false);
-    expect((await getOrderForShipment(ctx.db, user.id, shipment.id))?.id).toBe(id);
+    expect((await getOrderForShipment(ctx.db, user.id, shipment.id))?.id).toBe(
+      id,
+    );
   });
 
   it("refuses a shipment that already has an order row, without throwing", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    await createShippedOrder(ctx.db, user.id, { ...order(), shipmentId: shipment.id });
+    await createShippedOrder(ctx.db, user.id, {
+      ...order(),
+      shipmentId: shipment.id,
+    });
     const id = (await createPlaceholder(ctx.db, user.id, order()))!;
     expect(await attachShipment(ctx.db, user.id, id, shipment.id)).toBe(false);
   });
@@ -123,7 +157,9 @@ describe("attachShipment", () => {
     const shipment = await insertShipment(ctx.db, intruder.id);
     const id = (await createPlaceholder(ctx.db, owner.id, order()))!;
 
-    expect(await attachShipment(ctx.db, intruder.id, id, shipment.id)).toBe(false);
+    expect(await attachShipment(ctx.db, intruder.id, id, shipment.id)).toBe(
+      false,
+    );
     const [row] = await ctx.db.select().from(orders).where(eq(orders.id, id));
     expect(row?.shipmentId).toBeNull();
   });
@@ -144,9 +180,14 @@ describe("getOrderForShipment", () => {
     const a = await insertUser(ctx.db);
     const b = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, a.id);
-    await createShippedOrder(ctx.db, a.id, { ...order({ retailer: "Target" }), shipmentId: shipment.id });
+    await createShippedOrder(ctx.db, a.id, {
+      ...order({ retailer: "Target" }),
+      shipmentId: shipment.id,
+    });
 
-    expect((await getOrderForShipment(ctx.db, a.id, shipment.id))?.retailer).toBe("Target");
+    expect(
+      (await getOrderForShipment(ctx.db, a.id, shipment.id))?.retailer,
+    ).toBe("Target");
     expect(await getOrderForShipment(ctx.db, b.id, shipment.id)).toBeNull();
   });
 
@@ -180,9 +221,14 @@ describe("dismissOrder", () => {
   it("does not remove a shipped order", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    const id = (await createShippedOrder(ctx.db, user.id, { ...order(), shipmentId: shipment.id }))!;
+    const id = (await createShippedOrder(ctx.db, user.id, {
+      ...order(),
+      shipmentId: shipment.id,
+    }))!;
     expect(await dismissOrder(ctx.db, user.id, id)).toBe(false);
-    expect(await getOrderForShipment(ctx.db, user.id, shipment.id)).not.toBeNull();
+    expect(
+      await getOrderForShipment(ctx.db, user.id, shipment.id),
+    ).not.toBeNull();
   });
 
   it("returns false for a malformed id instead of throwing", async () => {

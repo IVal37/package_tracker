@@ -203,3 +203,15 @@ describe("countFailedEmails", () => {
     expect(await countFailedEmails(ctx.db, user.id)).toBe(0);
   });
 });
+
+describe("insertInboundEmail errors", () => {
+  it("rethrows a database fault instead of reporting a duplicate", async () => {
+    await expect(
+      insertInboundEmail(
+        ctx.db,
+        "99999999-9999-4999-8999-999999999999",
+        email({ messageId: "<x@y.test>" }),
+      ),
+    ).rejects.toThrow();
+  });
+});

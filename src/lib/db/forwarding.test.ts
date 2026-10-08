@@ -189,3 +189,30 @@ describe("findUserIdByAlias", () => {
     expect(result).not.toContain("@");
   });
 });
+
+describe("database faults while writing an alias", () => {
+  // A stand-in database whose write fails with something other than a
+  // duplicate: the error must reach the caller, not trigger another draw.
+  const failingDb = (rows: unknown[]) =>
+    ({
+      select: () => ({ from: () => ({ where: async () => rows }) }),
+      update: () => {
+        throw new Error("connection lost");
+      },
+    }) as unknown as Parameters<typeof getOrCreateAlias>[0];
+
+  it("getOrCreateAlias rethrows it", async () => {
+    await expect(
+      getOrCreateAlias(
+        failingDb([{ email: "a@example.test", alias: null }]),
+        "u1",
+      ),
+    ).rejects.toThrow("connection lost");
+  });
+
+  it("rotateAlias rethrows it", async () => {
+    await expect(
+      rotateAlias(failingDb([{ email: "a@example.test" }]), "u1"),
+    ).rejects.toThrow("connection lost");
+  });
+});

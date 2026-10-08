@@ -237,3 +237,33 @@ describe("dismissOrder", () => {
     expect(await dismissOrder(ctx.db, user.id, "")).toBe(false);
   });
 });
+
+describe("database errors that are not duplicates", () => {
+  // A foreign-key failure is a real fault, not "already exists": it must reach
+  // the caller (the job retries) instead of looking like a skipped duplicate.
+  it("createPlaceholder rethrows for a user that does not exist", async () => {
+    await expect(
+      createPlaceholder(ctx.db, NO_SUCH_ID, order()),
+    ).rejects.toThrow();
+  });
+
+  it("attachShipment rethrows for a shipment that does not exist", async () => {
+    const user = await insertUser(ctx.db);
+    const id = (await createPlaceholder(ctx.db, user.id, order()))!;
+    await expect(
+      attachShipment(ctx.db, user.id, id, NO_SUCH_ID),
+    ).rejects.toThrow();
+    // The placeholder is untouched.
+    expect(await listOrderPlaceholders(ctx.db, user.id)).toHaveLength(1);
+  });
+
+  it("createShippedOrder rethrows for a shipment that does not exist", async () => {
+    const user = await insertUser(ctx.db);
+    await expect(
+      createShippedOrder(ctx.db, user.id, {
+        ...order(),
+        shipmentId: NO_SUCH_ID,
+      }),
+    ).rejects.toThrow();
+  });
+});

@@ -16,7 +16,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 - UI: Tailwind CSS
 - Tracking: Ship24 behind the `TrackingProvider` adapter (AfterShip is a later upgrade)
 - Background jobs: Inngest (decided in Phase 3): cron functions in `src/jobs/`, served at `/api/inngest`
-- Map: MapLibre GL; geocoding results cached in the `places` table
+- Map: MapLibre GL with OpenFreeMap tiles (no key). Geocoding: Nominatim (decided in Phase 4) behind the `Geocoder` interface, results cached in the `places` table
 - Inbound email: Postmark Inbound or Cloudflare Email Routing; field extraction with Claude Haiku 4.5
 - Alerts: Web Push (VAPID) + Resend email
 - Tests: Vitest, Testing Library, MSW; Playwright only at launch
@@ -60,7 +60,9 @@ src/
   lib/shipments/sync/  webhook handling, update rule (decideShipmentUpdate), re-fetch and archive logic
   app/api/webhooks/tracking/  provider webhook route (authenticates with the provider's secret)
   app/api/inngest/     serves the Inngest functions
-  lib/geo/             geocoder (cache-first) and inferMode()
+  lib/geo/             infer-mode (inferMode/shipmentMode), map-data (buildMapData), geocode-place (cache-first), place-events, map-style
+  lib/geo/geocoder/    import only from index.ts: Geocoder, getGeocoder(); nominatim.ts and fake.ts are never imported from outside lib/geo
+  lib/db/geo-sync.ts   system-scope place queries for the geocoding jobs (import-restricted by ESLint)
   lib/email/           inbound email parsing and extraction
   jobs/                Inngest functions (re-fetch stale, archive delivered; later notify, cleanup), thin wrappers over lib code
 tests/
@@ -93,7 +95,8 @@ docs/
 - `parseWebhook` authenticates first (throws `WebhookAuthError`), then returns `NormalizedShipment[]`: one per tracking, with only the new events, de-duplicated. `deleteTracking` is an unsubscribe on Ship24 (it has no delete endpoint).
 - Auth env keys: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (server-only, never `NEXT_PUBLIC_*`) and `APP_URL` (public origin for auth redirects). Setup steps are in `docs/supabase-setup.md`.
 - Provider env keys: `TRACKING_PROVIDER` (`fake` default | `ship24`), `SHIP24_API_KEY` and `SHIP24_WEBHOOK_SECRET` (required for ship24), `FAKE_WEBHOOK_SECRET` (required in production). See `.env.example`.
-- Job env keys: `INNGEST_SIGNING_KEY` (required in production; the SDK reads it itself) and `INNGEST_DEV=1` for local development. Setup steps are in `docs/webhooks-and-jobs-setup.md`.
+- Job env keys: `INNGEST_SIGNING_KEY` (required in production; the SDK reads it itself), `INNGEST_EVENT_KEY` (required in production; needed to send events) and `INNGEST_DEV=1` for local development. Setup steps are in `docs/webhooks-and-jobs-setup.md`.
+- Geocoder env key: `GEOCODER` (`fake` default | `nominatim`). The fake never touches the network; use it for local development and tests.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
 
@@ -113,7 +116,9 @@ docs/
 - Authorize on the server with `getClaims()`, never `getSession()`. The app connects to Postgres as the table owner (RLS does not apply), so the query-layer checks are the real guard; RLS is enabled with no policies on every table to deny Supabase's Data API.
 - Any page that reads the session must stay dynamic (`createSupabaseServerClient` reads cookies first), so builds never need env values.
 - Webhook handlers: authenticate exactly as the provider documents, read the raw body, make processing idempotent, return 2xx quickly and hand heavy work to a background job. A small, indexed update (the Phase 3 tracking webhook) may apply inline; a database failure returns 500 so the provider retries. Never log the body, headers or secret.
-- System-scope exception: webhooks and jobs act for no user, because one provider tracker can be shared by several users' shipments. Those queries live only in `src/lib/db/tracker-sync.ts`, which ESLint lets only `src/lib/shipments/sync/**` and `src/jobs/**` import. They apply updates and return counts; never return shipment data from them to anything that renders it, and never add a user-facing query there.
+- System-scope exception: webhooks and jobs act for no user, because one provider tracker can be shared by several users' shipments. Those queries live only in `src/lib/db/tracker-sync.ts`, which ESLint lets only `src/lib/shipments/sync/**` and `src/jobs/**` import. They apply updates and return counts; never return shipment data from them to anything that renders it, and never add a user-facing query there. The same holds for `src/lib/db/geo-sync.ts` (geocoding), which ESLint lets only `src/lib/geo/**` and `src/jobs/**` import and which returns place text only.
+- Nothing outside `src/lib/geo/` may import a specific geocoder (ESLint enforces this); go through `@/lib/geo/geocoder`. Client components must not import `@/lib/tracking` for values (it pulls provider code and `node:crypto` into the browser bundle); import `@/lib/tracking/status` instead.
+- Map and place data: coordinates live only in `places` (a global cache, not user data) and are joined on read through the Postgres-generated `location_key` / `destination_key`. Never copy coordinates onto checkpoints. Location text is the only shipment data sent to the geocoder: never names, street addresses or tracking numbers.
 - Shipment status is decided by event time, never by ranking statuses: a late older event is stored but must not change status or ETA (`decideShipmentUpdate`).
 - Forwarded email content is untrusted. The extraction model gets no tools and sees only that one email; its output must pass schema validation before anything is created.
 - Raw inbound emails are deleted after 30 days.

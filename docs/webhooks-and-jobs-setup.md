@@ -38,11 +38,11 @@ Ship24 retries any non-2xx response up to 20 times, and may deliver out of order
 ## Inngest (production)
 
 1. Create an account at https://www.inngest.com and an app for this project.
-2. Easiest: install the Inngest integration for your Vercel project; it sets `INNGEST_SIGNING_KEY` for you. Otherwise copy the signing key from the Inngest dashboard into the Vercel environment variable `INNGEST_SIGNING_KEY`.
-3. Deploy, then in the Inngest dashboard sync the app at `<APP_URL>/api/inngest`. Both functions should appear with their cron schedules.
-4. `INNGEST_SIGNING_KEY` is required in production. If it is missing, `/api/inngest` returns an error that names the missing key.
+2. Easiest: install the Inngest integration for your Vercel project; it sets `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` for you. Otherwise copy both keys from the Inngest dashboard into the Vercel environment variables of the same names. The event key lets the app send events (geocoding requests).
+3. Deploy, then in the Inngest dashboard sync the app at `<APP_URL>/api/inngest`. All four functions should appear (two with cron schedules).
+4. `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` are required in production. If either is missing, the app reports an error that names the missing key.
 
-Free tier: 50,000 step runs a month. These two jobs use about 750.
+Free tier: 50,000 step runs a month. The cron jobs use about 1,500; each newly seen place costs 1 more.
 
 ## What the jobs do
 
@@ -50,3 +50,27 @@ Free tier: 50,000 step runs a month. These two jobs use about 750.
 | --- | --- | --- |
 | `refetch-stale-shipments` | hourly | Fetches up to 100 trackers whose shipments had no provider update for 24 hours, oldest first, and applies what comes back. Stops on rate limiting, an outage, a bad API key or an exhausted quota, and tries again next hour. |
 | `archive-delivered-shipments` | daily 03:30 UTC | Archives shipments delivered 14 or more days ago. |
+| `geocode-sweep` | on `wayfind/geocode.requested`, and hourly at :15 | Finds place text (checkpoint locations and destinations of live shipments) with no cached coordinates and queues one `wayfind/place.geocode` event per place, at most 200 a run. The event is sent when a package is added, when a webhook or re-fetch brings new checkpoints; the hourly run is the backstop if a send failed. |
+| `geocode-place` | on `wayfind/place.geocode` | Geocodes one place, cache-first, and stores the answer (or "not found") in `places`. Throttled to 1 run a second to stay inside Nominatim's usage policy. |
+
+## The map and geocoding
+
+The Map view shows each package at its newest known location, with a line through the places it has passed. Place text from Ship24 (`MEMPHIS, TN`) is turned into coordinates by the geocoder and cached in the `places` table, so each distinct place is looked up once, ever.
+
+### Trying it locally (no network)
+
+1. Keep `GEOCODER=fake` (the default). The fake knows every place the fake tracking scenarios use.
+2. With `npm run dev` and `npm run jobs:dev` running, add `FAKE-TRANSIT-1`, `FAKE-AIR-1`, `FAKE-OFD-1`, `FAKE-DELIVERED-1` and `FAKE-PENDING-1`.
+3. In the Inngest UI you will see `geocode-sweep` run, then one `geocode-place` per new place.
+4. Open **Map**. `FAKE-PENDING-1` has no checkpoints, so it shows as a pin at its destination.
+5. Run `geocode-sweep` again from the UI: it queues nothing, because everything is cached.
+
+The base map tiles come from OpenFreeMap over the internet, so the Map view still needs a connection to draw the background even with the fake geocoder.
+
+### Switching to real geocoding
+
+1. Set `GEOCODER=nominatim`. It uses OpenStreetMap's public instance: no key or account, but it is meant for light use (one request a second, an identifying `User-Agent`, results cached). The `User-Agent` is built from `APP_URL`, so set that to the real origin.
+2. Add one package and check the logs and the `places` table: one request for each new place, none for places already cached.
+3. Before launch, decide whether to move to a hosted geocoder. That is tracked in `docs/unresolved-issues.md`.
+
+Only place text is sent to the geocoder: city, region, postcode and country for destinations, and each checkpoint's location text. Never names, street addresses or tracking numbers.

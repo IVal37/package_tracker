@@ -1,6 +1,6 @@
 # Phase 3 — Live updates: plan
 
-Decisions: Inngest for background jobs (2026-10-07); the webhook applies updates inline and relies on Ship24's retries instead of a queue.
+Decisions: Inngest for background jobs (2026-10-07); the webhook applies updates inline and relies on Ship24's retries instead of a queue; dependencies `inngest` and `@inngest/test` approved (2026-10-07).
 
 
 ## Goal
@@ -20,14 +20,14 @@ These come from Ship24's and Inngest's docs and Vercel's limits, read 2026-10-07
 - **Inngest v4:** `new Inngest({ id })`, `serve` from `inngest/next` at `src/app/api/inngest/route.ts` (GET, POST, PUT), and cron triggers that accept `TZ=...` prefixes. Production needs `INNGEST_SIGNING_KEY`. Local development runs `npx inngest-cli@latest dev`, with its UI at `http://localhost:8288`. `@inngest/test` (`InngestTestEngine`) runs functions under Vitest.
 - **Free tiers:** Inngest allows 50,000 step runs a month. The jobs below use one step per run: an hourly job plus a daily job is about 750 a month.
 
-## Dependencies to approve
+## Dependencies (approved 2026-10-07)
 
 | Package | Why |
 | --- | --- |
 | `inngest` (v4) | Background jobs (Stack: "Inngest or Upstash QStash"; Inngest chosen) |
 | `@inngest/test` (dev) | Runs Inngest functions in Vitest with mocked steps |
 
-Approving this plan approves these two packages and nothing else. `inngest-cli` runs through `npx` and is not added to `package.json`.
+These two packages are approved and nothing else. `inngest-cli` runs through `npx` and is not added to `package.json`.
 
 ## Design decisions
 
@@ -189,7 +189,7 @@ Commit: `docs: Phase 3 webhook and job setup`
 - Notifications (Phase 6)
 - Rate limiting public endpoints (Phase 7)
 - Live UI refresh (websockets or polling)
-- **Setting `Expired`.** No phase in `docs/plan.md` owns it. I suggest adding it to Phase 7 or the backlog; until then, re-fetch keeps checking such shipments while they're unarchived.
+- **Setting `Expired`.** Scheduled for Phase 7 in `docs/plan.md`; until then, re-fetch keeps checking quiet shipments while they're unarchived.
 - Unsubscribing Ship24 trackers on archive
 - Ship24 batched webhooks
 

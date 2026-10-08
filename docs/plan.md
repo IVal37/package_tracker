@@ -130,8 +130,8 @@ Every Test gate means: Vitest unit tests for each new module, external services 
 ### Phase 7 — MVP hardening and launch
 
 - **Goal:** safe to put in front of the public.
-- **Deliverables:** fixes for every High/Medium item in `docs/launch-audit.md`; rate limiting on public endpoints; Sentry; admin page of trackers created per day vs the Ship24 allowance; configurable active-package cap per user; privacy policy and terms pages; data export and delete in settings; Vercel deploy with the production Ship24 webhook.
-- **Test gate (85% overall):** full suite green plus one Playwright happy path: sign up, add a package, see it in the list and on the map. Tag `mvp-launch`.
+- **Deliverables:** fixes for every High/Medium item in `docs/launch-audit.md`; rate limiting on public endpoints; Sentry; admin page of trackers created per day vs the Ship24 allowance; configurable active-package cap per user; a job that marks shipments `Expired` when a tracker has had no events for N days (N decided in the Phase 7 plan; Ship24 never sends this status) and excludes them from re-fetch; privacy policy and terms pages; data export and delete in settings; Vercel deploy with the production Ship24 webhook.
+- **Test gate (85% overall):** full suite green `Expired` is set only after N quiet days and never on a Delivered shipment; plus one Playwright happy path: sign up, add a package, see it in the list and on the map. Tag `mvp-launch`.
 
 ## 5. Backlog (do not build during the MVP)
 

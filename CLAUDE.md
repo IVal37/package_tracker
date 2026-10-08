@@ -6,7 +6,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 ## Current phase
 
-**Phase 3 — Live updates.** (Update this line each time a phase is tagged done.)
+**Phase 4 — Map view and transport-mode icons.** (Update this line each time a phase is tagged done.)
 
 ## Stack
 
@@ -82,6 +82,7 @@ docs/
 - Make small commits with clear messages. Schema and migration changes go in their own commit, before feature code.
 - A phase is done only when its Test gate passes in CI and the commit is tagged `phase-N-done`.
 - Ask before adding any dependency that is not listed under Stack.
+- Issues, bugs or unknowns that should be tested before shipping but are not pressing and do not block development: do not fix them mid-phase. Either put them in the later phase in `docs/plan.md` where they fit, or log them in `docs/unresolved-issues.md` for the final sweep (a full review with Fable before launch). Mention them in the end-of-phase summary.
 
 ## Code conventions
 

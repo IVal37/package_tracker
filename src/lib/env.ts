@@ -19,6 +19,10 @@ const envSchema = z
     SHIP24_API_KEY: z.string().min(1).optional(),
     SHIP24_WEBHOOK_SECRET: z.string().min(1).optional(),
     FAKE_WEBHOOK_SECRET: z.string().min(1).optional(),
+    // Inngest verifies its calls to /api/inngest with this. The SDK reads it
+    // from the environment itself; it is listed here so a production deploy
+    // without it fails loudly. Optional in development (INNGEST_DEV=1).
+    INNGEST_SIGNING_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env) =>
@@ -35,6 +39,9 @@ const envSchema = z
       !env.FAKE_WEBHOOK_SECRET
     ) {
       require("FAKE_WEBHOOK_SECRET");
+    }
+    if (env.NODE_ENV === "production" && !env.INNGEST_SIGNING_KEY) {
+      require("INNGEST_SIGNING_KEY");
     }
   })
   .transform((env) => ({

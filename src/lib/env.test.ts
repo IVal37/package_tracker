@@ -160,16 +160,54 @@ describe("tracking provider env", () => {
   });
 
   it("requires an explicit fake webhook secret in production", () => {
-    expect(() => parseEnv({ ...valid, NODE_ENV: "production" })).toThrowError(
-      "Invalid environment: missing FAKE_WEBHOOK_SECRET",
-    );
+    expect(() =>
+      parseEnv({
+        ...valid,
+        NODE_ENV: "production",
+        INNGEST_SIGNING_KEY: "signkey-test",
+      }),
+    ).toThrowError("Invalid environment: missing FAKE_WEBHOOK_SECRET");
     expect(
       parseEnv({
         ...valid,
         NODE_ENV: "production",
         FAKE_WEBHOOK_SECRET: "prod-secret",
+        INNGEST_SIGNING_KEY: "signkey-test",
       }).FAKE_WEBHOOK_SECRET,
     ).toBe("prod-secret");
+  });
+});
+
+describe("inngest env", () => {
+  const production = {
+    ...valid,
+    NODE_ENV: "production",
+    FAKE_WEBHOOK_SECRET: "prod-secret",
+  };
+
+  it("requires INNGEST_SIGNING_KEY in production, naming only the key", () => {
+    expect(() => parseEnv(production)).toThrowError(
+      "Invalid environment: missing INNGEST_SIGNING_KEY",
+    );
+    expect(() =>
+      parseEnv({ ...production, INNGEST_SIGNING_KEY: "" }),
+    ).toThrowError("Invalid environment: missing INNGEST_SIGNING_KEY");
+  });
+
+  it("accepts INNGEST_SIGNING_KEY in production", () => {
+    expect(
+      parseEnv({ ...production, INNGEST_SIGNING_KEY: "signkey-test" })
+        .INNGEST_SIGNING_KEY,
+    ).toBe("signkey-test");
+  });
+
+  it("does not need it in development or test", () => {
+    expect(
+      parseEnv({ ...valid, NODE_ENV: "development" }).INNGEST_SIGNING_KEY,
+    ).toBeUndefined();
+    expect(
+      parseEnv({ ...valid, NODE_ENV: "test" }).INNGEST_SIGNING_KEY,
+    ).toBeUndefined();
   });
 });
 

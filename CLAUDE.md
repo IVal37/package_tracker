@@ -6,7 +6,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 ## Current phase
 
-**Phase 5 — Auto-capture by email forwarding.** (Update this line each time a phase is tagged done.)
+**Phase 6 — Notifications.** (Update this line each time a phase is tagged done.)
 
 ## Stack
 

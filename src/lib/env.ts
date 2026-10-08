@@ -28,6 +28,23 @@ const envSchema = z
     // "fake" never touches the network; "nominatim" is OpenStreetMap's public
     // geocoder (light use only, see docs/phase-4-plan.md).
     GEOCODER: z.enum(["fake", "nominatim"]).default("fake"),
+    // Forwarding addresses are <alias>@INBOUND_EMAIL_DOMAIN. Required in
+    // production; "in.localhost" is the development default.
+    INBOUND_EMAIL_DOMAIN: z
+      .string()
+      .regex(
+        /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/,
+        "lower-case hostname",
+      )
+      .optional(),
+    // Shared secret the Cloudflare Worker sends as a bearer token.
+    INBOUND_WEBHOOK_SECRET: z.string().min(1).optional(),
+    // Emails stored per user per day; the cost control against alias spam.
+    INBOUND_DAILY_LIMIT: z.coerce.number().int().min(1).max(10_000).default(50),
+    // "fake" reads emails with plain rules and never touches the network;
+    // "claude" asks Claude Haiku 4.5 and needs ANTHROPIC_API_KEY.
+    EMAIL_EXTRACTOR: z.enum(["fake", "claude"]).default("fake"),
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env) =>
@@ -51,10 +68,20 @@ const envSchema = z
     if (env.NODE_ENV === "production" && !env.INNGEST_EVENT_KEY) {
       require("INNGEST_EVENT_KEY");
     }
+    if (env.NODE_ENV === "production") {
+      if (!env.INBOUND_EMAIL_DOMAIN) require("INBOUND_EMAIL_DOMAIN");
+      if (!env.INBOUND_WEBHOOK_SECRET) require("INBOUND_WEBHOOK_SECRET");
+    }
+    if (env.EMAIL_EXTRACTOR === "claude" && !env.ANTHROPIC_API_KEY) {
+      require("ANTHROPIC_API_KEY");
+    }
   })
   .transform((env) => ({
     ...env,
     FAKE_WEBHOOK_SECRET: env.FAKE_WEBHOOK_SECRET ?? "fake-secret",
+    // Development-only defaults; production has to set both (checked above).
+    INBOUND_EMAIL_DOMAIN: env.INBOUND_EMAIL_DOMAIN ?? "in.localhost",
+    INBOUND_WEBHOOK_SECRET: env.INBOUND_WEBHOOK_SECRET ?? "dev-inbound-secret",
   }));
 
 export type Env = z.infer<typeof envSchema>;

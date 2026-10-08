@@ -1,4 +1,4 @@
-import {
+﻿import {
   InvalidTrackingNumberError,
   ProviderResponseError,
   TrackerNotFoundError,
@@ -14,7 +14,7 @@ import {
   type NormalizedShipment,
   type TrackingProvider,
 } from "../types";
-import { verifyBearerSecret } from "../webhook-auth";
+import { verifyBearerSecret } from "@/lib/auth/bearer";
 import { z } from "zod";
 
 export interface FakeProviderConfig {

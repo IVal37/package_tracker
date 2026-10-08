@@ -1,6 +1,6 @@
-// @vitest-environment node
+﻿// @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { verifyBearerSecret } from "./webhook-auth";
+import { verifyBearerSecret } from "./bearer";
 
 const headers = (authorization?: string) =>
   new Headers(authorization === undefined ? {} : { authorization });

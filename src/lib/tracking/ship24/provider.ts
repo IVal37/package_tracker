@@ -1,4 +1,4 @@
-import {
+﻿import {
   ProviderResponseError,
   TrackerConflictError,
   WebhookAuthError,
@@ -10,7 +10,7 @@ import type {
   NormalizedShipment,
   TrackingProvider,
 } from "../types";
-import { verifyBearerSecret } from "../webhook-auth";
+import { verifyBearerSecret } from "@/lib/auth/bearer";
 import { ship24Request, type Ship24ClientConfig } from "./client";
 import { ship24Destination } from "./destination";
 import {

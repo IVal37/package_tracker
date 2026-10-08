@@ -4,6 +4,12 @@ import { getEnv, parseEnv, resetEnvCache } from "./env";
 
 const valid = requiredEnv;
 
+// Production also needs the inbound email settings (see "inbound email env").
+const inboundProd = {
+  INBOUND_EMAIL_DOMAIN: "in.example.test",
+  INBOUND_WEBHOOK_SECRET: "inbound-secret",
+};
+
 describe("parseEnv", () => {
   it("parses valid input and applies defaults", () => {
     const env = parseEnv(valid);
@@ -163,6 +169,7 @@ describe("tracking provider env", () => {
     expect(() =>
       parseEnv({
         ...valid,
+        ...inboundProd,
         NODE_ENV: "production",
         INNGEST_SIGNING_KEY: "signkey-test",
         INNGEST_EVENT_KEY: "eventkey-test",
@@ -171,6 +178,7 @@ describe("tracking provider env", () => {
     expect(
       parseEnv({
         ...valid,
+        ...inboundProd,
         NODE_ENV: "production",
         FAKE_WEBHOOK_SECRET: "prod-secret",
         INNGEST_SIGNING_KEY: "signkey-test",
@@ -183,6 +191,7 @@ describe("tracking provider env", () => {
 describe("inngest env", () => {
   const production = {
     ...valid,
+    ...inboundProd,
     NODE_ENV: "production",
     FAKE_WEBHOOK_SECRET: "prod-secret",
   };
@@ -216,6 +225,96 @@ describe("inngest env", () => {
       expect(env.INNGEST_SIGNING_KEY).toBeUndefined();
       expect(env.INNGEST_EVENT_KEY).toBeUndefined();
     }
+  });
+});
+
+describe("inbound email env", () => {
+  const production = {
+    ...valid,
+    NODE_ENV: "production",
+    FAKE_WEBHOOK_SECRET: "prod-secret",
+    INNGEST_SIGNING_KEY: "signkey-test",
+    INNGEST_EVENT_KEY: "eventkey-test",
+  };
+
+  it("has development defaults", () => {
+    const env = parseEnv(valid);
+    expect(env.INBOUND_EMAIL_DOMAIN).toBe("in.localhost");
+    expect(env.INBOUND_WEBHOOK_SECRET).toBe("dev-inbound-secret");
+    expect(env.INBOUND_DAILY_LIMIT).toBe(50);
+  });
+
+  it("requires the domain and the webhook secret in production, naming only the keys", () => {
+    expect(() => parseEnv(production)).toThrowError(
+      "Invalid environment: missing INBOUND_EMAIL_DOMAIN; missing INBOUND_WEBHOOK_SECRET",
+    );
+    expect(() =>
+      parseEnv({ ...production, INBOUND_EMAIL_DOMAIN: "in.example.test" }),
+    ).toThrowError("Invalid environment: missing INBOUND_WEBHOOK_SECRET");
+    expect(() =>
+      parseEnv({ ...production, INBOUND_WEBHOOK_SECRET: "inbound-secret" }),
+    ).toThrowError("Invalid environment: missing INBOUND_EMAIL_DOMAIN");
+  });
+
+  it("accepts both in production", () => {
+    const env = parseEnv({ ...production, ...inboundProd });
+    expect(env.INBOUND_EMAIL_DOMAIN).toBe("in.example.test");
+    expect(env.INBOUND_WEBHOOK_SECRET).toBe("inbound-secret");
+  });
+
+  it.each(["In.Example.test", "in example.test", "-bad.test", "bad-.test"])(
+    "rejects the malformed domain %j without echoing it",
+    (domain) => {
+      expect(() =>
+        parseEnv({ ...valid, INBOUND_EMAIL_DOMAIN: domain }),
+      ).toThrowError("Invalid environment: invalid INBOUND_EMAIL_DOMAIN");
+    },
+  );
+
+  it("reads the daily limit as a number and bounds it", () => {
+    expect(
+      parseEnv({ ...valid, INBOUND_DAILY_LIMIT: "120" }).INBOUND_DAILY_LIMIT,
+    ).toBe(120);
+    for (const bad of ["0", "-3", "1.5", "abc", "100000"]) {
+      expect(() =>
+        parseEnv({ ...valid, INBOUND_DAILY_LIMIT: bad }),
+      ).toThrowError("Invalid environment: invalid INBOUND_DAILY_LIMIT");
+    }
+  });
+});
+
+describe("email extractor env", () => {
+  it("defaults to the fake extractor, which needs no key", () => {
+    const env = parseEnv(valid);
+    expect(env.EMAIL_EXTRACTOR).toBe("fake");
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+  });
+
+  it("requires ANTHROPIC_API_KEY when the extractor is claude", () => {
+    expect(() =>
+      parseEnv({ ...valid, EMAIL_EXTRACTOR: "claude" }),
+    ).toThrowError("Invalid environment: missing ANTHROPIC_API_KEY");
+    expect(() =>
+      parseEnv({ ...valid, EMAIL_EXTRACTOR: "claude", ANTHROPIC_API_KEY: "" }),
+    ).toThrowError("Invalid environment: missing ANTHROPIC_API_KEY");
+    const env = parseEnv({
+      ...valid,
+      EMAIL_EXTRACTOR: "claude",
+      ANTHROPIC_API_KEY: "sk-ant-test",
+    });
+    expect(env.EMAIL_EXTRACTOR).toBe("claude");
+  });
+
+  it("does not need the key for the fake extractor even if one is set", () => {
+    expect(
+      parseEnv({ ...valid, ANTHROPIC_API_KEY: "sk-ant-test" }).EMAIL_EXTRACTOR,
+    ).toBe("fake");
+  });
+
+  it("rejects an unknown extractor without echoing it", () => {
+    expect(() => parseEnv({ ...valid, EMAIL_EXTRACTOR: "gpt" })).toThrowError(
+      "Invalid environment: invalid EMAIL_EXTRACTOR",
+    );
   });
 });
 

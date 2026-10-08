@@ -49,6 +49,25 @@ const geoSyncImportPattern = {
     "geo-sync is system-scope (reads every user's place text). Only src/lib/geo and src/jobs may import it.",
 };
 
+// Same idea for the email extractors: only src/lib/email may touch a specific one.
+const extractorImportPattern = {
+  group: [
+    "@/lib/email/extract/claude",
+    "@/lib/email/extract/fake",
+    "**/extract/claude",
+    "**/extract/fake",
+  ],
+  message:
+    "Import from @/lib/email/extract (the Extractor interface), not a specific extractor.",
+};
+
+// Finding a user by forwarding alias happens for no signed-in user.
+const inboundSyncImportPattern = {
+  group: ["@/lib/db/inbound-sync", "**/db/inbound-sync"],
+  message:
+    "inbound-sync is system-scope (looks users up by alias). Only src/lib/email and src/jobs may import it.",
+};
+
 const restrict = (...patterns) => ["error", { patterns }];
 
 const eslintConfig = defineConfig([
@@ -70,8 +89,10 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": restrict(
         providerImportPattern,
         geocoderImportPattern,
+        extractorImportPattern,
         trackerSyncImportPattern,
         geoSyncImportPattern,
+        inboundSyncImportPattern,
       ),
     },
   },
@@ -81,7 +102,9 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": restrict(
         providerImportPattern,
         geocoderImportPattern,
+        extractorImportPattern,
         geoSyncImportPattern,
+        inboundSyncImportPattern,
       ),
     },
   },
@@ -91,6 +114,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": restrict(
         providerImportPattern,
         geocoderImportPattern,
+        extractorImportPattern,
       ),
     },
   },
@@ -99,7 +123,20 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         providerImportPattern,
+        extractorImportPattern,
         trackerSyncImportPattern,
+        inboundSyncImportPattern,
+      ),
+    },
+  },
+  {
+    files: ["src/lib/email/**"],
+    rules: {
+      "no-restricted-imports": restrict(
+        providerImportPattern,
+        geocoderImportPattern,
+        trackerSyncImportPattern,
+        geoSyncImportPattern,
       ),
     },
   },

@@ -104,6 +104,67 @@ describe("geo-sync import guard", () => {
   });
 });
 
+const INBOUND_SYNC = `import { findUserIdByAlias } from "@/lib/db/inbound-sync";\nexport const x = findUserIdByAlias;\n`;
+const EXTRACTOR = `import { ClaudeExtractor } from "@/lib/email/extract/claude";\nexport const x = ClaudeExtractor;\n`;
+const FAKE_EXTRACTOR = `import { FakeExtractor } from "../lib/email/extract/fake";\nexport const x = FakeExtractor;\n`;
+
+describe("inbound-sync import guard", () => {
+  it.each([
+    "src/app/page.tsx",
+    "src/app/api/webhooks/inbound-email/route.ts",
+    "src/components/settings-form.tsx",
+    "src/lib/geo/geocode-place.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+  ])("rejects an import from %s", async (file) => {
+    const errors = await restrictedImportErrors(file, INBOUND_SYNC);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("inbound-sync");
+  });
+
+  it.each([
+    "src/lib/email/receive.ts",
+    "src/jobs/inbound-email.ts",
+    "src/lib/db/forwarding.test.ts",
+  ])("allows an import from %s", async (file) => {
+    expect(await restrictedImportErrors(file, INBOUND_SYNC)).toHaveLength(0);
+  });
+
+  it("keeps the other system-scope modules off limits to the email folder", async () => {
+    expect(
+      await restrictedImportErrors("src/lib/email/receive.ts", TRACKER_SYNC),
+    ).toHaveLength(1);
+    expect(
+      await restrictedImportErrors("src/lib/email/receive.ts", GEO_SYNC),
+    ).toHaveLength(1);
+  });
+});
+
+describe("extractor import guard", () => {
+  it.each([
+    "src/app/page.tsx",
+    "src/app/api/webhooks/inbound-email/route.ts",
+    "src/jobs/inbound-email.ts",
+    "src/lib/db/orders.ts",
+    "src/lib/geo/geocode-place.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+  ])("rejects a specific extractor from %s", async (file) => {
+    for (const source of [EXTRACTOR, FAKE_EXTRACTOR]) {
+      const errors = await restrictedImportErrors(file, source);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]?.message).toContain("Extractor interface");
+    }
+  });
+
+  it.each([
+    "src/lib/email/process.ts",
+    "src/lib/email/extract/index.ts",
+    "src/lib/email/extract/claude.test.ts",
+  ])("allows a specific extractor inside %s", async (file) => {
+    expect(await restrictedImportErrors(file, EXTRACTOR)).toHaveLength(0);
+    expect(await restrictedImportErrors(file, FAKE_EXTRACTOR)).toHaveLength(0);
+  });
+});
+
 describe("provider import guard", () => {
   it.each([
     "src/app/page.tsx",

@@ -61,6 +61,20 @@ const extractorImportPattern = {
     "Import from @/lib/email/extract (the Extractor interface), not a specific extractor.",
 };
 
+// Same idea for alert senders: only src/lib/notifications may touch a specific one.
+const senderImportPattern = {
+  group: [
+    "@/lib/notifications/senders/webpush",
+    "@/lib/notifications/senders/resend",
+    "@/lib/notifications/senders/fake",
+    "**/senders/webpush",
+    "**/senders/resend",
+    "**/senders/fake",
+  ],
+  message:
+    "Import from @/lib/notifications/senders (the PushSender and EmailSender interfaces), not a specific sender.",
+};
+
 // Finding a user by forwarding alias happens for no signed-in user.
 const inboundSyncImportPattern = {
   group: ["@/lib/db/inbound-sync", "**/db/inbound-sync"],
@@ -97,6 +111,7 @@ const eslintConfig = defineConfig([
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
+        senderImportPattern,
         trackerSyncImportPattern,
         geoSyncImportPattern,
         inboundSyncImportPattern,
@@ -111,6 +126,7 @@ const eslintConfig = defineConfig([
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
+        senderImportPattern,
         geoSyncImportPattern,
         inboundSyncImportPattern,
         notifySyncImportPattern,
@@ -124,6 +140,7 @@ const eslintConfig = defineConfig([
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
+        senderImportPattern,
       ),
     },
   },
@@ -133,6 +150,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": restrict(
         providerImportPattern,
         extractorImportPattern,
+        senderImportPattern,
         trackerSyncImportPattern,
         inboundSyncImportPattern,
         notifySyncImportPattern,
@@ -148,6 +166,7 @@ const eslintConfig = defineConfig([
         trackerSyncImportPattern,
         geoSyncImportPattern,
         notifySyncImportPattern,
+        senderImportPattern,
       ),
     },
   },

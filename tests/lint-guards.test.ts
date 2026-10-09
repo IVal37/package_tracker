@@ -235,3 +235,35 @@ describe("notify-sync import guard", () => {
     }
   });
 });
+
+const PUSH_SENDER = `import { WebPushSender } from "@/lib/notifications/senders/webpush";\nexport const x = WebPushSender;\n`;
+const RESEND_SENDER = `import { ResendEmailSender } from "../lib/notifications/senders/resend";\nexport const x = ResendEmailSender;\n`;
+const FAKE_SENDER = `import { FakePushSender } from "@/lib/notifications/senders/fake";\nexport const x = FakePushSender;\n`;
+
+describe("sender import guard", () => {
+  it.each([
+    "src/app/page.tsx",
+    "src/app/settings/actions.ts",
+    "src/jobs/notifications.ts",
+    "src/lib/db/orders.ts",
+    "src/lib/email/process.ts",
+    "src/lib/geo/geocode-place.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+  ])("rejects a specific sender from %s", async (file) => {
+    for (const source of [PUSH_SENDER, RESEND_SENDER, FAKE_SENDER]) {
+      const errors = await restrictedImportErrors(file, source);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]?.message).toContain("PushSender and EmailSender");
+    }
+  });
+
+  it.each([
+    "src/lib/notifications/send.ts",
+    "src/lib/notifications/senders/index.ts",
+    "src/lib/notifications/senders/webpush.test.ts",
+  ])("allows a specific sender inside %s", async (file) => {
+    for (const source of [PUSH_SENDER, RESEND_SENDER, FAKE_SENDER]) {
+      expect(await restrictedImportErrors(file, source)).toHaveLength(0);
+    }
+  });
+});

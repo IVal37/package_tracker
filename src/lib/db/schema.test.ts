@@ -10,8 +10,11 @@ import {
 import {
   checkpoints,
   inboundEmails,
+  notificationSettings,
+  notifications,
   orders,
   places,
+  pushSubscriptions,
   shipments,
   users,
 } from "./schema";
@@ -64,8 +67,11 @@ describe("schema (PGlite)", () => {
     expect(tables).toEqual([
       "checkpoints",
       "inbound_emails",
+      "notification_settings",
+      "notifications",
       "orders",
       "places",
+      "push_subscriptions",
       "shipments",
       "users",
     ]);
@@ -97,11 +103,23 @@ describe("schema (PGlite)", () => {
         where tablename = 'shipments' and indexname like 'shipments_%_due_idx'
         order by indexname`,
     );
-    const [archive, sync] = result.rows;
-    expect(archive?.indexname).toBe("shipments_archive_due_idx");
-    expect(archive?.indexdef).toMatch(/WHERE .*Delivered/);
-    expect(sync?.indexname).toBe("shipments_sync_due_idx");
-    expect(sync?.indexdef).toMatch(/WHERE .*archived_at IS NULL/);
+    const byName = (name: string) =>
+      result.rows.find((row) => row.indexname === name);
+    expect(result.rows.map((row) => row.indexname)).toEqual([
+      "shipments_archive_due_idx",
+      "shipments_eta_due_idx",
+      "shipments_sync_due_idx",
+    ]);
+    expect(byName("shipments_archive_due_idx")?.indexdef).toMatch(
+      /WHERE .*Delivered/,
+    );
+    expect(byName("shipments_sync_due_idx")?.indexdef).toMatch(
+      /WHERE .*archived_at IS NULL/,
+    );
+    // The overdue-delay scan: only rows that have an ETA and can still be late.
+    expect(byName("shipments_eta_due_idx")?.indexdef).toMatch(
+      /WHERE .*archived_at IS NULL.*eta IS NOT NULL/,
+    );
   });
 
   it("no longer stores coordinates or a mode on checkpoints", async () => {
@@ -415,6 +433,8 @@ describe("schema foreign keys", () => {
     ["shipments -> users", shipments, users],
     ["checkpoints -> shipments", checkpoints, shipments],
     ["inbound_emails -> users", inboundEmails, users],
+    ["notification_settings -> users", notificationSettings, users],
+    ["push_subscriptions -> users", pushSubscriptions, users],
   ];
 
   it.each(cases)("%s is a single cascading FK", (_name, table, target) => {
@@ -422,5 +442,14 @@ describe("schema foreign keys", () => {
     expect(others).toHaveLength(0);
     expect(fk?.onDelete).toBe("cascade");
     expect(fk?.reference().foreignTable).toBe(target);
+  });
+
+  it("notifications cascade from both its user and its shipment", () => {
+    const fks = getTableConfig(notifications).foreignKeys;
+    expect(fks.map((fk) => fk.reference().foreignTable)).toEqual([
+      users,
+      shipments,
+    ]);
+    expect(fks.every((fk) => fk.onDelete === "cascade")).toBe(true);
   });
 });

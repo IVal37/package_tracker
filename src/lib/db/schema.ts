@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   doublePrecision,
   index,
@@ -22,6 +23,19 @@ export const parseStatus = pgEnum("parse_status", [
   "parsed",
   "failed",
   "ignored",
+]);
+
+export const notificationKind = pgEnum("notification_kind", [
+  "out_for_delivery",
+  "delivered",
+  "problem",
+  "delay",
+]);
+export const notificationStatus = pgEnum("notification_status", [
+  "pending",
+  "sent",
+  "skipped",
+  "failed",
 ]);
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
@@ -99,6 +113,12 @@ export const shipments = pgTable(
     index("shipments_archive_due_idx")
       .on(t.lastEventAt)
       .where(sql`${t.status} = 'Delivered' and ${t.archivedAt} is null`),
+    // The hourly overdue-delay scan: shipments with an ETA that could still be late.
+    index("shipments_eta_due_idx")
+      .on(t.eta)
+      .where(
+        sql`${t.archivedAt} is null and ${t.eta} is not null and ${t.status} not in ('Delivered', 'Expired')`,
+      ),
   ],
 ).enableRLS();
 
@@ -219,4 +239,102 @@ export const orders = pgTable(
       .where(sql`${t.shipmentId} is not null`),
     index("orders_user_created_idx").on(t.userId, t.createdAt),
   ],
+).enableRLS();
+
+// One row per alert that should reach a user. The unique key is what makes
+// "exactly once per event" true: the row is inserted in the same transaction
+// that changes the shipment, and a repeat of the same event conflicts.
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id, { onDelete: "cascade" }),
+    kind: notificationKind("kind").notNull(),
+    // Identifies the event within (shipment, kind), e.g. the newest event time.
+    dedupeKey: text("dedupe_key").notNull(),
+    status: notificationStatus("status").notNull().default("pending"),
+    skipReason: text("skip_reason"),
+    pushSent: boolean("push_sent").notNull().default(false),
+    emailSent: boolean("email_sent").notNull().default(false),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    sentAt: timestamptz("sent_at"),
+  },
+  (t) => [
+    unique("notifications_shipment_kind_key_unique").on(
+      t.shipmentId,
+      t.kind,
+      t.dedupeKey,
+    ),
+    index("notifications_user_idx").on(t.userId),
+    // The sweep looks for alerts whose send event never ran.
+    index("notifications_pending_idx")
+      .on(t.createdAt)
+      .where(sql`${t.status} = 'pending'`),
+    // The daily cleanup deletes old rows.
+    index("notifications_created_at_idx").on(t.createdAt),
+  ],
+).enableRLS();
+
+// One row per user, created when they first save. No row means the defaults:
+// push on for every alert, email only for delivered and problem, no quiet hours.
+export const notificationSettings = pgTable(
+  "notification_settings",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    pushOutForDelivery: boolean("push_out_for_delivery")
+      .notNull()
+      .default(true),
+    pushDelivered: boolean("push_delivered").notNull().default(true),
+    pushProblem: boolean("push_problem").notNull().default(true),
+    pushDelay: boolean("push_delay").notNull().default(true),
+    emailOutForDelivery: boolean("email_out_for_delivery")
+      .notNull()
+      .default(false),
+    emailDelivered: boolean("email_delivered").notNull().default(true),
+    emailProblem: boolean("email_problem").notNull().default(true),
+    emailDelay: boolean("email_delay").notNull().default(false),
+    quietEnabled: boolean("quiet_enabled").notNull().default(false),
+    // Minutes after midnight in time_zone. Start may be later than end
+    // (22:00-07:00 wraps midnight).
+    quietStart: integer("quiet_start")
+      .notNull()
+      .default(22 * 60),
+    quietEnd: integer("quiet_end")
+      .notNull()
+      .default(7 * 60),
+    timeZone: text("time_zone").notNull().default("UTC"),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "notification_settings_quiet_minutes",
+      sql`${t.quietStart} between 0 and 1439 and ${t.quietEnd} between 0 and 1439`,
+    ),
+  ],
+).enableRLS();
+
+// A browser or device that agreed to receive push. The endpoint is unique, so a
+// browser that signs in as someone else moves to that user instead of keeping
+// two owners.
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    lastSuccessAt: timestamptz("last_success_at"),
+  },
+  (t) => [index("push_subscriptions_user_idx").on(t.userId)],
 ).enableRLS();

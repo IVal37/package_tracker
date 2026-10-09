@@ -7,12 +7,17 @@ const mocks = vi.hoisted(() => ({
   getOrCreateAlias: vi.fn(),
   latestGmailConfirmation: vi.fn(),
   countFailedEmails: vi.fn(),
+  getNotificationPrefs: vi.fn(),
+  getEnv: vi.fn(),
   db: { marker: "db" },
 }));
 
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
+vi.mock("@/lib/db/notification-settings", () => ({
+  getNotificationPrefs: mocks.getNotificationPrefs,
+}));
 vi.mock("@/lib/db/forwarding", () => ({
   getOrCreateAlias: mocks.getOrCreateAlias,
 }));
@@ -20,12 +25,17 @@ vi.mock("@/lib/db/inbound-emails", () => ({
   latestGmailConfirmation: mocks.latestGmailConfirmation,
   countFailedEmails: mocks.countFailedEmails,
 }));
-vi.mock("@/lib/env", () => ({
-  getEnv: () => ({ INBOUND_EMAIL_DOMAIN: "in.wayfind.test" }),
-}));
+vi.mock("@/lib/env", () => ({ getEnv: mocks.getEnv }));
 vi.mock("../sign-in/actions", () => ({ signOut: vi.fn() }));
-vi.mock("./actions", () => ({ regenerateAddressAction: vi.fn() }));
+vi.mock("./actions", () => ({
+  regenerateAddressAction: vi.fn(),
+  saveNotificationSettingsAction: vi.fn(),
+  savePushSubscriptionAction: vi.fn(),
+  removePushSubscriptionAction: vi.fn(),
+  sendTestPushAction: vi.fn(),
+}));
 
+import { DEFAULT_PREFS } from "@/lib/notifications/prefs";
 import SettingsPage from "./page";
 
 const USER = { id: "session-user", email: "izaak@example.test" };
@@ -38,6 +48,11 @@ beforeEach(() => {
   mocks.getOrCreateAlias.mockResolvedValue("izaak-7f3k");
   mocks.latestGmailConfirmation.mockResolvedValue(null);
   mocks.countFailedEmails.mockResolvedValue(0);
+  mocks.getNotificationPrefs.mockResolvedValue(structuredClone(DEFAULT_PREFS));
+  mocks.getEnv.mockReturnValue({
+    INBOUND_EMAIL_DOMAIN: "in.wayfind.test",
+    PUSH_SENDER: "fake",
+  });
 });
 
 describe("Settings page", () => {
@@ -129,6 +144,73 @@ describe("Settings page", () => {
     expect(screen.getByText(/could not be created/)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Copy" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("Settings page: notifications", () => {
+  it("shows the notifications section above email forwarding", async () => {
+    await renderPage();
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent);
+    expect(headings).toEqual(["Notifications", "Email forwarding"]);
+  });
+
+  it("loads the preferences for the session user only", async () => {
+    await renderPage();
+    expect(mocks.getNotificationPrefs).toHaveBeenCalledExactlyOnceWith(
+      mocks.db,
+      "session-user",
+    );
+  });
+
+  it("fills the form with the stored preferences", async () => {
+    const prefs = structuredClone(DEFAULT_PREFS);
+    prefs.push.delay = false;
+    prefs.email.out_for_delivery = true;
+    prefs.quiet = {
+      enabled: true,
+      start: 23 * 60,
+      end: 6 * 60 + 30,
+      timeZone: "Europe/Paris",
+    };
+    mocks.getNotificationPrefs.mockResolvedValue(prefs);
+    await renderPage();
+
+    expect(screen.getByLabelText("Delays by push")).not.toBeChecked();
+    expect(screen.getByLabelText("Out for delivery by email")).toBeChecked();
+    expect(
+      screen.getByLabelText(
+        "Hold alerts during quiet hours and send them when they end",
+      ),
+    ).toBeChecked();
+    expect(screen.getByLabelText("From")).toHaveValue("23:00");
+    expect(screen.getByLabelText("Until")).toHaveValue("06:30");
+    expect(screen.getByLabelText("Time zone")).toHaveValue("Europe/Paris");
+  });
+
+  it("says push is not set up when the server has the fake sender", async () => {
+    await renderPage();
+    expect(
+      await screen.findByText(
+        /Push notifications are not set up on this server/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("offers the VAPID public key to the push section when web push is on", async () => {
+    mocks.getEnv.mockReturnValue({
+      INBOUND_EMAIL_DOMAIN: "in.wayfind.test",
+      PUSH_SENDER: "webpush",
+      VAPID_PUBLIC_KEY: "BPublicKey",
+      VAPID_PRIVATE_KEY: "secret-private-key",
+    });
+    const { container } = await renderPage();
+    // The private key must never reach the page.
+    expect(container.innerHTML).not.toContain("secret-private-key");
+    expect(
+      screen.queryByText(/Push notifications are not set up on this server/),
     ).not.toBeInTheDocument();
   });
 });

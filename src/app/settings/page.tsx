@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 import { ForwardingInstructions } from "@/components/forwarding-instructions";
+import { InstallCard } from "@/components/install-card";
+import { NotificationSettingsForm } from "@/components/notification-settings-form";
+import { PushDeviceManager } from "@/components/push-device-manager";
 import { RegenerateAddress } from "@/components/regenerate-address";
 import { SiteHeader } from "@/components/site-header";
 import { requireUser } from "@/lib/auth/session";
@@ -10,12 +13,19 @@ import {
   countFailedEmails,
   latestGmailConfirmation,
 } from "@/lib/db/inbound-emails";
+import { getNotificationPrefs } from "@/lib/db/notification-settings";
 import { ensureUser } from "@/lib/db/users";
 import { formatAddress } from "@/lib/email/alias";
 import { getEnv } from "@/lib/env";
 import { formatRelativeTime } from "@/lib/shipments/format";
 import { signOut } from "../sign-in/actions";
-import { regenerateAddressAction } from "./actions";
+import {
+  regenerateAddressAction,
+  removePushSubscriptionAction,
+  saveNotificationSettingsAction,
+  savePushSubscriptionAction,
+  sendTestPushAction,
+} from "./actions";
 
 /** A Gmail code is only useful for a short while after it is sent. */
 const CONFIRMATION_WINDOW_MS = 3 * 86_400_000;
@@ -32,7 +42,15 @@ export default async function SettingsPage() {
     ? formatAddress(alias, getEnv().INBOUND_EMAIL_DOMAIN)
     : null;
 
-  const [confirmation, failed] = await Promise.all([
+  const env = getEnv();
+  // The browser needs the public half of the VAPID key to subscribe; with the
+  // fake sender there is no key and the push section says so.
+  const vapidPublicKey =
+    env.PUSH_SENDER === "webpush" ? (env.VAPID_PUBLIC_KEY ?? null) : null;
+  const timeZones = Intl.supportedValuesOf("timeZone");
+
+  const [prefs, confirmation, failed] = await Promise.all([
+    getNotificationPrefs(db, user.id),
     latestGmailConfirmation(
       db,
       user.id,
@@ -48,6 +66,30 @@ export default async function SettingsPage() {
         <Link href="/" className="text-sm text-brand-700 hover:underline">
           ← Back to packages
         </Link>
+
+        <h2 className="text-lg font-semibold">Notifications</h2>
+        <PushDeviceManager
+          publicKey={vapidPublicKey}
+          saveAction={savePushSubscriptionAction}
+          removeAction={removePushSubscriptionAction}
+          testAction={sendTestPushAction}
+        />
+        <section
+          aria-labelledby="alerts-heading"
+          className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+        >
+          <h3 id="alerts-heading" className="font-semibold">
+            Which alerts you get
+          </h3>
+          <NotificationSettingsForm
+            prefs={prefs}
+            suggestBrowserZone={prefs.quiet.timeZone === "UTC"}
+            timeZones={timeZones}
+            action={saveNotificationSettingsAction}
+          />
+        </section>
+        <InstallCard />
+
         <h2 className="text-lg font-semibold">Email forwarding</h2>
 
         {address ? (

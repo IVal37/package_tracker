@@ -46,6 +46,9 @@ vi.mock("./actions", () => ({
   deletePackageAction: vi.fn(),
   dismissOrderAction: vi.fn(),
 }));
+vi.mock("./settings/actions", () => ({
+  removePushSubscriptionAction: vi.fn(),
+}));
 vi.mock("./sign-in/actions", () => ({ signOut: vi.fn() }));
 
 import Home from "./page";
@@ -373,5 +376,21 @@ describe("Home page: list and map views", () => {
     await renderHome({ shipment: "abc" });
 
     expect(screen.getByRole("dialog")).toHaveTextContent("Plane");
+  });
+});
+
+describe("Home page: offline", () => {
+  it("is ready to say when the list is from, if it is opened offline", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    await renderHome();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "You're offline. Showing your list as it was on",
+    );
+    vi.restoreAllMocks();
+  });
+
+  it("shows no offline notice while online", async () => {
+    await renderHome();
+    expect(screen.queryByText(/You're offline/)).not.toBeInTheDocument();
   });
 });

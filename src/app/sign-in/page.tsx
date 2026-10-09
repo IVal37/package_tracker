@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ClearOfflineCache } from "@/components/clear-offline-cache";
 import { SignInForm } from "@/components/sign-in-form";
 import { Wordmark } from "@/components/wordmark";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -21,6 +22,8 @@ export default async function SignInPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
+      {/* Signed out: nothing of the last session should stay on this device. */}
+      <ClearOfflineCache />
       <Wordmark />
       {message && (
         <p

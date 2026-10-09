@@ -10,6 +10,9 @@ const { getCurrentUser, redirect } = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser }));
 vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("@/components/clear-offline-cache", () => ({
+  ClearOfflineCache: () => <div data-testid="clear-offline-cache" />,
+}));
 // Server actions are passed as props but never invoked here.
 vi.mock("./actions", () => ({
   signInWithEmail: vi.fn(),
@@ -57,5 +60,12 @@ describe("SignInPage", () => {
     await expect(
       SignInPage({ searchParams: Promise.resolve({}) }),
     ).rejects.toThrow("NEXT_REDIRECT /");
+  });
+});
+
+describe("SignInPage: leftovers from a previous session", () => {
+  it("clears any saved package list from this device", async () => {
+    await renderPage();
+    expect(screen.getByTestId("clear-offline-cache")).toBeInTheDocument();
   });
 });

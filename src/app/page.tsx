@@ -1,4 +1,5 @@
 import { AddPackageForm } from "@/components/add-package-form";
+import { OfflineBanner } from "@/components/offline-banner";
 import { ShipmentDrawer } from "@/components/shipment-drawer";
 import { ShipmentList } from "@/components/shipment-list";
 import { ShipmentMap } from "@/components/shipment-map";
@@ -16,6 +17,7 @@ import {
 import { shipmentMode, type ModeCheckpoint } from "@/lib/geo/infer-mode";
 import { buildMapData } from "@/lib/geo/map-data";
 import { groupShipmentsByStatus } from "@/lib/shipments/grouping";
+import { removePushSubscriptionAction } from "./settings/actions";
 import { signOut } from "./sign-in/actions";
 import {
   addPackageAction,
@@ -83,8 +85,13 @@ export default async function Home({
 
   return (
     <>
-      <SiteHeader email={user.email} signOutAction={signOut} />
+      <SiteHeader
+        email={user.email}
+        signOutAction={signOut}
+        removeDeviceAction={removePushSubscriptionAction}
+      />
       <main className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+        <OfflineBanner renderedAt={now.toISOString()} />
         <AddPackageForm action={addPackageAction} />
         <ViewToggle view={view} />
         {"placed" in content ? (

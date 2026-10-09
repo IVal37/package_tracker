@@ -56,6 +56,10 @@ describe("proxy matcher", () => {
     "/auth/callback",
     "/api/webhooks/tracking",
     "/api/inngest",
+    "/settings",
+    "/sw.json",
+    "/manifest",
+    "/iconsx",
   ])("runs on %s", (path) => {
     expect(runsOn(path)).toBe(true);
   });
@@ -69,6 +73,11 @@ describe("proxy matcher", () => {
     // MapLibre's worker is served from /public. If this went through the auth
     // check, a signed-out request got the sign-in HTML instead of JavaScript.
     "/maplibre-gl-worker.mjs",
+    // Browsers fetch these without cookies, so they must not be redirected.
+    "/sw.js",
+    "/manifest.webmanifest",
+    "/icons/icon-192.png",
+    "/icons/maskable-512.png",
   ])("skips the static asset %s", (path) => {
     expect(runsOn(path)).toBe(false);
   });

@@ -46,6 +46,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Static assets skip the auth check; .mjs is MapLibre's worker in /public.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mjs)$).*)",
+    // The service worker, manifest and icons are public too (see isPublicPath).
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js$|manifest\\.webmanifest$|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mjs)$).*)",
   ],
 };

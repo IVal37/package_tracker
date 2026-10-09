@@ -61,7 +61,11 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <SiteHeader email={user.email} signOutAction={signOut} />
+      <SiteHeader
+        email={user.email}
+        signOutAction={signOut}
+        removeDeviceAction={removePushSubscriptionAction}
+      />
       <main className="mx-auto max-w-3xl space-y-8 px-4 py-8">
         <Link href="/" className="text-sm text-brand-700 hover:underline">
           ← Back to packages

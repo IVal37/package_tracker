@@ -6,9 +6,11 @@
 import {
   and,
   asc,
+  eq,
   gt,
   isNotNull,
   isNull,
+  lt,
   lte,
   notInArray,
   sql,
@@ -16,6 +18,7 @@ import {
 import { overdueDedupeKey, overdueWindow } from "@/lib/notifications/rules";
 import type { Db } from "./client";
 import { notifications, shipments } from "./schema";
+import { isUuid } from "./shipments";
 
 /** Statuses for which an old ETA means nothing (see isOverdue). */
 const NEVER_OVERDUE = ["Delivered", "Expired", "AvailableForPickup"] as const;
@@ -80,4 +83,119 @@ export async function insertOverdueAlerts(
     .onConflictDoNothing()
     .returning({ id: notifications.id });
   return recorded.map((row) => row.id);
+}
+
+/** The part of an alert delivery needs: who it is for and about, and its state. */
+export interface NotificationRef {
+  id: string;
+  userId: string;
+  shipmentId: string;
+  kind: (typeof notifications.$inferSelect)["kind"];
+  status: (typeof notifications.$inferSelect)["status"];
+  createdAt: Date;
+}
+
+/** One alert by id, or null if there is none (or the id is malformed). */
+export async function loadNotification(
+  db: Db,
+  id: string,
+): Promise<NotificationRef | null> {
+  if (!isUuid(id)) return null;
+  const [row] = await db
+    .select({
+      id: notifications.id,
+      userId: notifications.userId,
+      shipmentId: notifications.shipmentId,
+      kind: notifications.kind,
+      status: notifications.status,
+      createdAt: notifications.createdAt,
+    })
+    .from(notifications)
+    .where(eq(notifications.id, id));
+  return row ?? null;
+}
+
+/** Is there a later alert for the same shipment? Then this one is out of date. */
+export async function hasNewerNotification(
+  db: Db,
+  notification: Pick<NotificationRef, "id" | "shipmentId" | "createdAt">,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.shipmentId, notification.shipmentId),
+        gt(notifications.createdAt, notification.createdAt),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
+export interface NotificationOutcome {
+  status: "sent" | "skipped" | "failed";
+  skipReason?: string;
+  pushSent: boolean;
+  emailSent: boolean;
+}
+
+/**
+ * Records what became of a pending alert. Does nothing, and says so, if it was
+ * already finished: a second run can never overwrite the first's outcome.
+ */
+export async function finishNotification(
+  db: Db,
+  id: string,
+  outcome: NotificationOutcome,
+  now: Date,
+): Promise<boolean> {
+  if (!isUuid(id)) return false;
+  const updated = await db
+    .update(notifications)
+    .set({
+      status: outcome.status,
+      skipReason: outcome.skipReason ?? null,
+      pushSent: outcome.pushSent,
+      emailSent: outcome.emailSent,
+      sentAt: outcome.status === "sent" ? now : null,
+    })
+    .where(and(eq(notifications.id, id), eq(notifications.status, "pending")))
+    .returning({ id: notifications.id });
+  return updated.length > 0;
+}
+
+/**
+ * Ids of alerts still pending after `olderThan`: their delivery event was lost
+ * (or they are waiting out quiet hours; the job ignores those it finds done).
+ */
+export async function findPendingNotificationIds(
+  db: Db,
+  olderThan: Date,
+  limit: number,
+): Promise<string[]> {
+  const rows = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.status, "pending"),
+        lt(notifications.createdAt, olderThan),
+      ),
+    )
+    .orderBy(asc(notifications.createdAt))
+    .limit(limit);
+  return rows.map((row) => row.id);
+}
+
+/** Deletes alerts created before the cutoff, whatever became of them. */
+export async function deleteNotificationsBefore(
+  db: Db,
+  cutoff: Date,
+): Promise<number> {
+  const deleted = await db
+    .delete(notifications)
+    .where(lt(notifications.createdAt, cutoff))
+    .returning({ id: notifications.id });
+  return deleted.length;
 }

@@ -282,3 +282,29 @@ export async function deleteShipment(
     .returning({ id: shipments.id });
   return deleted.length > 0;
 }
+
+/**
+ * The newest checkpoint of one of the user's shipments (what an alert quotes),
+ * or null when there are none or the shipment is not theirs.
+ */
+export async function getLastCheckpoint(
+  db: Db,
+  userId: string,
+  shipmentId: string,
+): Promise<{ message: string | null; locationText: string | null } | null> {
+  if (!isUuid(shipmentId)) return null;
+  const [row] = await db
+    .select({
+      message: checkpoints.message,
+      locationText: checkpoints.locationText,
+    })
+    .from(checkpoints)
+    .innerJoin(shipments, eq(checkpoints.shipmentId, shipments.id))
+    .where(and(eq(shipments.id, shipmentId), eq(shipments.userId, userId)))
+    .orderBy(
+      desc(checkpoints.occurredAt),
+      sql`${checkpoints.eventOrder} desc nulls last`,
+    )
+    .limit(1);
+  return row ?? null;
+}

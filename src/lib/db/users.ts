@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { Db } from "./client";
 import { users } from "./schema";
 
@@ -13,4 +14,16 @@ export async function ensureUser(
     .insert(users)
     .values({ id: user.id, email: user.email })
     .onConflictDoUpdate({ target: users.id, set: { email: user.email } });
+}
+
+/** The email address the account was created with, or null if there is no such user. */
+export async function getUserEmail(
+  db: Db,
+  userId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId));
+  return row?.email ?? null;
 }

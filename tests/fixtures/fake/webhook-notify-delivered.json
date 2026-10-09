@@ -1,0 +1,23 @@
+{
+  "trackings": [
+    {
+      "providerTrackerId": "fake:FAKE-TRANSIT-1",
+      "trackingNumber": "FAKE-TRANSIT-1",
+      "courier": "fake-courier",
+      "status": "Delivered",
+      "eta": null,
+      "lastEventAt": "2099-01-02T15:00:00.000Z",
+      "events": [
+        {
+          "providerEventId": "fake:FAKE-TRANSIT-1-hook-notify-delivered",
+          "occurredAt": "2099-01-02T15:00:00.000Z",
+          "status": "Delivered",
+          "message": "Delivered, left at front door",
+          "locationText": "CHICAGO, IL",
+          "courierCode": "fake-courier",
+          "order": null
+        }
+      ]
+    }
+  ]
+}

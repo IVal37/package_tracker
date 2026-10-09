@@ -253,3 +253,16 @@ ESLint lets only `src/lib/notifications/**` and `src/jobs/**` import it, with a 
    - iPhone push (needs the deployed HTTPS app installed to the Home Screen).
 
    Both get logged in `docs/unresolved-issues.md`.
+
+## Build notes (changes made while building, 2026-10-09)
+
+Refinements that did not change the design. Each is covered by a test.
+
+- **Overdue delay.** "Overdue" does not include a package waiting at a pickup point (`AvailableForPickup`), and only applies to an ETA between 24 hours and 14 days past. An older ETA is a stuck or forgotten package (the Phase 7 `Expired` job's concern), and the bound stops the first scan after a deploy alerting on old data. The scan skips shipments that already have an overdue alert for that promised day, so a backlog cannot crowd out new ones.
+- **Push subscriptions are checked before they are stored.** The server later POSTs to every stored endpoint, so only HTTPS endpoints on the known push services are accepted (`isAllowedPushEndpoint`). An arbitrary URL would let a user make the server call internal hosts.
+- **Partial push success is accepted.** If at least one device was reached and another failed temporarily, the run does not retry, because that would buzz the working device again. A retry happens only when nothing got through.
+- **Only the plain list is saved for offline.** The service worker saves the response for exactly `/` (no query). The map view and an open drawer are other views of the same address and are never saved; offline they fall back to the saved list. On localhost the static files go network-first, so edited code is never stale.
+- **Sign-out forgets the device.** Signing out is a small client component that removes this browser's push subscription (on the server and in the browser) and the saved list first, then signs out, within a 3 second limit. The sign-in page also clears the saved list.
+- **The manifest, icons and `sw.js` are public.** Browsers fetch the manifest and icons without cookies, so behind the sign-in redirect the app could not be installed. Both `isPublicPath` and the proxy matcher say so.
+- **Two extra fixtures** for the manual walkthrough: `tests/fixtures/fake/webhook-notify-ofd.json` and `webhook-notify-delivered.json`. The older `webhook-ofd.json` also moves the ETA, so it gives a delay alert as well as out for delivery.
+- **Packages.** `web-push` and `@types/web-push`, as approved.

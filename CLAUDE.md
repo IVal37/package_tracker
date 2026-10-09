@@ -18,7 +18,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 - Background jobs: Inngest (decided in Phase 3): cron functions in `src/jobs/`, served at `/api/inngest`
 - Map: MapLibre GL with OpenFreeMap tiles (no key). Geocoding: Nominatim (decided in Phase 4) behind the `Geocoder` interface, results cached in the `places` table
 - Inbound email (decided in Phase 5): Cloudflare Email Routing + a small Email Worker (`workers/inbound-email/`, its own `package.json`) posting to our webhook; field extraction with Claude Haiku 4.5 (`claude-haiku-4-5`, `@anthropic-ai/sdk`) behind the `Extractor` interface
-- Alerts: Web Push (VAPID) + Resend email
+- Alerts (decided in Phase 6): Web Push (VAPID, the `web-push` package) behind the `PushSender` interface and Resend email (plain `fetch`) behind `EmailSender`; both sent from Inngest jobs only. Installable PWA: `app/manifest.ts`, generated icons, a hand-written service worker in `public/sw.js`
 - Tests: Vitest, Testing Library, MSW; Playwright only at launch
 - Hosting: Vercel
 
@@ -48,6 +48,8 @@ Phase 0 may refine this; if it does, update this section.
 src/
   proxy.ts             refreshes the Supabase session; redirects signed-out users to /sign-in
   app/                 pages and layouts; app/actions.ts holds thin Server Actions (add / delete package, dismiss order)
+  app/manifest.ts, app/icons/[file]/  web app manifest and the PNG icons drawn in code (lib/pwa/icons.tsx)
+  public/sw.js         the service worker: push, the saved package list, hashed static files. Plain JS, tested in a Node sandbox by tests/service-worker.test.ts
   app/sign-in/         sign-in page and actions;  app/auth/callback/ completes magic-link and Google sign-in
   app/api/             route handlers and webhooks (keep thin)
   components/          UI components (Tailwind)
@@ -69,9 +71,14 @@ src/
   lib/email/extract/   import only from index.ts: Extractor, getExtractor(); claude.ts and fake.ts are never imported from outside lib/email. validate.ts grounds and cleans model output
   lib/db/inbound-sync.ts  system-scope alias -> user lookup and email loading for the webhook and jobs (import-restricted by ESLint)
   lib/db/orders.ts, forwarding.ts, inbound-emails.ts  user-scoped queries for orders, the forwarding alias and stored emails
-  app/settings/        Settings page: private forwarding address, Gmail confirmation code, filter instructions
+  app/settings/        Settings page: notifications (push on this device, which alerts, quiet hours, install), private forwarding address, Gmail confirmation code, filter instructions
+  lib/notifications/   rules (alertsForUpdate, isOverdue), prefs and form parsing, quiet-hours, message (push and email text), send (prepare / deliver / finish one alert), maintenance (sweep, cleanup), subscription (endpoint allow-list), test-push, rate-limit, events
+  lib/notifications/senders/  import only from index.ts: PushSender, EmailSender, getPushSender(), getEmailSender(); webpush.ts, resend.ts and fake.ts are never imported from outside lib/notifications
+  lib/db/notify-sync.ts  system-scope alert queries: the overdue scan, loading and finishing an alert, the sweep (import-restricted by ESLint)
+  lib/db/notification-settings.ts, push-subscriptions.ts  user-scoped queries for a user's alert settings and devices
+  lib/pwa/             browser-side helpers (register the service worker, push support detection, device clean-up) and the icon drawing
   app/api/webhooks/inbound-email/  inbound email webhook (authenticates with INBOUND_WEBHOOK_SECRET)
-  jobs/                Inngest functions (re-fetch stale, archive delivered, geocode, process inbound email, sweep, cleanup; later notify), thin wrappers over lib code
+  jobs/                Inngest functions (re-fetch stale, archive delivered, geocode, process inbound email and its sweep and cleanup, send notification and its sweep and cleanup), thin wrappers over lib code
 tests/
   db/                  PGlite helper (createTestDb): real Postgres in memory with the real migrations
   setup.ts             Vitest setup (jest-dom, MSW server lifecycle)
@@ -108,6 +115,7 @@ docs/
 - Job env keys: `INNGEST_SIGNING_KEY` (required in production; the SDK reads it itself), `INNGEST_EVENT_KEY` (required in production; needed to send events) and `INNGEST_DEV=1` for local development. Setup steps are in `docs/webhooks-and-jobs-setup.md`.
 - Geocoder env key: `GEOCODER` (`fake` default | `nominatim`). The fake never touches the network; use it for local development and tests.
 - Inbound email env keys: `INBOUND_EMAIL_DOMAIN` (forwarding addresses are `<alias>@<domain>`; default `in.localhost` in development, required in production), `INBOUND_WEBHOOK_SECRET` (shared with the Worker; default `dev-inbound-secret` in development, required in production), `INBOUND_DAILY_LIMIT` (stored emails per user per day, default 50), `EMAIL_EXTRACTOR` (`fake` default | `claude`) and `ANTHROPIC_API_KEY` (required only when `EMAIL_EXTRACTOR=claude`). Setup steps and a no-domain local walkthrough are in `docs/email-forwarding-setup.md`.
+- Notification env keys: `PUSH_SENDER` (`fake` default | `webpush`), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (all three required when `PUSH_SENDER=webpush`; generate keys with `npx web-push generate-vapid-keys`; the private key is server-only), `EMAIL_SENDER` (`fake` default | `resend`), `RESEND_API_KEY` and `EMAIL_FROM` (both required when `EMAIL_SENDER=resend`; the from address needs a domain verified in Resend). The fakes never touch the network. Setup steps and a no-keys local walkthrough are in `docs/notifications-setup.md`.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
 
@@ -130,6 +138,7 @@ docs/
 - System-scope exception: webhooks and jobs act for no user, because one provider tracker can be shared by several users' shipments. Those queries live only in `src/lib/db/tracker-sync.ts`, which ESLint lets only `src/lib/shipments/sync/**` and `src/jobs/**` import. They apply updates and return counts; never return shipment data from them to anything that renders it, and never add a user-facing query there. The same holds for `src/lib/db/geo-sync.ts` (geocoding), which ESLint lets only `src/lib/geo/**` and `src/jobs/**` import and which returns place text only.
 - Nothing outside `src/lib/geo/` may import a specific geocoder (ESLint enforces this); go through `@/lib/geo/geocoder`. Client components must not import `@/lib/tracking` for values (it pulls provider code and `node:crypto` into the browser bundle); import `@/lib/tracking/status` instead.
 - Nothing outside `src/lib/email/` may import a specific extractor (ESLint enforces this); go through `@/lib/email/extract`. `src/lib/db/inbound-sync.ts` (looks a user up by forwarding alias, loads stored emails for the job) is system-scope: ESLint lets only `src/lib/email/**` and `src/jobs/**` import it, and it returns a user id or the stored email, never anything rendered to a user. Everything the signed-in user touches (alias, orders, dismissing an order) is a normal `userId`-scoped query.
+- Nothing outside `src/lib/notifications/` may import a specific sender (ESLint enforces this); go through `@/lib/notifications/senders`. `src/lib/db/notify-sync.ts` is system-scope (it scans every user's shipments and loads an alert by id): ESLint lets only `src/lib/notifications/**` and `src/jobs/**` import it, and it returns ids, counts and the alert row, never shipment contents. Everything the signed-in user touches (settings, devices) is a normal `userId`-scoped query.
 - Map and place data: coordinates live only in `places` (a global cache, not user data) and are joined on read through the Postgres-generated `location_key` / `destination_key`. Never copy coordinates onto checkpoints. Location text is the only shipment data sent to the geocoder: never names, street addresses or tracking numbers.
 - Shipment status is decided by event time, never by ranking statuses: a late older event is stored but must not change status or ETA (`decideShipmentUpdate`).
 - Forwarded email content is untrusted. The extraction model gets no tools and sees only that one email; its output must pass schema validation before anything is created.
@@ -139,6 +148,13 @@ docs/
   - An unknown alias, a repeated Message-ID and a user over the daily cap all answer 200 and store nothing, so a prober learns nothing. Logs hold outcomes and counts only, never the body, subject, addresses or secret.
   - Orders match on `(user, retailer key, order number)`; an order number alone is never enough (Shopify stores all start at `#1001`).
 - Raw inbound emails are deleted after 30 days; "Ordered" placeholders that never shipped are deleted after 90 days (daily cleanup job).
+- Alerts (Phase 6):
+  - An alert is recorded only by `applyTrackerUpdate`, in the same transaction as the status change, and by the hourly overdue scan. The unique key `(shipment, kind, dedupe_key)` is what makes "once per event" true: a redelivered webhook, a re-fetch and a late older event record nothing. Archived shipments never alert, and a shipment added by hand or from an email never alerts at creation.
+  - Alerts are sent from jobs only. The one exception is Settings' "Send a test", limited to 3 a minute per user and sent only to that user's own devices.
+  - The alert row fixes who it is for. Delivery then reads that user's settings, devices, email and shipment afresh, each scoped by that user id; nothing personal is carried between job steps. An alert held by quiet hours is decided again when it wakes, and one overtaken by a newer alert for the same shipment, or more than a day old, is dropped.
+  - The server POSTs to every stored push endpoint, so a subscription is accepted only for an HTTPS endpoint on the known push services (`isAllowedPushEndpoint`): an arbitrary URL would let a user make the server call internal hosts.
+  - Words in an alert may come from a forwarded email (untrusted): the email's HTML escapes every value, links are built only from `APP_URL` and a UUID, and the tracking number never appears in a push title or body.
+  - `public/sw.js` caches only the list at exactly `/` (no query, a plain 200, never a redirect) and hashed `/_next/static` files; it never touches `/api`, a non-GET request, another page or an error. The manifest, icons and `sw.js` are public (browsers fetch them without cookies): `isPublicPath` and the proxy matcher both say so. Signing out removes the device's push subscription and the saved list; the sign-in page clears the saved list too.
 
 ## Out of scope for the MVP
 

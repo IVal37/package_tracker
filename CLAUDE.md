@@ -6,7 +6,7 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 
 ## Current phase
 
-**Phase 6 — Notifications and installable PWA.** (Update this line each time a phase is tagged done.)
+**Phase 7 — MVP hardening and launch.** (Update this line each time a phase is tagged done.)
 
 ## Stack
 

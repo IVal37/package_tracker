@@ -117,7 +117,11 @@ describe("applyTrackerUpdate", () => {
       NOW,
     );
 
-    expect(result).toEqual({ shipments: 2, newCheckpoints: 2 });
+    expect(result).toEqual({
+      shipments: 2,
+      newCheckpoints: 2,
+      notificationIds: [expect.any(String), expect.any(String)],
+    });
     for (const row of [forA, forB]) {
       const reloaded = await reload(row.id);
       expect(reloaded.status).toBe("OutForDelivery");
@@ -137,7 +141,11 @@ describe("applyTrackerUpdate", () => {
     const second = await applyTrackerUpdate(ctx.db, "fake", payload, NOW);
 
     expect(first.newCheckpoints).toBe(1);
-    expect(second).toEqual({ shipments: 1, newCheckpoints: 0 });
+    expect(second).toEqual({
+      shipments: 1,
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
     expect(await eventsOf(row.id)).toHaveLength(1);
   });
 
@@ -210,7 +218,11 @@ describe("applyTrackerUpdate", () => {
       ]),
       NOW,
     );
-    expect(result).toEqual({ shipments: 0, newCheckpoints: 0 });
+    expect(result).toEqual({
+      shipments: 0,
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
   });
 
   it("leaves another provider's shipment with the same tracker id alone", async () => {

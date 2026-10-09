@@ -68,6 +68,13 @@ const inboundSyncImportPattern = {
     "inbound-sync is system-scope (looks users up by alias). Only src/lib/email and src/jobs may import it.",
 };
 
+// Recording and delivering alerts happens for no signed-in user.
+const notifySyncImportPattern = {
+  group: ["@/lib/db/notify-sync", "**/db/notify-sync"],
+  message:
+    "notify-sync is system-scope (scans every user's shipments). Only src/lib/notifications and src/jobs may import it.",
+};
+
 const restrict = (...patterns) => ["error", { patterns }];
 
 const eslintConfig = defineConfig([
@@ -93,6 +100,7 @@ const eslintConfig = defineConfig([
         trackerSyncImportPattern,
         geoSyncImportPattern,
         inboundSyncImportPattern,
+        notifySyncImportPattern,
       ),
     },
   },
@@ -105,6 +113,7 @@ const eslintConfig = defineConfig([
         extractorImportPattern,
         geoSyncImportPattern,
         inboundSyncImportPattern,
+        notifySyncImportPattern,
       ),
     },
   },
@@ -126,6 +135,7 @@ const eslintConfig = defineConfig([
         extractorImportPattern,
         trackerSyncImportPattern,
         inboundSyncImportPattern,
+        notifySyncImportPattern,
       ),
     },
   },
@@ -137,6 +147,20 @@ const eslintConfig = defineConfig([
         geocoderImportPattern,
         trackerSyncImportPattern,
         geoSyncImportPattern,
+        notifySyncImportPattern,
+      ),
+    },
+  },
+  {
+    files: ["src/lib/notifications/**"],
+    rules: {
+      "no-restricted-imports": restrict(
+        providerImportPattern,
+        geocoderImportPattern,
+        extractorImportPattern,
+        trackerSyncImportPattern,
+        geoSyncImportPattern,
+        inboundSyncImportPattern,
       ),
     },
   },

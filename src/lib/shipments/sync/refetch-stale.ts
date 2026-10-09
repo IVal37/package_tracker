@@ -20,6 +20,8 @@ export interface RefetchResult {
   failed: number;
   /** The run stopped early; the rest is picked up next run. */
   stoppedEarly: boolean;
+  /** Alerts recorded by the updates, for a job to deliver. */
+  notificationIds: string[];
 }
 
 /**
@@ -47,6 +49,7 @@ export async function refetchStaleShipments(args: {
     updated: 0,
     failed: 0,
     stoppedEarly: false,
+    notificationIds: [],
   };
 
   for (const trackerId of await findStaleTrackers(
@@ -78,6 +81,7 @@ export async function refetchStaleShipments(args: {
     const applied = await applyTrackerUpdate(db, provider.name, tracking, now);
     result.checked += 1;
     if (applied.newCheckpoints > 0) result.updated += 1;
+    result.notificationIds.push(...applied.notificationIds);
   }
 
   return result;

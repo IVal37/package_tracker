@@ -15,11 +15,12 @@ import {
   min,
   notInArray,
 } from "drizzle-orm";
+import { alertsForUpdate } from "@/lib/notifications/rules";
 import { decideShipmentUpdate } from "@/lib/shipments/sync/decide-update";
 import type { NormalizedShipment } from "@/lib/tracking/types";
 import { insertCheckpoints } from "./checkpoints";
 import type { Db } from "./client";
-import { shipments } from "./schema";
+import { notifications, shipments } from "./schema";
 
 /** A shipment with no provider sync for this long is re-fetched. */
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -30,6 +31,8 @@ const TERMINAL = ["Delivered", "Expired"] as const;
 export interface ApplyTrackerResult {
   shipments: number;
   newCheckpoints: number;
+  /** Alerts recorded by this update, to be delivered by a background job. */
+  notificationIds: string[];
 }
 
 /**
@@ -37,6 +40,11 @@ export interface ApplyTrackerResult {
  * rows are locked for the transaction, so two concurrent updates for the same
  * tracker apply one after the other. Checkpoints are always stored (de-duplicated
  * by provider event id); the status moves only per decideShipmentUpdate.
+ *
+ * The alerts the change earns (see alertsForUpdate) are recorded in the same
+ * transaction, so an update that fails records none, and an update repeated
+ * records none twice: the notifications table is unique per event. Only ids
+ * leave this module; the job that delivers them reads everything else itself.
  */
 export async function applyTrackerUpdate(
   db: Db,
@@ -48,9 +56,11 @@ export async function applyTrackerUpdate(
     const rows = await tx
       .select({
         id: shipments.id,
+        userId: shipments.userId,
         status: shipments.status,
         eta: shipments.eta,
         lastEventAt: shipments.lastEventAt,
+        archivedAt: shipments.archivedAt,
       })
       .from(shipments)
       .where(
@@ -63,12 +73,14 @@ export async function applyTrackerUpdate(
       .for("update");
 
     let newCheckpoints = 0;
+    const notificationIds: string[] = [];
     for (const row of rows) {
       newCheckpoints += await insertCheckpoints(tx, row.id, incoming.events);
+      const decided = decideShipmentUpdate(row, incoming, now);
       await tx
         .update(shipments)
         .set({
-          ...decideShipmentUpdate(row, incoming, now),
+          ...decided,
           updatedAt: now,
           // A provider that drops the destination doesn't erase what we have.
           ...(incoming.destination && {
@@ -76,8 +88,26 @@ export async function applyTrackerUpdate(
           }),
         })
         .where(eq(shipments.id, row.id));
+
+      // Archived shipments are out of sight; they never alert.
+      const alerts = row.archivedAt ? [] : alertsForUpdate(row, decided);
+      if (alerts.length > 0) {
+        const recorded = await tx
+          .insert(notifications)
+          .values(
+            alerts.map((alert) => ({
+              userId: row.userId,
+              shipmentId: row.id,
+              kind: alert.kind,
+              dedupeKey: alert.dedupeKey,
+            })),
+          )
+          .onConflictDoNothing()
+          .returning({ id: notifications.id });
+        notificationIds.push(...recorded.map((r) => r.id));
+      }
     }
-    return { shipments: rows.length, newCheckpoints };
+    return { shipments: rows.length, newCheckpoints, notificationIds };
   });
 }
 

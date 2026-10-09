@@ -8,8 +8,11 @@ const { handleTrackingWebhook } = vi.hoisted(() => ({
 vi.mock("@/lib/shipments/sync/handle-webhook", () => ({
   handleTrackingWebhook,
 }));
-const { requestGeocoding } = vi.hoisted(() => ({ requestGeocoding: vi.fn() }));
-vi.mock("@/jobs/events", () => ({ requestGeocoding }));
+const { requestGeocoding, requestNotifications } = vi.hoisted(() => ({
+  requestGeocoding: vi.fn(),
+  requestNotifications: vi.fn(),
+}));
+vi.mock("@/jobs/events", () => ({ requestGeocoding, requestNotifications }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/tracking", () => ({ getTrackingProvider: () => "provider" }));
 
@@ -26,6 +29,7 @@ const request = (body = '{"private":"payload"}') =>
 beforeEach(() => {
   handleTrackingWebhook.mockReset();
   requestGeocoding.mockReset();
+  requestNotifications.mockReset();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -111,5 +115,56 @@ describe("POST /api/webhooks/tracking", () => {
     expect(logged).not.toContain(SECRET);
     expect(logged).not.toContain("private");
     expect(logged).not.toContain("boom");
+  });
+});
+
+describe("POST /api/webhooks/tracking: notifications", () => {
+  const ID_A = "11111111-1111-4111-8111-111111111111";
+  const ID_B = "22222222-2222-4222-8222-222222222222";
+
+  it("asks for the recorded alerts to be delivered", async () => {
+    handleTrackingWebhook.mockResolvedValueOnce({
+      status: 200,
+      applied: 2,
+      newCheckpoints: 0,
+      notificationIds: [ID_A, ID_B],
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(requestNotifications).toHaveBeenCalledExactlyOnceWith([ID_A, ID_B]);
+  });
+
+  it("does not let a failed send change the answer", async () => {
+    handleTrackingWebhook.mockResolvedValueOnce({
+      status: 200,
+      applied: 1,
+      newCheckpoints: 1,
+      notificationIds: [ID_A],
+    });
+    requestNotifications.mockResolvedValueOnce(undefined);
+    expect((await POST(request())).status).toBe(200);
+  });
+
+  it("passes an empty list on when the webhook was rejected", async () => {
+    handleTrackingWebhook.mockResolvedValueOnce({
+      status: 401,
+      applied: 0,
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
+    await POST(request());
+    expect(requestNotifications).toHaveBeenCalledWith([]);
+  });
+
+  it("never logs alert ids", async () => {
+    handleTrackingWebhook.mockResolvedValueOnce({
+      status: 200,
+      applied: 1,
+      newCheckpoints: 1,
+      notificationIds: [ID_A],
+    });
+    await POST(request());
+    const logged = JSON.stringify(vi.mocked(console.info).mock.calls);
+    expect(logged).not.toContain(ID_A);
   });
 });

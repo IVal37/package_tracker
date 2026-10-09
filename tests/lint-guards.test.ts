@@ -182,3 +182,56 @@ describe("provider import guard", () => {
     ).toHaveLength(0);
   });
 });
+
+const NOTIFY_SYNC = `import { insertOverdueAlerts } from "@/lib/db/notify-sync";\nexport const x = insertOverdueAlerts;\n`;
+
+describe("notify-sync import guard", () => {
+  it.each([
+    "src/app/page.tsx",
+    "src/app/actions.ts",
+    "src/app/settings/actions.ts",
+    "src/app/api/webhooks/tracking/route.ts",
+    "src/components/settings-form.tsx",
+    "src/lib/geo/geocode-place.ts",
+    "src/lib/email/process.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+  ])("rejects an import from %s", async (file) => {
+    const errors = await restrictedImportErrors(file, NOTIFY_SYNC);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("notify-sync");
+  });
+
+  it("rejects a relative import path too", async () => {
+    const errors = await restrictedImportErrors(
+      "src/app/page.tsx",
+      `import { insertOverdueAlerts } from "../lib/db/notify-sync";\nexport const x = insertOverdueAlerts;\n`,
+    );
+    expect(errors).toHaveLength(1);
+  });
+
+  it.each([
+    "src/lib/notifications/send.ts",
+    "src/jobs/notifications.ts",
+    "src/lib/db/notify-sync.test.ts",
+  ])("allows an import from %s", async (file) => {
+    expect(await restrictedImportErrors(file, NOTIFY_SYNC)).toHaveLength(0);
+  });
+
+  it("keeps the other system-scope modules off limits to the notifications folder", async () => {
+    for (const source of [TRACKER_SYNC, GEO_SYNC, INBOUND_SYNC]) {
+      expect(
+        await restrictedImportErrors("src/lib/notifications/send.ts", source),
+      ).toHaveLength(1);
+    }
+  });
+
+  it("keeps notify-sync off limits to the other system-scope folders", async () => {
+    for (const file of [
+      "src/lib/shipments/sync/handle-webhook.ts",
+      "src/lib/geo/geocode-place.ts",
+      "src/lib/email/receive.ts",
+    ]) {
+      expect(await restrictedImportErrors(file, NOTIFY_SYNC)).toHaveLength(1);
+    }
+  });
+});

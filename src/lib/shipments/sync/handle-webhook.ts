@@ -12,12 +12,15 @@ export interface WebhookOutcome {
   /** Shipments updated, summed over every tracking in the webhook. */
   applied: number;
   newCheckpoints: number;
+  /** Alerts recorded by this webhook; the route asks a job to deliver them. */
+  notificationIds: string[];
 }
 
 const rejected = (status: 401 | 422): WebhookOutcome => ({
   status,
   applied: 0,
   newCheckpoints: 0,
+  notificationIds: [],
 });
 
 /**
@@ -46,10 +49,12 @@ export async function handleTrackingWebhook(args: {
 
   let applied = 0;
   let newCheckpoints = 0;
+  const notificationIds: string[] = [];
   for (const tracking of trackings) {
     const result = await applyTrackerUpdate(db, provider.name, tracking, now);
     applied += result.shipments;
     newCheckpoints += result.newCheckpoints;
+    notificationIds.push(...result.notificationIds);
   }
-  return { status: 200, applied, newCheckpoints };
+  return { status: 200, applied, newCheckpoints, notificationIds };
 }

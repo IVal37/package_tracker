@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import { STATUSES, type Status } from "@/lib/tracking/status";
 import {
   OVERDUE_AFTER_MS,
+  OVERDUE_MAX_AGE_MS,
   alertsForUpdate,
   isOverdue,
   kindForStatus,
-  overdueCutoff,
   overdueDedupeKey,
+  overdueWindow,
   utcDay,
   type ShipmentSnapshot,
 } from "./rules";
@@ -236,6 +237,17 @@ describe("isOverdue", () => {
   );
 });
 
+describe("isOverdue: the age bound", () => {
+  const eta = new Date("2026-06-01T12:00:00Z");
+  it("stops alerting once the ETA is older than 14 days", () => {
+    const edge = new Date(eta.getTime() + OVERDUE_MAX_AGE_MS);
+    expect(isOverdue({ status: "InTransit", eta }, edge)).toBe(true);
+    expect(
+      isOverdue({ status: "InTransit", eta }, new Date(edge.getTime() + 1)),
+    ).toBe(false);
+  });
+});
+
 describe("overdue helpers", () => {
   it("keys one alert per promised day", () => {
     expect(overdueDedupeKey(new Date("2026-06-10T23:59:59Z"))).toBe(
@@ -246,9 +258,11 @@ describe("overdue helpers", () => {
     );
   });
 
-  it("puts the cutoff exactly 24 hours back", () => {
-    const now = new Date("2026-06-12T12:00:00Z");
-    expect(overdueCutoff(now).toISOString()).toBe("2026-06-11T12:00:00.000Z");
+  it("scans ETAs from 14 days back up to 24 hours back", () => {
+    const now = new Date("2026-06-20T12:00:00Z");
+    const window = overdueWindow(now);
+    expect(window.to.toISOString()).toBe("2026-06-19T12:00:00.000Z");
+    expect(window.from.toISOString()).toBe("2026-06-06T12:00:00.000Z");
   });
 
   it("formats the UTC day", () => {

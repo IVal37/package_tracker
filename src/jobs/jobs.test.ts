@@ -30,9 +30,66 @@ beforeEach(() => {
   archiveDeliveredShipments.mockReset();
 });
 
+describe("refetchStale job: notifications", () => {
+  const ID_A = "11111111-1111-4111-8111-111111111111";
+  const ID_B = "22222222-2222-4222-8222-222222222222";
+
+  it("sends one event per alert recorded by the updates", async () => {
+    refetchStaleShipments.mockResolvedValue({
+      checked: 2,
+      updated: 0,
+      failed: 0,
+      stoppedEarly: false,
+      notificationIds: [ID_A, ID_B],
+    });
+
+    const { ctx } = await new InngestTestEngine({
+      function: refetchStale,
+    }).execute({
+      steps: [{ id: "request-notifications", handler: () => ({ ids: [] }) }],
+    });
+
+    expect(ctx.step.sendEvent).toHaveBeenCalledExactlyOnceWith(
+      "request-notifications",
+      [
+        {
+          id: `notification-${ID_A}`,
+          name: "wayfind/notification.created",
+          data: { notificationId: ID_A },
+        },
+        {
+          id: `notification-${ID_B}`,
+          name: "wayfind/notification.created",
+          data: { notificationId: ID_B },
+        },
+      ],
+    );
+  });
+
+  it("sends none when no alert was recorded", async () => {
+    refetchStaleShipments.mockResolvedValue({
+      checked: 2,
+      updated: 0,
+      failed: 0,
+      stoppedEarly: false,
+      notificationIds: [],
+    });
+    const { ctx } = await new InngestTestEngine({
+      function: refetchStale,
+    }).execute();
+    expect(ctx.step.sendEvent).not.toHaveBeenCalled();
+  });
+});
+
 describe("refetchStale job", () => {
   it("runs the re-fetch with the real db and provider and returns its result", async () => {
-    const summary = { checked: 3, updated: 2, failed: 1, stoppedEarly: false };
+    const summary = {
+      checked: 3,
+      updated: 2,
+      failed: 1,
+      stoppedEarly: false,
+      notificationIds: [],
+    };
     refetchStaleShipments.mockResolvedValue(summary);
 
     const { result } = await new InngestTestEngine({
@@ -55,6 +112,7 @@ describe("refetchStale job", () => {
       updated: 1,
       failed: 0,
       stoppedEarly: false,
+      notificationIds: [],
     });
 
     const { ctx } = await new InngestTestEngine({
@@ -75,6 +133,7 @@ describe("refetchStale job", () => {
       updated: 0,
       failed: 1,
       stoppedEarly: false,
+      notificationIds: [],
     });
 
     const { ctx } = await new InngestTestEngine({

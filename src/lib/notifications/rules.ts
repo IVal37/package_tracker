@@ -27,6 +27,12 @@ export interface AlertCandidate {
 
 /** An ETA this long past with no delivery counts as late. */
 export const OVERDUE_AFTER_MS = 24 * 60 * 60 * 1000;
+/**
+ * ...but only for a while. A parcel whose ETA is weeks old is stuck or
+ * forgotten, not "running late"; the Expired job (Phase 7) deals with those.
+ * It also keeps the first scan after a deploy from alerting on old data.
+ */
+export const OVERDUE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
 /** The alert a shipment entering this status deserves, if any. */
 export function kindForStatus(status: Status): NotificationKind | null {
@@ -101,7 +107,8 @@ export function isOverdue(
   if (!shipment.eta || shipment.archived) return false;
   if (FINISHED.includes(shipment.status)) return false;
   if (shipment.status === "AvailableForPickup") return false;
-  return now.getTime() - shipment.eta.getTime() > OVERDUE_AFTER_MS;
+  const age = now.getTime() - shipment.eta.getTime();
+  return age > OVERDUE_AFTER_MS && age <= OVERDUE_MAX_AGE_MS;
 }
 
 /** The dedupe key for an overdue alert: one per promised day. */
@@ -109,7 +116,10 @@ export function overdueDedupeKey(eta: Date): string {
   return `overdue:${utcDay(eta)}`;
 }
 
-/** Earliest ETA that can be overdue at `now`: the scan's cutoff. */
-export function overdueCutoff(now: Date): Date {
-  return new Date(now.getTime() - OVERDUE_AFTER_MS);
+/** ETAs in (from, to] are overdue at `now`: the scan's window. */
+export function overdueWindow(now: Date): { from: Date; to: Date } {
+  return {
+    from: new Date(now.getTime() - OVERDUE_MAX_AGE_MS),
+    to: new Date(now.getTime() - OVERDUE_AFTER_MS),
+  };
 }

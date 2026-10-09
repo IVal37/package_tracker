@@ -1,5 +1,6 @@
 import { EMAIL_RECEIVED } from "@/lib/email/events";
 import { GEOCODE_REQUESTED } from "@/lib/geo/place-events";
+import { buildNotificationEvents } from "@/lib/notifications/events";
 import { inngest } from "./client";
 
 const SEND_TIMEOUT_MS = 2000;
@@ -40,4 +41,15 @@ export function requestEmailProcessing(emailId: string): Promise<void> {
     id: `email-${emailId}`,
     data: { emailId },
   });
+}
+
+/** Asks for recorded alerts to be delivered. The ids make a repeat send harmless. */
+export function requestNotifications(
+  notificationIds: readonly string[],
+): Promise<void> {
+  if (notificationIds.length === 0) return Promise.resolve();
+  return sendBestEffort(
+    "notification request",
+    buildNotificationEvents(notificationIds),
+  );
 }

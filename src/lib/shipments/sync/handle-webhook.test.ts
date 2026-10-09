@@ -111,7 +111,12 @@ describe("handleTrackingWebhook (fake provider)", () => {
       auth(),
     );
 
-    expect(outcome).toEqual({ status: 200, applied: 1, newCheckpoints: 1 });
+    expect(outcome).toEqual({
+      status: 200,
+      applied: 1,
+      newCheckpoints: 1,
+      notificationIds: [expect.any(String)],
+    });
     expect((await reload(row.id)).status).toBe("OutForDelivery");
     expect(await eventCount(row.id)).toBe(1);
   });
@@ -132,7 +137,12 @@ describe("handleTrackingWebhook (fake provider)", () => {
 
     const outcome = await handle(body, headers);
 
-    expect(outcome).toEqual({ status: 401, applied: 0, newCheckpoints: 0 });
+    expect(outcome).toEqual({
+      status: 401,
+      applied: 0,
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
     expect((await reload(row.id)).status).toBe("Pending");
     expect(await eventCount(row.id)).toBe(0);
   });
@@ -175,7 +185,12 @@ describe("handleTrackingWebhook (fake provider)", () => {
     const second = await handle(body, auth());
 
     expect(first.newCheckpoints).toBe(1);
-    expect(second).toEqual({ status: 200, applied: 1, newCheckpoints: 0 });
+    expect(second).toEqual({
+      status: 200,
+      applied: 1,
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
     expect(await eventCount(row.id)).toBe(1);
   });
 
@@ -201,7 +216,12 @@ describe("handleTrackingWebhook (fake provider)", () => {
       fakeBody("fake:NOBODY", "InTransit", "n-e1", "2026-06-20T08:00:00Z"),
       auth(),
     );
-    expect(outcome).toEqual({ status: 200, applied: 0, newCheckpoints: 0 });
+    expect(outcome).toEqual({
+      status: 200,
+      applied: 0,
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
   });
 
   it("applies the saved fake webhook fixture", async () => {

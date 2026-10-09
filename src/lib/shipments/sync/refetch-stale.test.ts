@@ -94,6 +94,7 @@ describe("refetchStaleShipments", () => {
       updated: 1,
       failed: 0,
       stoppedEarly: false,
+      notificationIds: [expect.any(String)],
     });
     const updated = await reload(stale.id);
     expect(updated.status).toBe("OutForDelivery");
@@ -116,6 +117,7 @@ describe("refetchStaleShipments", () => {
       updated: 0,
       failed: 0,
       stoppedEarly: false,
+      notificationIds: [],
     });
   });
 
@@ -169,6 +171,7 @@ describe("refetchStaleShipments", () => {
       updated: 0,
       failed: 0,
       stoppedEarly: false,
+      notificationIds: [],
     });
     expect((await reload(row.id)).lastSyncedAt).toEqual(NOW);
   });
@@ -185,6 +188,7 @@ describe("refetchStaleShipments", () => {
       updated: 1,
       failed: 1,
       stoppedEarly: false,
+      notificationIds: [expect.any(String)],
     });
     expect((await reload(broken.id)).lastSyncedAt).toEqual(NOW);
     expect((await reload(healthy.id)).status).toBe("OutForDelivery");
@@ -210,6 +214,7 @@ describe("refetchStaleShipments", () => {
         updated: 0,
         failed: 0,
         stoppedEarly: true,
+        notificationIds: [],
       });
       expect((await reload(first.id)).lastSyncedAt).toEqual(ago(90));
       expect((await reload(second.id)).lastSyncedAt).toEqual(ago(60));

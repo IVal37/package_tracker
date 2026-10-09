@@ -1,5 +1,29 @@
 # Phase 7 — MVP hardening and launch: plan
 
+## Needs your attention before building
+
+**Two findings from planning**
+
+1. **`docs/launch-audit.md` does not exist.** The spec says to fix every High and Medium item in it, but nobody has written it. Step 1 creates it with a review pass of the whole codebase; its High and Medium items are then fixed in the steps below or in step 15.
+2. **A real bug in code that is already shipped.** `removeShipment` always unsubscribes the provider's tracker, but one tracker can be shared by several users' shipments (the same tracking number). If user A deletes a package, user B stops getting updates for theirs. Step 5 fixes it (unsubscribe only when no other shipment uses the tracker). Account deletion (step 11) follows the same rule. It is not urgent while there are few users, but it must be fixed before launch.
+
+**Approval requested: two new packages**
+
+| Package | Step | Why |
+| --- | --- | --- |
+| `@sentry/nextjs` | 8 | Error reporting (a Phase 7 deliverable) |
+| `@playwright/test` (dev) | 14 | The one launch test (the Stack says "Playwright only at launch") |
+
+Approving this plan approves these two and nothing else (details under "Dependencies to approve").
+
+**Also yours to decide or do**
+
+- **Approve changing a security rule:** `docs/supabase-setup.md` says never to use Supabase's secret key. Account deletion needs it, in one import-restricted module (decision below).
+- **Review the privacy policy and terms draft** before launch. I write it; it is not legal advice.
+- **Do the production setup** in step 15 (Vercel, Supabase, Ship24, Inngest, Cloudflare, Resend, Sentry, a domain), and **start the final Fable sweep** by switching the model. I cannot do these from here.
+
+## Decisions
+
 Decisions (2026-10-09):
 
 - **Expired after 60 quiet days.** A shipment with no tracker event for 60 days (its `created_at` if it never had one) becomes `Expired` and stops being re-fetched. Delivered shipments are never touched. The number is the env value `EXPIRE_AFTER_DAYS` (default 60).

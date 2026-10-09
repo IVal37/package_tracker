@@ -361,3 +361,109 @@ describe("supabase env", () => {
     ).toBe("https://wayfind.example.test");
   });
 });
+
+describe("push sender env", () => {
+  const vapid = {
+    VAPID_PUBLIC_KEY: "BPublicKey_-123",
+    VAPID_PRIVATE_KEY: "PrivateKey_-123",
+    VAPID_SUBJECT: "mailto:ops@example.test",
+  };
+
+  it("defaults to the fake sender, which needs no keys", () => {
+    const env = parseEnv(valid);
+    expect(env.PUSH_SENDER).toBe("fake");
+    expect(env.VAPID_PUBLIC_KEY).toBeUndefined();
+  });
+
+  it("requires all three VAPID settings for webpush, naming only the keys", () => {
+    expect(() => parseEnv({ ...valid, PUSH_SENDER: "webpush" })).toThrowError(
+      "Invalid environment: missing VAPID_PUBLIC_KEY; missing VAPID_PRIVATE_KEY; missing VAPID_SUBJECT",
+    );
+    expect(() =>
+      parseEnv({ ...valid, PUSH_SENDER: "webpush", VAPID_PUBLIC_KEY: "" }),
+    ).toThrowError(/missing VAPID_PUBLIC_KEY/);
+  });
+
+  it("accepts webpush with the VAPID settings, and an https subject", () => {
+    const env = parseEnv({ ...valid, PUSH_SENDER: "webpush", ...vapid });
+    expect(env.PUSH_SENDER).toBe("webpush");
+    expect(
+      parseEnv({
+        ...valid,
+        PUSH_SENDER: "webpush",
+        ...vapid,
+        VAPID_SUBJECT: "https://wayfind.example.test/contact",
+      }).VAPID_SUBJECT,
+    ).toBe("https://wayfind.example.test/contact");
+  });
+
+  it.each([
+    ["VAPID_SUBJECT", "ops@example.test"],
+    ["VAPID_SUBJECT", "http://insecure.test"],
+    ["VAPID_PUBLIC_KEY", "not base64url!"],
+    ["VAPID_PRIVATE_KEY", "has spaces"],
+  ])("rejects a malformed %s without echoing it", (key, value) => {
+    let message = "";
+    try {
+      parseEnv({ ...valid, PUSH_SENDER: "webpush", ...vapid, [key]: value });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toBe(`Invalid environment: invalid ${key}`);
+  });
+
+  it("does not need the keys for the fake sender even if some are set", () => {
+    expect(parseEnv({ ...valid, ...vapid }).PUSH_SENDER).toBe("fake");
+  });
+
+  it("rejects an unknown sender without echoing it", () => {
+    expect(() => parseEnv({ ...valid, PUSH_SENDER: "fcm" })).toThrowError(
+      "Invalid environment: invalid PUSH_SENDER",
+    );
+  });
+});
+
+describe("email sender env", () => {
+  it("defaults to the fake sender, which needs no key", () => {
+    const env = parseEnv(valid);
+    expect(env.EMAIL_SENDER).toBe("fake");
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.EMAIL_FROM).toBeUndefined();
+  });
+
+  it("requires the Resend key and a from address for resend", () => {
+    expect(() => parseEnv({ ...valid, EMAIL_SENDER: "resend" })).toThrowError(
+      "Invalid environment: missing RESEND_API_KEY; missing EMAIL_FROM",
+    );
+    expect(() =>
+      parseEnv({
+        ...valid,
+        EMAIL_SENDER: "resend",
+        RESEND_API_KEY: "re_test",
+        EMAIL_FROM: "",
+      }),
+    ).toThrowError("Invalid environment: missing EMAIL_FROM");
+  });
+
+  it("accepts resend with both settings", () => {
+    const env = parseEnv({
+      ...valid,
+      EMAIL_SENDER: "resend",
+      RESEND_API_KEY: "re_test",
+      EMAIL_FROM: "Wayfind <alerts@wayfind.example.test>",
+    });
+    expect(env.EMAIL_SENDER).toBe("resend");
+  });
+
+  it("does not need them for the fake sender", () => {
+    expect(parseEnv({ ...valid, RESEND_API_KEY: "re_test" }).EMAIL_SENDER).toBe(
+      "fake",
+    );
+  });
+
+  it("rejects an unknown sender without echoing it", () => {
+    expect(() => parseEnv({ ...valid, EMAIL_SENDER: "smtp" })).toThrowError(
+      "Invalid environment: invalid EMAIL_SENDER",
+    );
+  });
+});

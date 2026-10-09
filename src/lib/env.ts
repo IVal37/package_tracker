@@ -45,6 +45,28 @@ const envSchema = z
     // "claude" asks Claude Haiku 4.5 and needs ANTHROPIC_API_KEY.
     EMAIL_EXTRACTOR: z.enum(["fake", "claude"]).default("fake"),
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    // "fake" records alerts without sending; "webpush" sends real Web Push and
+    // needs the VAPID keys (npx web-push generate-vapid-keys). The public key
+    // is handed to the settings page as a prop, so it is not NEXT_PUBLIC_*.
+    PUSH_SENDER: z.enum(["fake", "webpush"]).default("fake"),
+    VAPID_PUBLIC_KEY: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]+$/, "base64url")
+      .optional(),
+    VAPID_PRIVATE_KEY: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]+$/, "base64url")
+      .optional(),
+    // Who the push service can contact about this sender: mailto: or https:.
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:\/\/)\S+$/, "mailto: or https: URL")
+      .optional(),
+    // "fake" records alerts without sending; "resend" sends through Resend and
+    // needs a key and a sender address on a domain verified there.
+    EMAIL_SENDER: z.enum(["fake", "resend"]).default("fake"),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().min(3).max(320).optional(),
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env) =>
@@ -74,6 +96,15 @@ const envSchema = z
     }
     if (env.EMAIL_EXTRACTOR === "claude" && !env.ANTHROPIC_API_KEY) {
       require("ANTHROPIC_API_KEY");
+    }
+    if (env.PUSH_SENDER === "webpush") {
+      if (!env.VAPID_PUBLIC_KEY) require("VAPID_PUBLIC_KEY");
+      if (!env.VAPID_PRIVATE_KEY) require("VAPID_PRIVATE_KEY");
+      if (!env.VAPID_SUBJECT) require("VAPID_SUBJECT");
+    }
+    if (env.EMAIL_SENDER === "resend") {
+      if (!env.RESEND_API_KEY) require("RESEND_API_KEY");
+      if (!env.EMAIL_FROM) require("EMAIL_FROM");
     }
   })
   .transform((env) => ({

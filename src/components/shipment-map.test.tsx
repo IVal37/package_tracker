@@ -24,6 +24,8 @@ const h = vi.hoisted(() => {
     fitBounds = vi.fn();
     clusterZoom = vi.fn(async (_id: number) => 7);
     canvas = { style: { cursor: "" } };
+    container = { dataset: {} as Record<string, string> };
+    queryRenderedFeatures = vi.fn((_options?: unknown) => [{}, {}]);
 
     constructor(options: Record<string, unknown>) {
       if (FakeMap.failOnCreate) throw new Error("WebGL unavailable");
@@ -50,6 +52,9 @@ const h = vi.hoisted(() => {
     }
     getCanvas() {
       return this.canvas;
+    }
+    getContainer() {
+      return this.container;
     }
     remove() {
       this.removed = true;
@@ -319,6 +324,16 @@ describe("ShipmentMap: the map", () => {
     );
     expect(map.fitBounds).not.toHaveBeenCalled();
     expect(map.jumpTo).not.toHaveBeenCalled();
+  });
+
+  it("records how many markers it drew once the map settles", async () => {
+    const { map } = await renderLoaded();
+    expect(map.container.dataset.markers).toBeUndefined();
+    await map.fire("idle");
+    expect(map.queryRenderedFeatures).toHaveBeenCalledWith({
+      layers: ["shipment-icons", "clusters"],
+    });
+    expect(map.container.dataset.markers).toBe("2");
   });
 
   it("removes the map when it unmounts", async () => {

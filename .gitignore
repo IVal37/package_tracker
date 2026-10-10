@@ -25,3 +25,8 @@ next-env.d.ts
 
 # real example emails for npm run eval:email stay local (may hold personal details)
 /tests/fixtures/email/real/
+
+# Playwright (npm run e2e)
+/test-results/
+/playwright-report/
+/blob-report/

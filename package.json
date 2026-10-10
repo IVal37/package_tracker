@@ -17,7 +17,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "eval:email": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run --config vitest.eval.config.mts",
-    "jobs:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest"
+    "jobs:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
@@ -37,6 +38,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@inngest/test": "^1.0.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

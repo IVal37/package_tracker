@@ -225,6 +225,15 @@ export function ShipmentMap({ data }: ShipmentMapProps) {
               routerRef.current.push(drawerHref(id)),
             );
             await fitToPoints(created, mapData);
+            // How many markers are drawn right now, on the container: the
+            // canvas is opaque, so this is how a browser test (and anyone
+            // debugging) can tell the map really drew something.
+            created.on("idle", () => {
+              const drawn = created.queryRenderedFeatures({
+                layers: ["shipment-icons", "clusters"],
+              }).length;
+              created.getContainer().dataset.markers = String(drawn);
+            });
           } catch {
             if (!cancelled) setFailed(true);
           }

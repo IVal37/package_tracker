@@ -19,7 +19,9 @@ Full spec, phase details and test-gate criteria: `docs/plan.md`. Read the sectio
 - Map: MapLibre GL with OpenFreeMap tiles (no key). Geocoding: Nominatim (decided in Phase 4) behind the `Geocoder` interface, results cached in the `places` table
 - Inbound email (decided in Phase 5): Cloudflare Email Routing + a small Email Worker (`workers/inbound-email/`, its own `package.json`) posting to our webhook; field extraction with Claude Haiku 4.5 (`claude-haiku-4-5`, `@anthropic-ai/sdk`) behind the `Extractor` interface
 - Alerts (decided in Phase 6): Web Push (VAPID, the `web-push` package) behind the `PushSender` interface and Resend email (plain `fetch`) behind `EmailSender`; both sent from Inngest jobs only. Installable PWA: `app/manifest.ts`, generated icons, a hand-written service worker in `public/sw.js`
-- Tests: Vitest, Testing Library, MSW; Playwright only at launch
+- Monitoring (decided in Phase 7): Sentry (`@sentry/nextjs`, server only) behind `@/lib/monitoring`; a no-op logger without `SENTRY_DSN`
+- Rate limiting (Phase 7): fixed-window counters in Postgres (`rate_limits`), `@/lib/ratelimit`
+- Tests: Vitest, Testing Library, MSW; Playwright for the one launch test (`npm run e2e`)
 - Hosting: Vercel
 
 ## Commands
@@ -38,6 +40,7 @@ Keep these current.
 - `npm run db:migrate` — apply migrations (uses `DATABASE_URL_DIRECT` if set)
 - `npm run jobs:dev` — Inngest dev server (UI at http://localhost:8288); run it next to `npm run dev`
 - `npm run eval:email` — runs example emails through the REAL Claude model and prints how many it read correctly. Costs a few cents; needs `ANTHROPIC_API_KEY`; never part of `npm test`. Reads `tests/fixtures/email/retailers.json` plus your own examples in `tests/fixtures/email/real/` (gitignored)
+- `npm run e2e` — the launch test (Playwright): builds the app, runs it against a throwaway Postgres in `E2E_DATABASE_URL` (emptied every run; never Supabase) with the fake providers and a fake auth server (`e2e/fake-auth/server.mjs`), signs up, adds a package, checks the list and the map. CI runs it as its own job with a Postgres service
 - `predev` / `prebuild` run `scripts/copy-maplibre-worker.mjs`, which copies MapLibre's Web Worker into `public/` (gitignored). MapLibre can't find its own worker under Next's bundler, so the map component points it at `/maplibre-gl-worker.mjs` (`setWorkerUrl`). If the map is blank, check the browser console for "Worker failed to load" and that the file is served as JavaScript; the proxy matcher must skip `.mjs`.
 
 ## Folder layout
@@ -51,9 +54,19 @@ src/
   app/manifest.ts, app/icons/[file]/  web app manifest and the PNG icons drawn in code (lib/pwa/icons.tsx)
   public/sw.js         the service worker: push, the saved package list, hashed static files. Plain JS, tested in a Node sandbox by tests/service-worker.test.ts
   app/sign-in/         sign-in page and actions;  app/auth/callback/ completes magic-link and Google sign-in
+  instrumentation.ts   starts Sentry (Node runtime) and reports request errors without headers;  app/global-error.tsx + app/error-actions.ts report browser-only errors by class name
+  app/admin/           tracker usage and job health, only for ADMIN_EMAILS (404 for everyone else)
+  app/privacy/, app/terms/, app/account-deleted/  public pages;  app/settings/export/ "Download my data" (JSON)
   app/api/             route handlers and webhooks (keep thin)
   components/          UI components (Tailwind)
   lib/auth/            Supabase server client, getCurrentUser()/requireUser(), sign-in and callback logic
+  lib/auth/admin.ts    the ONLY user of SUPABASE_SECRET_KEY (deletes a sign-in account); import-restricted to src/lib/privacy
+  lib/privacy/         export (buildUserExport), delete-account (trackers, then data, then sign-in), confirm word
+  lib/ratelimit/       hit/hitAll, limits table (LIMITS), circuit breakers (BREAKERS), clientIp, tooManyRequests, cleanup
+  lib/monitoring/      import only from index.ts: reportIssue, reportError; sentry.ts and noop.ts are never imported from outside lib/monitoring; scrub.ts strips personal data
+  lib/admin/           isAdmin, loadAdminStats; the only importer of lib/db/admin-stats.ts
+  lib/legal/services.ts  every outside service that sees personal data (the privacy policy renders it; a test checks it)
+  lib/security/headers.ts  security headers and the CSP, used by next.config.ts
   lib/shipments/       add / delete logic, validation, grouping, formatting (pure, unit tested)
   lib/tracking/        import only from here: index.ts exposes TrackingProvider, getTrackingProvider(), Status, errors
   lib/tracking/ship24/ Ship24Provider (fetch + zod), client, status-map; never imported from outside lib/tracking
@@ -61,7 +74,7 @@ src/
   lib/env.ts           typed, server-only env loader (zod); add new env keys here
   lib/db/              Drizzle client, schema and queries
   lib/db/tracker-sync.ts  system-scope queries for webhooks and jobs (no userId); import-restricted by ESLint
-  lib/shipments/sync/  webhook handling, update rule (decideShipmentUpdate), re-fetch and archive logic
+  lib/shipments/sync/  webhook handling, update rule (decideShipmentUpdate), per-tracker re-fetch, expiry, archive, releaseTracker (unsubscribe only unshared trackers)
   app/api/webhooks/tracking/  provider webhook route (authenticates with the provider's secret)
   app/api/inngest/     serves the Inngest functions
   lib/geo/             infer-mode (inferMode/shipmentMode), map-data (buildMapData), geocode-place (cache-first), place-events, map-style
@@ -76,11 +89,14 @@ src/
   lib/notifications/senders/  import only from index.ts: PushSender, EmailSender, getPushSender(), getEmailSender(); webpush.ts, resend.ts and fake.ts are never imported from outside lib/notifications
   lib/db/notify-sync.ts  system-scope alert queries: the overdue scan, loading and finishing an alert, the sweep (import-restricted by ESLint)
   lib/db/notification-settings.ts, push-subscriptions.ts  user-scoped queries for a user's alert settings and devices
+  lib/db/export.ts     userId-scoped loads of everything a user has (for the export);  lib/db/rate-limits.ts  counter upserts
+  lib/db/admin-stats.ts  system-scope counts for /admin (import-restricted to src/lib/admin)
   lib/pwa/             browser-side helpers (register the service worker, push support detection, device clean-up) and the icon drawing
   app/api/webhooks/inbound-email/  inbound email webhook (authenticates with INBOUND_WEBHOOK_SECRET)
   jobs/                Inngest functions (re-fetch stale, archive delivered, geocode, process inbound email and its sweep and cleanup, send notification and its sweep and cleanup), thin wrappers over lib code
+e2e/                   the launch test: launch.spec.ts, env.ts (every app setting for the run), global-setup.ts (migrations, seeded places), fake-auth/server.mjs
 tests/
-  db/                  PGlite helper (createTestDb): real Postgres in memory with the real migrations
+  db/                  PGlite helper (createTestDb): real Postgres in memory with the real migrations; seed-user.ts (a user with a row in every table)
   setup.ts             Vitest setup (jest-dom, MSW server lifecycle)
   msw/                 shared MSW server; register handlers per test with server.use()
   fixtures/            saved JSON / email fixtures (fixtures/ship24/ built from Ship24's OpenAPI examples)
@@ -115,6 +131,7 @@ docs/
 - Job env keys: `INNGEST_SIGNING_KEY` (required in production; the SDK reads it itself), `INNGEST_EVENT_KEY` (required in production; needed to send events) and `INNGEST_DEV=1` for local development. Setup steps are in `docs/webhooks-and-jobs-setup.md`.
 - Geocoder env key: `GEOCODER` (`fake` default | `nominatim`). The fake never touches the network; use it for local development and tests.
 - Inbound email env keys: `INBOUND_EMAIL_DOMAIN` (forwarding addresses are `<alias>@<domain>`; default `in.localhost` in development, required in production), `INBOUND_WEBHOOK_SECRET` (shared with the Worker; default `dev-inbound-secret` in development, required in production), `INBOUND_DAILY_LIMIT` (stored emails per user per day, default 50), `EMAIL_EXTRACTOR` (`fake` default | `claude`) and `ANTHROPIC_API_KEY` (required only when `EMAIL_EXTRACTOR=claude`). Setup steps and a no-domain local walkthrough are in `docs/email-forwarding-setup.md`.
+- Launch env keys (Phase 7): `SUPABASE_SECRET_KEY` (required in production; account deletion refuses without it), `SENTRY_DSN` (optional), `ACTIVE_PACKAGE_CAP` (default 25), `EXPIRE_AFTER_DAYS` (default 60, 7 to 365), `ADMIN_EMAILS` (comma-separated; empty means nobody), `SHIP24_MONTHLY_ALLOWANCE` (optional), `SUPPORT_EMAIL` (required in production). Production refuses `INNGEST_DEV` (it turns off Inngest's request signing). Production setup: `docs/launch-checklist.md`.
 - Notification env keys: `PUSH_SENDER` (`fake` default | `webpush`), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (all three required when `PUSH_SENDER=webpush`; generate keys with `npx web-push generate-vapid-keys`; the private key is server-only), `EMAIL_SENDER` (`fake` default | `resend`), `RESEND_API_KEY` and `EMAIL_FROM` (both required when `EMAIL_SENDER=resend`; the from address needs a domain verified in Resend). The fakes never touch the network. Setup steps and a no-keys local walkthrough are in `docs/notifications-setup.md`.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
@@ -155,6 +172,14 @@ docs/
   - The server POSTs to every stored push endpoint, so a subscription is accepted only for an HTTPS endpoint on the known push services (`isAllowedPushEndpoint`): an arbitrary URL would let a user make the server call internal hosts.
   - Words in an alert may come from a forwarded email (untrusted): the email's HTML escapes every value, links are built only from `APP_URL` and a UUID, and the tracking number never appears in a push title or body.
   - `public/sw.js` caches only the list at exactly `/` (no query, a plain 200, never a redirect) and hashed `/_next/static` files; it never touches `/api`, a non-GET request, another page or an error. The manifest, icons and `sw.js` are public (browsers fetch them without cookies): `isPublicPath` and the proxy matcher both say so. Signing out removes the device's push subscription and the saved list; the sign-in page clears the saved list too.
+
+- Launch hardening (Phase 7):
+  - Rate limits live in `@/lib/ratelimit` (one table of limits in `limits.ts`), counted in Postgres so every instance shares them. Keys are hashed (never an email or IP in the table); logs name the action only. Route handlers answer `429` with `Retry-After`; webhooks are limited only after their secret is checked. A new public action gets a limit.
+  - `addShipment` enforces `ACTIVE_PACKAGE_CAP` before the provider is called. A tracker is unsubscribed only through `releaseTracker`, which leaves it alone while another user follows the number.
+  - Error reports go through `@/lib/monitoring` only, with details limited to ids, kinds and counts (`sanitizeDetails`). Never pass an email, tracking number, subject, address or message text. A report from a job goes inside a `step.run` so a replay cannot repeat it.
+  - `SUPABASE_SECRET_KEY` is read only by `src/lib/auth/admin.ts`, which ESLint lets only `src/lib/privacy` import. Account deletion order is fixed: unshared trackers, then the user row (everything cascades), then the sign-in.
+  - Security headers and the CSP are defined once in `src/lib/security/headers.ts`. Anything new the browser loads from another origin must be added there, and the launch test fails on a CSP violation. Server-side services never go in `connect-src`.
+  - `/privacy` lists outside services from `src/lib/legal/services.ts`: a new service that sees personal data is added there first.
 
 ## Out of scope for the MVP
 

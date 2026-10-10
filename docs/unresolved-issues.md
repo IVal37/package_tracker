@@ -6,26 +6,36 @@ Rule (also in `CLAUDE.md`): do not fix these mid-phase. Add the item here, say s
 
 ## Targeted at a later phase
 
-| Item | Found in | Target | Notes |
-| --- | --- | --- | --- |
-| Verify the webhook against a real Ship24 delivery and the dashboard test message | Phase 3 | Phase 7 | Tested only against the OpenAPI example fixture and the fake provider. Needs a public URL. |
-| Verify Inngest in production: app sync at `/api/inngest`, signing key, both cron schedules firing | Phase 3 | Phase 7 | Only checked in dev mode (`function_count: 2`). |
-| Re-fetch handles up to 100 trackers one after another inside a single step | Phase 3 | Phase 7 | May run past a serverless time limit once there is volume. Fix by fanning out one event per tracker, or lowering the batch. |
-| No alert when the re-fetch job stops early on a bad API key or exhausted quota | Phase 3 | Phase 7 (Sentry) | Today it only returns `stoppedEarly: true` in the run output. |
-| `Expired` is never set | Phase 3 | Phase 7 | Already in the Phase 7 deliverables in `docs/plan.md`. |
-| Nominatim's public instance is for light use; decide on a hosted geocoder before launch | Phase 4 | Phase 7 | `Geocoder` is an interface, so this is a new adapter plus `GEOCODER` value. Results are cached forever, so volume is only new places. |
-| OpenFreeMap tiles have no SLA | Phase 4 | Phase 7 | Community-run. If it matters at launch, switch `MAP_STYLE_URL` in `src/lib/geo/map-style.ts` to a hosted style (a key would then be sent to the browser). |
-| Privacy policy must say location text goes to OpenStreetMap (geocoding) and map tile requests go to OpenFreeMap (the visitor's IP) | Phase 4 | Phase 7 | Only place text is sent to the geocoder: never names, street addresses or tracking numbers. |
-| A place whose geocode job failed for good is not queued again for up to 24 hours | Phase 4 | Phase 7 | Event ids are de-duplicated for 24 h. Add an alert (Sentry) for exhausted `geocode-place` retries. |
-| Privacy policy must say forwarded email text is sent to Anthropic (Claude) for reading and passes through Cloudflare, and that raw emails are kept 30 days | Phase 5 | Phase 7 | The model sees the email body, which can hold names and addresses. Nothing from an email is sent to the geocoder. |
-| Verify the three email jobs in production Inngest: `process-inbound-email`, `inbound-email-sweep` (hourly) and `inbound-email-cleanup` (daily) | Phase 5 | Phase 7 | Only run in tests and the dev server so far. |
-| Emails that could not be read show only as a count in Settings; no way to see or reprocess them | Phase 5 | Phase 7 | Also add an alert (Sentry) when `process-inbound-email` exhausts its retries. |
-| Per-user package cap and rate limiting beyond `INBOUND_DAILY_LIMIT` | Phase 5 | Phase 7 | Anyone who learns an alias can email it, so until then the daily cap is the only control on the Claude bill. |
-| Verify the three notification jobs in production Inngest: `send-notification`, `notifications-sweep` (hourly, :25) and `notifications-cleanup` (daily) | Phase 6 | Phase 7 | Only run in tests and the dev server so far. Check that `step.sleepUntil` for quiet hours is allowed on the plan in use (a sleep can last up to about 23 hours). |
-| The "Send a test" limit (3 a minute) is counted in memory, per server instance | Phase 6 | Phase 7 | On a serverless host each instance counts for itself, so the limit is only approximate. Replace with the real rate limiting for public endpoints. |
-| No alert when a notification fails for good (marked `failed`, or a job out of retries) | Phase 6 | Phase 7 (Sentry) | Today it shows only as the run's result in Inngest and as `status = failed` on the `notifications` row. |
-| Alert emails have no `List-Unsubscribe` header; they link to Settings instead | Phase 6 | Phase 7 | Do it with the privacy policy and terms. |
-| Privacy policy must say alerts are sent through Resend (the account email address and the package name leave our servers), that push goes through each browser's push service, and that devices are stored by endpoint | Phase 6 | Phase 7 | Also that the saved package list lives on the user's device until they sign out. |
+None. Every item targeted at Phase 7 is resolved or moved below.
+
+## Resolved in Phase 7
+
+| Item | Found in | Resolved by |
+| --- | --- | --- |
+| Re-fetch handles up to 100 trackers one after another inside a single step | Phase 3 | `247473b`: one event per tracker, throttled |
+| No alert when the re-fetch job stops early on a bad API key or exhausted quota | Phase 3 | `247473b` (hourly breaker) and `a70be33` (reported once to Sentry) |
+| `Expired` is never set | Phase 3 | `737630a` |
+| Privacy policy must say location text goes to OpenStreetMap and map tiles to OpenFreeMap | Phase 4 | `2fc5049` |
+| A place whose geocode job failed for good: add an alert | Phase 4 | `a70be33` (`geocode-place` reports when out of retries). The 24-hour wait before it is queued again stays, below (L4). |
+| Privacy policy must say forwarded email goes to Anthropic and Cloudflare and is kept 30 days | Phase 5 | `2fc5049` |
+| Emails that could not be read show only as a count | Phase 5 | `a804f4b` (list, Try again, Dismiss) and `a70be33` (alert when `process-inbound-email` gives up) |
+| Per-user package cap and rate limiting beyond `INBOUND_DAILY_LIMIT` | Phase 5 | `d470142` (cap) and `2a8d2b0` (rate limits, including 10 a minute per forwarding address) |
+| The "Send a test" limit is counted in memory, per server instance | Phase 6 | `2a8d2b0` (counted in Postgres) |
+| No alert when a notification fails for good | Phase 6 | `a70be33` |
+| Alert emails have no `List-Unsubscribe` header | Phase 6 | `2fc5049` (points at Settings; one-click unsubscribe stays in the backlog) |
+| Privacy policy must cover Resend, push services, stored devices and the saved list | Phase 6 | `2fc5049` |
+| An alert held through quiet hours can be queued up to about nine times by the hourly sweep | Phase 6 | `24ceaeb`. It was not harmless: the runs could each send the push (launch audit M1). |
+
+## Moved to the launch checklist
+
+These need the real services, so they are production checks in `docs/launch-checklist.md` (section 8, and section 4 for Inngest) rather than code.
+
+| Item | Found in |
+| --- | --- |
+| Verify the webhook against a real Ship24 delivery and the dashboard test message | Phase 3 |
+| Verify Inngest in production: app sync, signing key, cron schedules firing (now 13 jobs and 3 failure handlers) | Phase 3, 5, 6 |
+| Check `step.sleepUntil` (quiet hours, up to about 23 hours) is allowed on the Inngest plan in use | Phase 6 |
+| Real push on a deployed HTTPS site and on an installed iPhone; real alert emails; real forwarding end to end | Phase 5, 6 |
 
 ## Final sweep (no phase yet)
 
@@ -34,21 +44,31 @@ Rule (also in `CLAUDE.md`): do not fix these mid-phase. Add the item here, say s
 | End-to-end check of a webhook updating a real signed-in user's package | Phase 3 | Unit tests cover the logic and a signed-out smoke test covered the routing; the signed-in path (add `FAKE-TRANSIT-1`, `curl` the fixture, reload) was not run by hand. |
 | `next dev` appends a "This is NOT the Next.js you know" block to `CLAUDE.md` on every run | Phase 3 | Generated by Next.js. Decide whether to commit it or stop it being written. |
 | No live refresh of the list when a webhook arrives | Phase 3 | The page shows new data on the next load. Out of scope for the MVP; revisit if it feels stale. |
-| The map has been checked in a real browser (headless Chrome) on the dev server and on a local production build (`next start`), but not on a deployed URL | Phase 4 | Verified: all five icons, route lines (including across the Pacific), clusters with count labels, the basemap, and that `prebuild` recreates the worker in `public/`. Still to check on Vercel: the worker file is served as JavaScript. Automated tests mock MapLibre because jsdom has no WebGL. |
-| Nothing in CI would notice the map going blank again | Phase 4 | The MapLibre worker bug (found and fixed in Phase 4) passed every unit test. A single Playwright check in Phase 7 ("open the map, see an icon") would catch this class of failure. |
+| Nominatim's public instance is for light use | Phase 4 | Decided in Phase 7: keep it for launch (results are cached forever, so it sees only new places, at 1 a second). Named in the privacy policy. Revisit if `/admin` shows volume; `Geocoder` is an interface, so a hosted one is a new adapter. |
+| OpenFreeMap tiles have no SLA | Phase 4 | Kept for launch (Phase 7 decision). Switching means `MAP_STYLE_URL` and the CSP's `MAP_ORIGIN` (`src/lib/security/headers.ts`). |
+| The map has been checked in a real browser locally, but not on a deployed URL | Phase 4 | The launch test now draws the map in headless Chromium under the real CSP (OpenFreeMap stubbed). The deployed check is in the launch checklist. |
 | Place names are ambiguous without a country: "PARIS, TX" vs Paris, France; "PORTLAND" | Phase 4 | Nominatim picks its best guess. Could bias by the destination country. |
 | A destination that is only a country pins at the country's centre | Phase 4 | Ship24 often knows just `destinationCountryCode`. Fine as a rough pin; consider hiding it or labelling it. |
 | In development, adding a package waits up to 2 seconds if the Inngest dev server isn't running | Phase 4 | `requestGeocoding()` gives up after 2 s and logs a warning. Run `npm run jobs:dev` alongside `npm run dev`. |
-| The map is rebuilt (brief flash) whenever its data changes | Phase 4 | Intended trade-off for simplicity; a webhook arriving mid-view re-renders only on the next navigation anyway. |
-| What Claude Haiku 4.5 actually extracts from real order and shipping emails is untested | Phase 5 | The automated tests use a mocked model. Run `npm run eval:email` (a few cents; needs `ANTHROPIC_API_KEY`) with real example emails the user offered to share. Put redacted `.eml` or text files in `tests/fixtures/email/real/` (gitignored) so personal details are never committed; remove names, street addresses and phone numbers first. Also confirms the structured-output schema works with the installed Zod version. |
-| The Cloudflare Worker has never been deployed or run against Cloudflare | Phase 5 | Only its pure `handler.ts` is unit tested, and `index.ts` type-checks against Cloudflare's types. `npm install` in `workers/inbound-email/` warns that the `esbuild` and `workerd` install scripts were not run; the setup doc says to allow them before `wrangler deploy`. |
-| Real email forwarding hasn't been tried end to end | Phase 5 | Needs a domain and the Cloudflare Worker deployed (`docs/email-forwarding-setup.md`). Includes Gmail's forwarding-confirmation step. |
-| The notification UI, install prompt, service worker and offline banner have not been tried in a real browser or on a real device | Phase 6 | Covered by unit tests (the service worker runs in a Node sandbox with a fake Cache API; components use mocked browser APIs). The manual checks in `docs/notifications-setup.md` (Chrome offline reload, a real push, install) are still to do. |
-| Real push on a deployed HTTPS site, and on an iPhone installed to the Home Screen, has not been tried | Phase 6 | Needs a deployed URL. iOS push only works for an installed app. |
-| Real alert emails have not been sent | Phase 6 | Needs a domain verified in Resend (`docs/notifications-setup.md`). The Resend adapter is tested against a mocked API only. |
-| After a session expires without a sign-out, the saved package list stays on the device until the sign-in page is next opened | Phase 6 | Someone else using that device offline in between could see it. Signing out, and opening the sign-in page, clear it. |
-| The allow-list of push services (Google, Mozilla, Microsoft, Apple) may need extending if a browser uses another | Phase 6 | `PUSH_SERVICE_SUFFIXES` in `src/lib/notifications/subscription.ts`. A rejected subscription shows "This browser's push service isn't supported". |
-| One failed device does not retry if another device was reached in the same run | Phase 6 | Intended, so the working device is not buzzed twice (alerts for a shipment share a tag, so a repeat would replace rather than stack). The failed device misses that one alert. |
-| An alert held through quiet hours can be queued up to about nine times by the hourly sweep | Phase 6 | They wait behind the sleeping run and then skip as `not_pending`. Harmless, only wasteful. A quiet-hours window longer than about 23 hours makes every alert go stale. |
-| Changing the VAPID keys invalidates every device's push subscription | Phase 6 | Users would have to turn push off and on again. Keep the keys. |
-| The full test suite is occasionally killed by a crashing Vitest worker on Windows (exit code 2147483651 while a worker starts, a different file each time) | Phase 6 | Seen twice under the full parallel run on a developer machine; the same code passes on re-run and in CI so far. Likely a limit on many WASM (PGlite) workers starting at once. If it appears in CI, cap `maxWorkers`. |
+| The map is rebuilt (brief flash) whenever its data changes | Phase 4 | Intended trade-off for simplicity. |
+| What Claude Haiku 4.5 actually extracts from real order and shipping emails is untested | Phase 5 | Run `npm run eval:email` with redacted real emails in `tests/fixtures/email/real/` before switching `EMAIL_EXTRACTOR=claude` on (launch checklist, section 2). |
+| The Cloudflare Worker has never been deployed or run against Cloudflare | Phase 5 | Launch checklist, section 7. The Worker now treats a `429` as try-again-later (Phase 7); that path is unit tested only. |
+| After a session expires without a sign-out, the saved package list stays on the device until the sign-in page is next opened | Phase 6 | Signing out, opening the sign-in page and deleting the account clear it. The push subscription is now claimed by whoever opens Settings next (`586beb8`). |
+| The allow-list of push services may need extending if a browser uses another | Phase 6 | `PUSH_SERVICE_SUFFIXES` in `src/lib/notifications/subscription.ts`. |
+| One failed device does not retry if another device was reached in the same run | Phase 6 | Intended, so the working device is not buzzed twice. |
+| Changing the VAPID keys invalidates every device's push subscription | Phase 6 | Keep the keys (launch checklist). |
+| The full test suite is occasionally killed by a crashing Vitest worker on Windows, and a lint-guard case occasionally fails under the full parallel run | Phase 6, 7 | Both pass on re-run and in CI. Likely too many WASM (PGlite) and ESLint workers starting at once. If it appears in CI, cap `maxWorkers`. (Launch audit L7.) |
+| An archived tracking number can never be added again | Phase 7 | Launch audit L1: the duplicate check matches archived shipments, so a reused number says "You're already tracking this package" and nothing appears. Unarchive it instead, or exclude archived rows from the check. |
+| A Delivered package past its ETA shows "Overdue" | Phase 7 | Launch audit L2: `formatEta` ignores the status. |
+| "Strong" carrier-format numbers are scanned in the raw HTML and added without the model | Phase 7 | Launch audit L3: a DHL logo near a 10-digit phone number can become a junk tracker. Bounded by the cap and limits; tune with `npm run eval:email`. |
+| A place that fails to geocode for good is queued again every day | Phase 4, 7 | Launch audit L4: nothing is cached for a permanent error, and `findPendingPlaces` has no `ORDER BY`, so enough such keys could crowd new places out of a sweep. |
+| Webhook bodies are read in full before the secret is checked | Phase 7 | Launch audit L5: bounded by Vercel's 4.5 MB request limit and the firewall rule. |
+| The hourly email sweep can start a second run for an email whose first run is waiting to retry | Phase 7 | Launch audit L6: the model may be asked twice (the second answer is discarded). `send-notification`'s singleton fix (`24ceaeb`) would work here too. |
+| The CSP allows inline scripts | Phase 7 | Next's hydration scripts are inline. A nonce-based policy (generated in `proxy.ts`) would be stricter but needs every page rendered per request and a careful look at the static icons and manifest. |
+| Sentry gets no source maps | Phase 7 | Stack traces point at the built server code. Uploading them needs `withSentryConfig` in `next.config.ts` and a `SENTRY_AUTH_TOKEN` in Vercel. |
+| Errors that happen only in the browser are reported by class name only | Phase 7 | No Sentry browser SDK (keeps the DSN and any page text out of the browser). `global-error` reports the name through a rate-limited server action. |
+| `/admin` counts trackers from the packages still stored | Phase 7 | Deleted packages drop out, so it can undercount what Ship24 bills. Ship24's own dashboard is the source of truth. |
+| A deleted account can come back as an empty row from another device | Phase 7 | Another device's access token stays valid for up to an hour after the account is deleted (tokens are checked by signature). Opening Settings there runs `ensureUser`, which recreates an empty user row with no sign-in behind it. Harmless but untidy; the token then fails to refresh. |
+| Unsubscribing a tracker can race with someone adding the same number | Phase 7 | If the last follower deletes while someone else adds the number, the tracker can end up unsubscribed. Adding a known number subscribes it again (`0863179`) and the hourly re-fetch covers the rest. |
+| Rate limits use fixed windows | Phase 7 | A burst across a window boundary can reach twice the limit. Fine for these numbers. |
+| The launch test stubs OpenFreeMap | Phase 7 | It checks the map draws its own marker under the CSP, not that real tiles load; the deployed check does that. Locally it needs a throwaway Postgres (`E2E_DATABASE_URL`). |

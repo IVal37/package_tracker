@@ -5,7 +5,7 @@ Wayfind uses one Supabase project for the Postgres database and for sign-in. Do 
 ## 1. Create the project
 
 1. Create a project at https://supabase.com/dashboard and note the database password you choose.
-2. **Project Settings → API**: copy the **Project URL** and the **publishable key** (`sb_publishable_...`). Never use the `secret` / `service_role` key; Wayfind doesn't need it.
+2. **Project Settings → API**: copy the **Project URL** and the **publishable key** (`sb_publishable_...`). The **secret key** (`sb_secret_...`, formerly `service_role`) bypasses every rule in Supabase. Wayfind uses it in exactly one place, `src/lib/auth/admin.ts`, to delete a person's sign-in account when they delete their Wayfind account; ESLint lets only `src/lib/privacy` import that module. Set it as `SUPABASE_SECRET_KEY` on the server only (required in production; locally, leave it out and account deletion says it is unavailable). Never put it anywhere else, never in a `NEXT_PUBLIC_*` variable.
 3. **Project Settings → Database → Connection string**: copy the **transaction pooler** string (port 6543) and the **session pooler / direct** string (port 5432).
 
 ## 2. Put the values in `.env.local`
@@ -29,7 +29,7 @@ Leave `TRACKING_PROVIDER=fake` for development so no Ship24 quota is used.
 npm run db:migrate
 ```
 
-This creates the 5 tables and enables row-level security on them.
+This creates the tables (10 as of Phase 7) and enables row-level security on every one, with no policies, so Supabase's Data API can read nothing.
 
 ## 4. Configure sign-in
 
@@ -39,7 +39,7 @@ This creates the 5 tables and enables row-level security on them.
 - Redirect URLs: add `http://localhost:3000/auth/callback`
 - For production later, add your real URL and `https://<your-domain>/auth/callback`, and set `APP_URL` to it.
 
-**Authentication → Providers → Email**: enable it (magic link). Supabase's built-in mailer is rate-limited and fine for development; set up custom SMTP before launch.
+**Authentication → Providers → Email**: enable it (magic link). Supabase's built-in mailer sends only a few emails an hour: fine for development, not for launch. Production uses custom SMTP (Resend), see `docs/launch-checklist.md`. Wayfind also limits sign-in links itself: 5 per 10 minutes per IP and per email address.
 
 **Authentication → Providers → Google**
 

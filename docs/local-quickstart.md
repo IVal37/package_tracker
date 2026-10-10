@@ -23,6 +23,8 @@ APP_URL=http://localhost:3000
 INNGEST_DEV=1
 ```
 
+To try **Delete my account** locally, also set `SUPABASE_SECRET_KEY` (Supabase → Project Settings → API); without it the button says deletion is unavailable and nothing is deleted. To open `/admin`, set `ADMIN_EMAILS` to your sign-in email.
+
 Everything else defaults to the fake services, which never touch the network or cost money: `TRACKING_PROVIDER=fake`, `GEOCODER=fake`, `EMAIL_EXTRACTOR=fake`, `PUSH_SENDER=fake`, `EMAIL_SENDER=fake`. Setup of the Supabase values is in `docs/supabase-setup.md` (including the redirect URL `http://localhost:3000/auth/callback`, which sign-in needs).
 
 ## 3. Apply database migrations
@@ -31,7 +33,7 @@ Everything else defaults to the fake services, which never touch the network or 
 npm run db:migrate
 ```
 
-Safe to repeat. Run it again whenever a new file appears in `drizzle/` (Phase 6 added one that creates the notification tables, so run it at least once now).
+Safe to repeat. Run it again whenever a new file appears in `drizzle/` (Phase 7 added one for rate limits, so run it at least once now).
 
 ## 4. Start the two servers (two terminals)
 
@@ -53,6 +55,8 @@ In a third terminal, optional but fast:
 npm run typecheck
 npm test
 ```
+
+The launch test (`npm run e2e`) needs a throwaway Postgres; see the end of `docs/launch-checklist.md`.
 
 ## Then try it
 

@@ -6,7 +6,7 @@ Phase 3 adds a tracking webhook and two Inngest jobs. Local development needs no
 
 1. Add `INNGEST_DEV=1` to `.env.local`. `INNGEST_SIGNING_KEY` is not needed locally.
 2. Run `npm run dev` in one terminal and `npm run jobs:dev` in another. The Inngest UI is at http://localhost:8288.
-3. In the UI, open Functions and invoke `refetch-stale-shipments` or `archive-delivered-shipments` by hand. The output shows the counts each returned.
+3. In the UI, open Functions and invoke `refetch-stale-shipments`, `expire-quiet-shipments` or `archive-delivered-shipments` by hand. The output shows the counts each returned.
 
 ### Send a fake webhook
 
@@ -39,7 +39,7 @@ Ship24 retries any non-2xx response up to 20 times, and may deliver out of order
 
 1. Create an account at https://www.inngest.com and an app for this project.
 2. Easiest: install the Inngest integration for your Vercel project; it sets `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` for you. Otherwise copy both keys from the Inngest dashboard into the Vercel environment variables of the same names. The event key lets the app send events (geocoding requests).
-3. Deploy, then in the Inngest dashboard sync the app at `<APP_URL>/api/inngest`. All four functions should appear (two with cron schedules).
+3. Deploy, then in the Inngest dashboard sync the app at `<APP_URL>/api/inngest`. Every job in `src/jobs/index.ts` should appear, plus a `-failure` companion for each job with an `onFailure` report (16 in all as of Phase 7; the list is in `docs/launch-checklist.md`).
 4. `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` are required in production. If either is missing, the app reports an error that names the missing key.
 
 Free tier: 50,000 step runs a month. The cron jobs use about 1,500; each newly seen place costs 1 more.
@@ -48,8 +48,11 @@ Free tier: 50,000 step runs a month. The cron jobs use about 1,500; each newly s
 
 | Job | Schedule | Effect |
 | --- | --- | --- |
-| `refetch-stale-shipments` | hourly | Fetches up to 100 trackers whose shipments had no provider update for 24 hours, oldest first, and applies what comes back. Stops on rate limiting, an outage, a bad API key or an exhausted quota, and tries again next hour. |
-| `archive-delivered-shipments` | daily 03:30 UTC | Archives shipments delivered 14 or more days ago. |
+| `refetch-stale-shipments` | hourly | Finds up to 500 trackers whose shipments had no provider update for 24 hours, oldest first, and queues one `wayfind/tracker.refetch` event for each. |
+| `refetch-tracker` | on `wayfind/tracker.refetch`, 5 at a time, 2 a second | Fetches one tracker and applies what comes back. Rate limits and outages are retried. A bad API key or exhausted quota pauses the whole re-fetch for the rest of the hour (a breaker in the `rate_limits` table), is reported to Sentry once, and leaves every tracker stale for the next hour to try again. |
+| `expire-quiet-shipments` | daily 03:20 UTC | Marks shipments `Expired` after `EXPIRE_AFTER_DAYS` (default 60) with no tracker event (or since they were added, if they never had one). Never touches Delivered or archived ones; no alert. A later event moves an expired shipment on as usual. |
+| `archive-delivered-shipments` | daily 03:30 UTC | Archives shipments delivered 14 or more days ago, and Expired ones 14 days after they expired. |
+| `rate-limits-cleanup` | daily 04:00 UTC | Deletes rate-limit windows older than two days. |
 | `geocode-sweep` | on `wayfind/geocode.requested`, and hourly at :15 | Finds place text (checkpoint locations and destinations of live shipments) with no cached coordinates and queues one `wayfind/place.geocode` event per place, at most 200 a run. The event is sent when a package is added, when a webhook or re-fetch brings new checkpoints; the hourly run is the backstop if a send failed. |
 | `geocode-place` | on `wayfind/place.geocode` | Geocodes one place, cache-first, and stores the answer (or "not found") in `places`. Throttled to 1 run a second to stay inside Nominatim's usage policy. |
 

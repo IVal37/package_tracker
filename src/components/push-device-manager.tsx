@@ -63,8 +63,21 @@ export function PushDeviceManager({
     }
     const registration = await registerServiceWorker();
     const existing = await registration?.pushManager.getSubscription();
-    setStatus({ kind: existing ? "on" : "off" });
-  }, [publicKey]);
+    if (!existing) {
+      setStatus({ kind: "off" });
+      return;
+    }
+    // The browser's subscription may still belong to whoever used it before
+    // (a session that expired without signing out). Saving it moves it to
+    // the account signed in now, so that account gets the alerts.
+    try {
+      const saved = await saveAction(existing.toJSON());
+      setStatus({ kind: saved.ok ? "on" : "off" });
+    } catch {
+      // Could not reach the server; the device is subscribed either way.
+      setStatus({ kind: "on" });
+    }
+  }, [publicKey, saveAction]);
 
   useEffect(() => {
     // Reads the browser, so it can only run after mount.

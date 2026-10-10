@@ -123,6 +123,44 @@ describe("PushDeviceManager: what it shows", () => {
     ).toBeInTheDocument();
   });
 
+  it("claims an existing subscription for the signed-in account", async () => {
+    mocks.registerServiceWorker.mockResolvedValue(
+      registration(subscription("https://fcm.googleapis.com/fcm/send/old")),
+    );
+    const { saveAction } = renderManager();
+    await screen.findByText("Push is on for this device.");
+    expect(saveAction).toHaveBeenCalledExactlyOnceWith({
+      endpoint: "https://fcm.googleapis.com/fcm/send/old",
+      keys: { p256dh: "p", auth: "a" },
+    });
+  });
+
+  it("offers to turn push on if the server will not take the existing subscription", async () => {
+    mocks.registerServiceWorker.mockResolvedValue(registration(subscription()));
+    const { saveAction } = actions();
+    saveAction.mockResolvedValue({ ok: false });
+    renderManager({ saveAction });
+    expect(
+      await screen.findByRole("button", { name: "Turn on push" }),
+    ).toBeInTheDocument();
+  });
+
+  it("still shows push as on when the server cannot be reached", async () => {
+    mocks.registerServiceWorker.mockResolvedValue(registration(subscription()));
+    const { saveAction } = actions();
+    saveAction.mockRejectedValue(new Error("offline"));
+    renderManager({ saveAction });
+    expect(
+      await screen.findByText("Push is on for this device."),
+    ).toBeInTheDocument();
+  });
+
+  it("does not save anything when this browser has no subscription", async () => {
+    const { saveAction } = renderManager();
+    await screen.findByRole("button", { name: "Turn on push" });
+    expect(saveAction).not.toHaveBeenCalled();
+  });
+
   it("does not ask for permission just by being shown", async () => {
     renderManager();
     await screen.findByRole("button", { name: "Turn on push" });

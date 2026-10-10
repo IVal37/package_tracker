@@ -1,14 +1,16 @@
 import type { Db } from "@/lib/db/client";
 import { deleteShipment, getShipment } from "@/lib/db/shipments";
-import { TrackerNotFoundError, type TrackingProvider } from "@/lib/tracking";
+import type { TrackingProvider } from "@/lib/tracking";
+import { releaseTracker } from "./sync/release-tracker";
 
 export type RemoveShipmentResult =
   { ok: true } | { ok: false; error: "not_found" };
 
 /**
  * Stops tracking and deletes the user's shipment. A shipment that is missing
- * or belongs to someone else is "not_found". Provider failures never block the
- * delete, so users can always remove a package.
+ * or belongs to someone else is "not_found". The provider's tracker is only
+ * unsubscribed when no other user follows the same number. Provider failures
+ * never block the delete, so users can always remove a package.
  */
 export async function removeShipment(params: {
   db: Db;
@@ -24,14 +26,12 @@ export async function removeShipment(params: {
   // Only ask the provider that owns the tracker (rows may predate a provider
   // switch, e.g. fake in development, ship24 in production).
   if (shipment.providerTrackerId && shipment.provider === provider.name) {
-    try {
-      await provider.deleteTracking(shipment.providerTrackerId);
-    } catch (error) {
-      if (!(error instanceof TrackerNotFoundError)) {
-        const name = error instanceof Error ? error.name : "unknown error";
-        console.error(`[removeShipment] provider failure: ${name}`);
-      }
-    }
+    await releaseTracker({
+      db,
+      provider,
+      trackerId: shipment.providerTrackerId,
+      userId,
+    });
   }
 
   const deleted = await deleteShipment(db, userId, shipmentId);

@@ -23,8 +23,14 @@ import {
   createTrackingProvider,
   type TrackingProvider,
 } from "@/lib/tracking";
-import { createTestDb, insertUser } from "../../../tests/db/pglite";
-import { addShipment } from "./add-shipment";
+import { eq } from "drizzle-orm";
+import { shipments } from "@/lib/db/schema";
+import {
+  createTestDb,
+  insertShipment,
+  insertUser,
+} from "../../../tests/db/pglite";
+import { DEFAULT_ACTIVE_PACKAGE_CAP, addShipment } from "./add-shipment";
 
 let ctx: Awaited<ReturnType<typeof createTestDb>>;
 
@@ -143,6 +149,76 @@ describe("addShipment: rejections that never reach the provider", () => {
     expect(result).toEqual({ ok: false, error: "duplicate" });
     expect(spy).not.toHaveBeenCalled();
     expect(await listShipments(ctx.db, user.id)).toHaveLength(1);
+  });
+});
+
+describe("addShipment: the active-package cap", () => {
+  const addCapped = (userId: string, trackingNumber: string, activeCap = 2) =>
+    addShipment({
+      db: ctx.db,
+      provider: fake,
+      userId,
+      input: { trackingNumber },
+      activeCap,
+    });
+
+  it("refuses at the cap without calling the provider", async () => {
+    const user = await insertUser(ctx.db);
+    expect((await addCapped(user.id, "FAKE-CAP-A1")).ok).toBe(true);
+    expect((await addCapped(user.id, "FAKE-CAP-A2")).ok).toBe(true);
+    const spy = vi.spyOn(fake, "createTracking");
+
+    const result = await addCapped(user.id, "FAKE-CAP-A3");
+
+    expect(result).toEqual({ ok: false, error: "limit_reached" });
+    expect(spy).not.toHaveBeenCalled();
+    expect(await listShipments(ctx.db, user.id)).toHaveLength(2);
+  });
+
+  it("counts only active shipments: not archived, Delivered or Expired", async () => {
+    const user = await insertUser(ctx.db);
+    const set = async (
+      values: Partial<typeof shipments.$inferInsert>,
+      trackingNumber: string,
+    ) => {
+      const row = await insertShipment(ctx.db, user.id, trackingNumber);
+      await ctx.db
+        .update(shipments)
+        .set(values)
+        .where(eq(shipments.id, row.id));
+    };
+    await set({ status: "Delivered" }, "CAPDELIVERED1");
+    await set({ status: "Expired" }, "CAPEXPIRED1");
+    await set({ status: "InTransit", archivedAt: new Date() }, "CAPARCHIVED1");
+    await set({ status: "Exception" }, "CAPEXCEPTION1");
+
+    // One active (the exception) of a cap of two: one more fits.
+    expect((await addCapped(user.id, "FAKE-CAP-B1")).ok).toBe(true);
+    expect(await addCapped(user.id, "FAKE-CAP-B2")).toEqual({
+      ok: false,
+      error: "limit_reached",
+    });
+  });
+
+  it("is per user", async () => {
+    const full = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    await addCapped(full.id, "FAKE-CAP-C1", 1);
+    expect((await addCapped(full.id, "FAKE-CAP-C2", 1)).ok).toBe(false);
+    expect((await addCapped(other.id, "FAKE-CAP-C3", 1)).ok).toBe(true);
+  });
+
+  it("says duplicate, not limit, for a number already followed", async () => {
+    const user = await insertUser(ctx.db);
+    await addCapped(user.id, "FAKE-CAP-D1", 1);
+    expect(await addCapped(user.id, "FAKE-CAP-D1", 1)).toEqual({
+      ok: false,
+      error: "duplicate",
+    });
+  });
+
+  it("defaults to the env default of 25", () => {
+    expect(DEFAULT_ACTIVE_PACKAGE_CAP).toBe(25);
   });
 });
 

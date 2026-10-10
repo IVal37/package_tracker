@@ -133,6 +133,24 @@ describe("removeShipment", () => {
     expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("unknown"));
   });
 
+  it("leaves a tracker alone while another user still follows the number", async () => {
+    const a = await insertUser(ctx.db);
+    const b = await insertUser(ctx.db);
+    const mine = await seed(a.id, "FAKE-SHARED-DEL-1");
+    const theirs = await seed(b.id, "FAKE-SHARED-DEL-1");
+    const spy = vi.spyOn(fake, "deleteTracking");
+
+    await expect(remove(a.id, mine)).resolves.toEqual({ ok: true });
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(await getShipment(ctx.db, a.id, mine)).toBeNull();
+    expect(await getShipment(ctx.db, b.id, theirs)).not.toBeNull();
+
+    // When the last follower deletes theirs, the tracker is unsubscribed.
+    await expect(remove(b.id, theirs)).resolves.toEqual({ ok: true });
+    expect(spy).toHaveBeenCalledExactlyOnceWith("fake:FAKE-SHARED-DEL-1");
+  });
+
   it("skips the provider call when the row came from a different provider", async () => {
     const user = await insertUser(ctx.db);
     const id = await seed(user.id, "FAKE-OLD-1");

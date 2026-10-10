@@ -11,8 +11,7 @@ export type AddPackageState =
   | { status: "success" }
   | {
       status: "error";
-      error:
-        "invalid" | "duplicate" | "not_found" | "unavailable" | "rate_limited";
+      error: Exclude<AddShipmentResult, { ok: true }>["error"] | "rate_limited";
       fieldErrors: FieldErrors;
       /** Echoed back so the form keeps what the user typed. */
       values: AddPackageValues;
@@ -22,6 +21,8 @@ export const ADD_PACKAGE_MESSAGES = {
   duplicate: "You're already tracking this package.",
   not_found: "We couldn't find that tracking number. Check it and try again.",
   unavailable: "Tracking is temporarily unavailable. Please try again soon.",
+  limit_reached:
+    "You're following as many packages as you can at once. Delete one, or wait for one to be delivered.",
   rate_limited:
     "You're adding packages very quickly. Wait a minute and try again.",
 } as const;

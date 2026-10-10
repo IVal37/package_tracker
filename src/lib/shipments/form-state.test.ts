@@ -42,6 +42,7 @@ describe("toAddPackageState", () => {
   it("has a message for every non-field error", () => {
     expect(Object.keys(ADD_PACKAGE_MESSAGES).sort()).toEqual([
       "duplicate",
+      "limit_reached",
       "not_found",
       "rate_limited",
       "unavailable",

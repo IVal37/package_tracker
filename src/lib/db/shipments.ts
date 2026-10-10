@@ -1,7 +1,17 @@
 // Every function here takes userId and filters by it. There is deliberately no
 // unscoped way to read or change a shipment: a shipment that belongs to someone
 // else is indistinguishable from one that does not exist.
-import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  getTableColumns,
+  isNull,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import type { NormalizedEvent } from "@/lib/tracking/types";
 import { insertCheckpoints } from "./checkpoints";
 import type { Db } from "./client";
@@ -248,6 +258,28 @@ export async function findShipmentByTrackingNumber(
       ),
     );
   return row ?? null;
+}
+
+/**
+ * How many packages the user is following: not archived, and not Delivered or
+ * Expired (the ones that still cost tracker updates). The active-package cap
+ * counts these.
+ */
+export async function countActiveShipments(
+  db: Db,
+  userId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(shipments)
+    .where(
+      and(
+        eq(shipments.userId, userId),
+        isNull(shipments.archivedAt),
+        notInArray(shipments.status, ["Delivered", "Expired"]),
+      ),
+    );
+  return row?.total ?? 0;
 }
 
 /** Inserts the shipment and its checkpoints atomically; returns the new id. */

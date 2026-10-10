@@ -13,6 +13,7 @@ import {
   lt,
   lte,
   min,
+  ne,
   notInArray,
 } from "drizzle-orm";
 import { alertsForUpdate } from "@/lib/notifications/rules";
@@ -160,6 +161,31 @@ export async function markTrackerSynced(
         eq(shipments.providerTrackerId, trackerId),
       ),
     );
+}
+
+/**
+ * Whether anyone other than this user still has a shipment on the tracker. A
+ * tracker is shared by every user who added the same number, so it may only be
+ * unsubscribed when the answer is false. Returns the answer only.
+ */
+export async function isTrackerFollowedByOthers(
+  db: Db,
+  provider: string,
+  trackerId: string,
+  userId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: shipments.id })
+    .from(shipments)
+    .where(
+      and(
+        eq(shipments.provider, provider),
+        eq(shipments.providerTrackerId, trackerId),
+        ne(shipments.userId, userId),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
 }
 
 /** Archives Delivered shipments whose last event is at or before the cutoff. */

@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { dismissOrder } from "@/lib/db/orders";
 import { ensureUser } from "@/lib/db/users";
+import { getEnv } from "@/lib/env";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import { removeShipment } from "@/lib/shipments/delete-shipment";
 import { hitAddPackage, logLimited } from "@/lib/ratelimit";
@@ -44,6 +45,7 @@ export async function addPackageAction(
     provider: getTrackingProvider(),
     userId: user.id,
     input: values,
+    activeCap: getEnv().ACTIVE_PACKAGE_CAP,
   });
   if (result.ok) {
     revalidatePath("/");

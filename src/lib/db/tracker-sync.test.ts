@@ -13,6 +13,7 @@ import {
   applyTrackerUpdate,
   archiveDeliveredBefore,
   findStaleTrackers,
+  isTrackerFollowedByOthers,
   markTrackerSynced,
 } from "./tracker-sync";
 
@@ -384,5 +385,31 @@ describe("archiveDeliveredBefore", () => {
 
   it("is a no-op the second time", async () => {
     expect(await archiveDeliveredBefore(ctx.db, ago(14 * DAY), NOW)).toBe(0);
+  });
+});
+
+describe("isTrackerFollowedByOthers", () => {
+  it("is true only when another user has a shipment on the same tracker and provider", async () => {
+    const me = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    const tracked = (userId: string, tracker: string) =>
+      ctx.db.insert(shipments).values({
+        userId,
+        trackingNumber: "OTHERS1",
+        provider: "fake",
+        providerTrackerId: tracker,
+      });
+    await tracked(me.id, "t-others-1");
+    expect(
+      await isTrackerFollowedByOthers(ctx.db, "fake", "t-others-1", me.id),
+    ).toBe(false);
+
+    await tracked(other.id, "t-others-1");
+    expect(
+      await isTrackerFollowedByOthers(ctx.db, "fake", "t-others-1", me.id),
+    ).toBe(true);
+    expect(
+      await isTrackerFollowedByOthers(ctx.db, "ship24", "t-others-1", me.id),
+    ).toBe(false);
   });
 });

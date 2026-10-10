@@ -328,6 +328,37 @@ describe("tracking numbers that cannot be used", () => {
     });
   });
 
+  it("at the active-package cap, records the outcome and asks the provider nothing", async () => {
+    const user = await insertUser(ctx.db);
+    await addShipment({
+      db: ctx.db,
+      provider,
+      userId: user.id,
+      input: { trackingNumber: "FAKE-CAP-HELD-1" },
+    });
+    const emailId = await store(user.id, email);
+    const createTracking = vi.spyOn(provider, "createTracking");
+
+    const result = await processInboundEmail({
+      db: ctx.db,
+      provider,
+      extractor: answering(model),
+      emailId,
+      activeCap: 1,
+    });
+
+    expect(result).toEqual({ status: "parsed", created: 0 });
+    expect(createTracking).not.toHaveBeenCalled();
+    expect((await emailRow(emailId)).parseStatus).toBe("parsed");
+    expect((await emailRow(emailId)).extracted).toMatchObject({
+      tracking: [
+        { tracking_number: "FAKE-INVALID-1", outcome: "limit_reached" },
+        { tracking_number: "TBA555555555555", outcome: "limit_reached" },
+      ],
+    });
+    expect(await shipmentsOf(user.id)).toHaveLength(1);
+  });
+
   it("a number the user already tracks is not tracked twice, but joins its order", async () => {
     const user = await insertUser(ctx.db);
     const existing = await addShipment({

@@ -42,7 +42,13 @@ export class ProcessingRetryError extends Error {
   }
 }
 
-export type TrackingOutcome = "created" | "duplicate" | "not_found" | "invalid";
+export type TrackingOutcome =
+  | "created"
+  | "duplicate"
+  | "not_found"
+  | "invalid"
+  /** The user is at the active-package cap; nothing was asked of the provider. */
+  | "limit_reached";
 
 export interface ProcessResult {
   status: "missing" | "skipped" | "ignored" | "failed" | "parsed";
@@ -91,8 +97,10 @@ export async function processInboundEmail(args: {
   provider: TrackingProvider;
   extractor: Extractor;
   emailId: string;
+  /** ACTIVE_PACKAGE_CAP: an email cannot take the user past it either. */
+  activeCap?: number;
 }): Promise<ProcessResult> {
-  const { db, provider, extractor, emailId } = args;
+  const { db, provider, extractor, emailId, activeCap } = args;
 
   const stored = await loadInboundEmail(db, emailId);
   if (!stored) return result("missing");
@@ -208,6 +216,7 @@ export async function processInboundEmail(args: {
         trackingNumber,
         nickname: nicknameFrom(item, retailer) ?? undefined,
       },
+      activeCap,
     });
 
     let shipmentId: string | null = null;
@@ -223,6 +232,12 @@ export async function processInboundEmail(args: {
     } else if (added.error === "unavailable") {
       // Quota, outage or rate limit: not the email's fault. Try again later.
       throw new ProcessingRetryError("The tracking provider is unavailable");
+    } else if (added.error === "limit_reached") {
+      // Recorded, not retried: it will not change until the user acts.
+      outcomes.push({
+        tracking_number: trackingNumber,
+        outcome: "limit_reached",
+      });
     } else {
       outcomes.push({
         tracking_number: trackingNumber,

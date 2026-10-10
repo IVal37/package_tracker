@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
+vi.mock("@/lib/env", () => ({ getEnv: () => ({ ACTIVE_PACKAGE_CAP: 9 }) }));
 vi.mock("@/lib/tracking", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/tracking")>()),
   getTrackingProvider: () => "provider",
@@ -68,6 +69,7 @@ describe("process-inbound-email", () => {
       provider: "provider",
       extractor: "extractor",
       emailId: "email-1",
+      activeCap: 9,
     });
   });
 

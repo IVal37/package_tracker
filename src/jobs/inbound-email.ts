@@ -13,6 +13,7 @@ import {
   processInboundEmail,
   type ProcessResult,
 } from "@/lib/email/process";
+import { getEnv } from "@/lib/env";
 import { GEOCODE_REQUESTED } from "@/lib/geo/place-events";
 import { getTrackingProvider } from "@/lib/tracking";
 import { inngest } from "./client";
@@ -42,6 +43,7 @@ export const processEmailJob = inngest.createFunction(
             provider: getTrackingProvider(),
             extractor: getExtractor(),
             emailId,
+            activeCap: getEnv().ACTIVE_PACKAGE_CAP,
           });
         } catch (error) {
           const lastAttempt = attempt >= (maxAttempts ?? 4) - 1;

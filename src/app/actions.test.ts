@@ -28,6 +28,7 @@ vi.mock("@/lib/ratelimit", () => ({
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/orders", () => ({ dismissOrder: mocks.dismissOrder }));
 vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
+vi.mock("@/lib/env", () => ({ getEnv: () => ({ ACTIVE_PACKAGE_CAP: 7 }) }));
 vi.mock("@/lib/shipments/add-shipment", () => ({
   addShipment: mocks.addShipment,
 }));
@@ -120,6 +121,7 @@ describe("addPackageAction", () => {
       provider: mocks.provider,
       userId: "session-user",
       input: { trackingNumber: "ABC12345", nickname: "Boots" },
+      activeCap: 7,
     });
     expect(mocks.ensureUser).toHaveBeenCalledWith(mocks.db, USER);
   });

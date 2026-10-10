@@ -6,7 +6,7 @@ import {
   markPushSuccess,
   removePushSubscriptionById,
 } from "@/lib/db/push-subscriptions";
-import { createRateLimiter, type RateLimiter } from "./rate-limit";
+import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
 import { SendError, type PushSender } from "./senders";
 
 export type TestPushResult =
@@ -15,12 +15,11 @@ export type TestPushResult =
   | { status: "rate_limited" }
   | { status: "failed" };
 
-/** Three tests a minute per user is plenty for someone checking their setup. */
-const limiter = createRateLimiter({ limit: 3, windowMs: 60_000 });
-
 /**
  * Sends a test notification to each of the user's devices. Only that user's own
  * devices are ever read. A device the push service reports gone is removed.
+ * Limited to three a minute per user (LIMITS.testPush), counted in the
+ * database so every server instance shares the count.
  */
 export async function sendTestPush(args: {
   db: Db;
@@ -28,10 +27,10 @@ export async function sendTestPush(args: {
   userId: string;
   appUrl: string;
   now: Date;
-  rateLimiter?: RateLimiter;
 }): Promise<TestPushResult> {
   const { db, sender, userId, appUrl, now } = args;
-  if (!(args.rateLimiter ?? limiter).take(userId, now)) {
+  if (!(await hit(db, LIMITS.testPush, userId, now)).allowed) {
+    logLimited(LIMITS.testPush.action);
     return { status: "rate_limited" };
   }
 

@@ -43,6 +43,7 @@ describe("toAddPackageState", () => {
     expect(Object.keys(ADD_PACKAGE_MESSAGES).sort()).toEqual([
       "duplicate",
       "not_found",
+      "rate_limited",
       "unavailable",
     ]);
   });

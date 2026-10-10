@@ -6,6 +6,7 @@ import {
   notificationsSweep,
   sendNotificationJob,
 } from "./notifications";
+import { rateLimitsCleanup } from "./rate-limits";
 import { refetchStale } from "./refetch-stale";
 
 export { inngest } from "./client";
@@ -20,4 +21,5 @@ export const functions = [
   sendNotificationJob,
   notificationsSweep,
   notificationsCleanup,
+  rateLimitsCleanup,
 ];

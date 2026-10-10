@@ -56,6 +56,19 @@ describe("POST /api/webhooks/inbound-email", () => {
     },
   );
 
+  it("answers 429 with Retry-After when the address is over its limit", async () => {
+    receiveInboundEmail.mockResolvedValue({
+      status: 429,
+      outcome: "rate_limited",
+      retryAfterSeconds: 37,
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("37");
+    expect(await response.text()).toBe("");
+    expect(requestEmailProcessing).not.toHaveBeenCalled();
+  });
+
   it("gives the receiver the raw body, the headers, the clock and the configuration", async () => {
     receiveInboundEmail.mockResolvedValue({ status: 200, outcome: "stored" });
     await POST(request('{"raw":  "spacing kept"}'));

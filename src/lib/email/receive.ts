@@ -7,6 +7,7 @@ import {
   insertInboundEmail,
 } from "@/lib/db/inbound-emails";
 import { findUserIdByAlias } from "@/lib/db/inbound-sync";
+import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
 import { aliasFromRecipient } from "./alias";
 
 /** Largest request body we read. The Worker sends far less. */
@@ -35,16 +36,19 @@ export type ReceiveOutcome =
   | "unknown_alias"
   | "duplicate"
   | "over_limit"
+  | "rate_limited"
   | "unauthorized"
   | "too_large"
   | "invalid";
 
 export interface ReceiveResult {
   /** HTTP status for the route. Database errors throw instead (500). */
-  status: 200 | 401 | 413 | 422;
+  status: 200 | 401 | 413 | 422 | 429;
   outcome: ReceiveOutcome;
   /** Set only when the email was stored. */
   emailId?: string;
+  /** Set only with a 429: when the sender may try again. */
+  retryAfterSeconds?: number;
 }
 
 const result = (
@@ -58,6 +62,10 @@ const result = (
  * the same Message-ID and a user over their daily limit all answer 200 and
  * store nothing, so the sender never retries and a prober learns nothing.
  * The user comes from the address alone, never from anything in the email.
+ *
+ * A burst to one address (more than LIMITS.inboundAlias a minute) answers 429:
+ * the Worker then asks the sending mail server to try again later, so the
+ * email is delayed rather than lost, and the sender sees no bounce either way.
  */
 export async function receiveInboundEmail(args: {
   db: Db;
@@ -85,7 +93,17 @@ export async function receiveInboundEmail(args: {
 
   const alias = aliasFromRecipient(email.recipient, domain);
   const userId = alias ? await findUserIdByAlias(db, alias) : null;
-  if (!userId) return result(200, "unknown_alias");
+  if (!userId || !alias) return result(200, "unknown_alias");
+
+  const verdict = await hit(db, LIMITS.inboundAlias, alias, now);
+  if (!verdict.allowed) {
+    logLimited(LIMITS.inboundAlias.action);
+    return {
+      status: 429,
+      outcome: "rate_limited",
+      retryAfterSeconds: verdict.retryAfterSeconds,
+    };
+  }
 
   const messageId = email.messageId?.trim() || null;
   if (messageId && (await hasMessageId(db, userId, messageId))) {

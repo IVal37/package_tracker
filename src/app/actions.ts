@@ -9,7 +9,9 @@ import { dismissOrder } from "@/lib/db/orders";
 import { ensureUser } from "@/lib/db/users";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import { removeShipment } from "@/lib/shipments/delete-shipment";
+import { hitAddPackage, logLimited } from "@/lib/ratelimit";
 import {
+  rateLimitedState,
   toAddPackageState,
   type AddPackageState,
 } from "@/lib/shipments/form-state";
@@ -29,6 +31,11 @@ export async function addPackageAction(
   };
 
   const db = getDb();
+  // Checked first, so a refused request costs no provider call at all.
+  if (!(await hitAddPackage(db, user.id, new Date())).allowed) {
+    logLimited("add-package");
+    return rateLimitedState(values);
+  }
   // Cheap upsert so a valid session always has the row shipments reference.
   await ensureUser(db, user);
 

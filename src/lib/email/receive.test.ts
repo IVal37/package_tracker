@@ -383,3 +383,48 @@ describe("receiveInboundEmail: who owns the email", () => {
     expect(await rowsFor(other.id)).toHaveLength(0);
   });
 });
+
+describe("per-address rate limit", () => {
+  it("answers 429 after ten emails to one address in a minute, and stores nothing more", async () => {
+    const user = await newUser();
+    const outcomes: ReceiveResult[] = [];
+    for (let i = 0; i < 12; i++) {
+      outcomes.push(await receive(email(user.address)));
+    }
+    expect(outcomes.slice(0, 10).every((o) => o.outcome === "stored")).toBe(
+      true,
+    );
+    expect(outcomes[10]).toEqual({
+      status: 429,
+      outcome: "rate_limited",
+      retryAfterSeconds: 60,
+    });
+    expect(await rowsFor(user.id)).toHaveLength(10);
+
+    // A minute later the address takes email again.
+    const later = await receive(email(user.address), {
+      now: new Date(NOW.getTime() + 60_000),
+    });
+    expect(later.outcome).toBe("stored");
+  });
+
+  it("does not hold up another address", async () => {
+    const busy = await newUser();
+    const quiet = await newUser();
+    for (let i = 0; i < 11; i++) await receive(email(busy.address));
+    expect((await receive(email(quiet.address))).outcome).toBe("stored");
+  });
+
+  it("is never reached for an unknown address or a bad secret", async () => {
+    for (let i = 0; i < 12; i++) {
+      expect((await receive(email(`nobody-zzzz@${DOMAIN}`))).outcome).toBe(
+        "unknown_alias",
+      );
+    }
+    const user = await newUser();
+    for (let i = 0; i < 12; i++) {
+      await receive(email(user.address), { headers: bearer("wrong") });
+    }
+    expect((await receive(email(user.address))).outcome).toBe("stored");
+  });
+});

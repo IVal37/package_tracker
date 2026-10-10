@@ -2,10 +2,12 @@
 import { InngestTestEngine } from "@inngest/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { refetchStaleShipments, archiveDeliveredShipments } = vi.hoisted(() => ({
-  refetchStaleShipments: vi.fn(),
-  archiveDeliveredShipments: vi.fn(),
-}));
+const { refetchStaleShipments, archiveDeliveredShipments, cleanupRateLimits } =
+  vi.hoisted(() => ({
+    refetchStaleShipments: vi.fn(),
+    archiveDeliveredShipments: vi.fn(),
+    cleanupRateLimits: vi.fn(),
+  }));
 
 vi.mock("@/lib/shipments/sync/refetch-stale", () => ({
   refetchStaleShipments,
@@ -13,6 +15,7 @@ vi.mock("@/lib/shipments/sync/refetch-stale", () => ({
 vi.mock("@/lib/shipments/sync/archive-delivered", () => ({
   archiveDeliveredShipments,
 }));
+vi.mock("@/lib/ratelimit", () => ({ cleanupRateLimits }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/tracking", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/tracking")>()),
@@ -28,6 +31,7 @@ import {
   notificationsSweep,
   sendNotificationJob,
 } from "./notifications";
+import { rateLimitsCleanup } from "./rate-limits";
 import { refetchStale } from "./refetch-stale";
 
 beforeEach(() => {
@@ -174,6 +178,20 @@ describe("archiveDelivered job", () => {
   });
 });
 
+describe("rateLimitsCleanup job", () => {
+  it("runs the cleanup daily and returns its result", async () => {
+    cleanupRateLimits.mockResolvedValue({ deleted: 7 });
+    const { result } = await new InngestTestEngine({
+      function: rateLimitsCleanup,
+    }).execute();
+    expect(result).toEqual({ deleted: 7 });
+    expect(cleanupRateLimits.mock.calls[0]?.[0].db).toBe("db");
+    expect(rateLimitsCleanup.opts.triggers).toEqual([
+      { cron: "TZ=UTC 0 4 * * *" },
+    ]);
+  });
+});
+
 describe("function list", () => {
   it("registers every job", () => {
     expect(functions).toEqual([
@@ -187,6 +205,7 @@ describe("function list", () => {
       sendNotificationJob,
       notificationsSweep,
       notificationsCleanup,
+      rateLimitsCleanup,
     ]);
   });
 });

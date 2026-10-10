@@ -2,6 +2,7 @@ import { requestEmailProcessing } from "@/jobs/events";
 import { getDb } from "@/lib/db/client";
 import { receiveInboundEmail } from "@/lib/email/receive";
 import { getEnv } from "@/lib/env";
+import { tooManyRequests } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,9 @@ export async function POST(request: Request): Promise<Response> {
     console.info("inbound email", { outcome: outcome.outcome });
     // Best effort: the hourly sweep picks up anything this misses.
     if (outcome.emailId) await requestEmailProcessing(outcome.emailId);
+    if (outcome.status === 429) {
+      return tooManyRequests(outcome.retryAfterSeconds ?? 60);
+    }
     return new Response(null, { status: outcome.status });
   } catch (error) {
     console.error("inbound email failed", {

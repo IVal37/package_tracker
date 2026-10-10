@@ -66,9 +66,10 @@ function displayFrom(parsed: ParsedMail, envelopeFrom: string): string {
 /**
  * Parses one message and posts it to the app.
  *
- * Throws when the app answers 5xx or cannot be reached, so Cloudflare tells the
- * sending server to try again later. A 4xx is dropped without a retry (the app
- * says the email is not acceptable, and sending it again would not change that).
+ * Throws when the app answers 5xx or 429 (too many emails to this address just
+ * now) or cannot be reached, so Cloudflare tells the sending server to try
+ * again later. Any other 4xx is dropped without a retry (the app says the email
+ * is not acceptable, and sending it again would not change that).
  * Never logs anything from the message.
  */
 export async function handleInboundMessage(
@@ -112,7 +113,7 @@ export async function handleInboundMessage(
     body,
   });
 
-  if (response.status >= 500) {
+  if (response.status >= 500 || response.status === 429) {
     throw new Error(`Inbound webhook failed with status ${response.status}`);
   }
   return response.ok ? "forwarded" : "dropped";

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   dismissOrder: vi.fn(),
   revalidatePath: vi.fn(),
   requestGeocoding: vi.fn(),
+  hitAddPackage: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT ${path}`);
   }),
@@ -20,6 +21,10 @@ vi.mock("@/jobs/events", () => ({
   requestGeocoding: mocks.requestGeocoding,
 }));
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
+vi.mock("@/lib/ratelimit", () => ({
+  hitAddPackage: mocks.hitAddPackage,
+  logLimited: () => {},
+}));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/orders", () => ({ dismissOrder: mocks.dismissOrder }));
 vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
@@ -52,6 +57,10 @@ const form = (fields: Record<string, string>) => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireUser.mockResolvedValue(USER);
+  mocks.hitAddPackage.mockResolvedValue({
+    allowed: true,
+    retryAfterSeconds: 0,
+  });
 });
 
 describe("addPackageAction", () => {
@@ -65,6 +74,32 @@ describe("addPackageAction", () => {
     ).rejects.toThrow("NEXT_REDIRECT /sign-in");
     expect(mocks.addShipment).not.toHaveBeenCalled();
     expect(mocks.ensureUser).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the add limit is reached, before any provider call", async () => {
+    mocks.hitAddPackage.mockResolvedValue({
+      allowed: false,
+      retryAfterSeconds: 30,
+    });
+
+    const state = await addPackageAction(
+      { status: "idle" },
+      form({ trackingNumber: "ABC12345", nickname: "Boots" }),
+    );
+
+    expect(state).toEqual({
+      status: "error",
+      error: "rate_limited",
+      fieldErrors: {},
+      values: { trackingNumber: "ABC12345", nickname: "Boots" },
+    });
+    expect(mocks.hitAddPackage).toHaveBeenCalledWith(
+      mocks.db,
+      "session-user",
+      expect.any(Date),
+    );
+    expect(mocks.addShipment).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("uses the session user id, never one supplied in the form", async () => {

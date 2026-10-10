@@ -6,20 +6,27 @@ type AuthClient = Pick<SupabaseClient, "auth">;
 const emailSchema = z.email();
 
 export type MagicLinkResult =
-  { ok: true } | { ok: false; error: "invalid_email" | "send_failed" };
+  | { ok: true }
+  | { ok: false; error: "invalid_email" | "send_failed" | "rate_limited" };
 
 export type OAuthResult = { ok: true; url: string } | { ok: false };
 
 const callbackUrl = (appUrl: string) => `${appUrl}/auth/callback`;
 
-/** Emails a magic link. The link returns to /auth/callback. */
+/**
+ * Emails a magic link. The link returns to /auth/callback. `allow` is asked
+ * with the cleaned-up address before anything is sent (the rate limit), so a
+ * refused request never reaches Supabase's mailer.
+ */
 export async function requestMagicLink(
   supabase: AuthClient,
   rawEmail: string,
   appUrl: string,
+  allow: (email: string) => Promise<boolean> = async () => true,
 ): Promise<MagicLinkResult> {
   const parsed = emailSchema.safeParse(rawEmail.trim().toLowerCase());
   if (!parsed.success) return { ok: false, error: "invalid_email" };
+  if (!(await allow(parsed.data))) return { ok: false, error: "rate_limited" };
 
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,

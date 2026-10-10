@@ -11,7 +11,8 @@ export type AddPackageState =
   | { status: "success" }
   | {
       status: "error";
-      error: "invalid" | "duplicate" | "not_found" | "unavailable";
+      error:
+        "invalid" | "duplicate" | "not_found" | "unavailable" | "rate_limited";
       fieldErrors: FieldErrors;
       /** Echoed back so the form keeps what the user typed. */
       values: AddPackageValues;
@@ -21,7 +22,14 @@ export const ADD_PACKAGE_MESSAGES = {
   duplicate: "You're already tracking this package.",
   not_found: "We couldn't find that tracking number. Check it and try again.",
   unavailable: "Tracking is temporarily unavailable. Please try again soon.",
+  rate_limited:
+    "You're adding packages very quickly. Wait a minute and try again.",
 } as const;
+
+/** The form's answer when the add limit refused the request. */
+export function rateLimitedState(values: AddPackageValues): AddPackageState {
+  return { status: "error", error: "rate_limited", fieldErrors: {}, values };
+}
 
 export function toAddPackageState(
   result: AddShipmentResult,

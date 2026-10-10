@@ -52,6 +52,47 @@ describe("requestMagicLink", () => {
   });
 });
 
+describe("requestMagicLink rate limit", () => {
+  it("asks the limit with the cleaned-up address before sending", async () => {
+    const signInWithOtp = vi.fn().mockResolvedValue({ error: null });
+    const allow = vi.fn().mockResolvedValue(true);
+    const result = await requestMagicLink(
+      fakeClient({ signInWithOtp }),
+      " Me@Example.TEST ",
+      "https://app.example.test",
+      allow,
+    );
+    expect(result).toEqual({ ok: true });
+    expect(allow).toHaveBeenCalledWith("me@example.test");
+    expect(allow.mock.invocationCallOrder[0]).toBeLessThan(
+      signInWithOtp.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("sends nothing when the limit refuses", async () => {
+    const signInWithOtp = vi.fn();
+    const result = await requestMagicLink(
+      fakeClient({ signInWithOtp }),
+      "me@example.test",
+      "https://app.example.test",
+      async () => false,
+    );
+    expect(result).toEqual({ ok: false, error: "rate_limited" });
+    expect(signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("never asks the limit about an invalid address", async () => {
+    const allow = vi.fn();
+    await requestMagicLink(
+      fakeClient({}),
+      "not-an-email",
+      "https://app.example.test",
+      allow,
+    );
+    expect(allow).not.toHaveBeenCalled();
+  });
+});
+
 describe("startGoogleSignIn", () => {
   it("requests the google provider with the callback redirect and account picker", async () => {
     const client = fakeClient({

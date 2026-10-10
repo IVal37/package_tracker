@@ -182,7 +182,7 @@ describe("handleInboundMessage", () => {
     },
   );
 
-  it.each([500, 502, 503])(
+  it.each([429, 500, 502, 503])(
     "throws when the app answers %i, so the sender retries",
     async (status) => {
       const { config } = setup(

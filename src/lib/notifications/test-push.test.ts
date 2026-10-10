@@ -5,7 +5,6 @@ import {
   listPushSubscriptions,
   savePushSubscription,
 } from "@/lib/db/push-subscriptions";
-import { createRateLimiter } from "./rate-limit";
 import { SendError, type PushSender } from "./senders";
 import { FakePushSender } from "./senders/fake";
 import { sendTestPush } from "./test-push";
@@ -27,17 +26,8 @@ const device = (endpoint: string) => ({
   p256dh: "key",
   auth: "auth",
 });
-const fresh = () => createRateLimiter({ limit: 3, windowMs: 60_000 });
-
-const run = (userId: string, sender: PushSender, rateLimiter = fresh()) =>
-  sendTestPush({
-    db: ctx.db,
-    sender,
-    userId,
-    appUrl: APP,
-    now: NOW,
-    rateLimiter,
-  });
+const run = (userId: string, sender: PushSender, now = NOW) =>
+  sendTestPush({ db: ctx.db, sender, userId, appUrl: APP, now });
 
 describe("sendTestPush", () => {
   it("sends a test to each of the user's devices", async () => {
@@ -94,12 +84,10 @@ describe("sendTestPush", () => {
       other.id,
       device("https://push.test/l2"),
     );
-    const limiter = fresh();
     const sender = new FakePushSender();
 
     const results = [];
-    for (let i = 0; i < 5; i++)
-      results.push(await run(user.id, sender, limiter));
+    for (let i = 0; i < 5; i++) results.push(await run(user.id, sender));
     expect(results.map((r) => r.status)).toEqual([
       "sent",
       "sent",
@@ -108,8 +96,12 @@ describe("sendTestPush", () => {
       "rate_limited",
     ]);
     // Someone else is not held up by it.
-    expect((await run(other.id, sender, limiter)).status).toBe("sent");
+    expect((await run(other.id, sender)).status).toBe("sent");
     expect(sender.sent).toHaveLength(4);
+
+    // The next minute is a fresh window.
+    const later = new Date(NOW.getTime() + 60_000);
+    expect((await run(user.id, sender, later)).status).toBe("sent");
   });
 
   it("removes a device the push service says is gone", async () => {
@@ -173,15 +165,17 @@ describe("sendTestPush", () => {
     await expect(run(user.id, sender)).rejects.toThrow("bug");
   });
 
-  it("works with the default limiter too", async () => {
+  it("accepts an app URL with a trailing slash", async () => {
     const user = await insertUser(ctx.db);
-    const result = await sendTestPush({
+    await savePushSubscription(ctx.db, user.id, device("https://push.test/s"));
+    const sender = new FakePushSender();
+    await sendTestPush({
       db: ctx.db,
-      sender: new FakePushSender(),
+      sender,
       userId: user.id,
       appUrl: `${APP}/`,
       now: NOW,
     });
-    expect(result).toEqual({ status: "no_devices" });
+    expect(sender.sent[0]?.payload.url).toBe(`${APP}/settings`);
   });
 });

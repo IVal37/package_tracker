@@ -4,10 +4,17 @@ import { getEnv, parseEnv, resetEnvCache } from "./env";
 
 const valid = requiredEnv;
 
-// Production also needs the inbound email settings (see "inbound email env").
+// Production also needs the launch settings (see "launch env").
+const launchProd = {
+  SUPABASE_SECRET_KEY: "sb_secret_test_key",
+  SUPPORT_EMAIL: "help@example.test",
+};
+
+// ...and the inbound email settings (see "inbound email env").
 const inboundProd = {
   INBOUND_EMAIL_DOMAIN: "in.example.test",
   INBOUND_WEBHOOK_SECRET: "inbound-secret",
+  ...launchProd,
 };
 
 describe("parseEnv", () => {
@@ -231,6 +238,7 @@ describe("inngest env", () => {
 describe("inbound email env", () => {
   const production = {
     ...valid,
+    ...launchProd,
     NODE_ENV: "production",
     FAKE_WEBHOOK_SECRET: "prod-secret",
     INNGEST_SIGNING_KEY: "signkey-test",
@@ -465,5 +473,115 @@ describe("email sender env", () => {
     expect(() => parseEnv({ ...valid, EMAIL_SENDER: "smtp" })).toThrowError(
       "Invalid environment: invalid EMAIL_SENDER",
     );
+  });
+});
+
+describe("launch env", () => {
+  const production = {
+    ...valid,
+    ...inboundProd,
+    NODE_ENV: "production",
+    FAKE_WEBHOOK_SECRET: "prod-secret",
+    INNGEST_SIGNING_KEY: "signkey-test",
+    INNGEST_EVENT_KEY: "eventkey-test",
+  };
+
+  it("has development defaults and needs none of the keys", () => {
+    const env = parseEnv(valid);
+    expect(env.ACTIVE_PACKAGE_CAP).toBe(25);
+    expect(env.EXPIRE_AFTER_DAYS).toBe(60);
+    expect(env.ADMIN_EMAILS).toEqual([]);
+    expect(env.SHIP24_MONTHLY_ALLOWANCE).toBeUndefined();
+    expect(env.SENTRY_DSN).toBeUndefined();
+    expect(env.SUPABASE_SECRET_KEY).toBeUndefined();
+    expect(env.SUPPORT_EMAIL).toBe("support@localhost");
+  });
+
+  it("requires the secret key and a support address in production, naming only the keys", () => {
+    const {
+      SUPABASE_SECRET_KEY: _key,
+      SUPPORT_EMAIL: _email,
+      ...rest
+    } = production;
+    expect(() => parseEnv(rest)).toThrowError(
+      "Invalid environment: missing SUPABASE_SECRET_KEY; missing SUPPORT_EMAIL",
+    );
+    const env = parseEnv(production);
+    expect(env.SUPABASE_SECRET_KEY).toBe("sb_secret_test_key");
+    expect(env.SUPPORT_EMAIL).toBe("help@example.test");
+  });
+
+  it("refuses Inngest dev mode in production, which would skip request signing", () => {
+    for (const value of ["1", "true", "http://localhost:8288"]) {
+      expect(() =>
+        parseEnv({ ...production, INNGEST_DEV: value }),
+      ).toThrowError("Invalid environment: invalid INNGEST_DEV");
+    }
+    for (const value of ["0", "false"]) {
+      expect(() =>
+        parseEnv({ ...production, INNGEST_DEV: value }),
+      ).not.toThrow();
+    }
+    expect(parseEnv({ ...valid, INNGEST_DEV: "1" }).INNGEST_DEV).toBe("1");
+  });
+
+  it("reads the cap as a number and bounds it", () => {
+    expect(
+      parseEnv({ ...valid, ACTIVE_PACKAGE_CAP: "3" }).ACTIVE_PACKAGE_CAP,
+    ).toBe(3);
+    for (const value of ["0", "1001", "2.5", "lots"]) {
+      expect(() =>
+        parseEnv({ ...valid, ACTIVE_PACKAGE_CAP: value }),
+      ).toThrowError("Invalid environment: invalid ACTIVE_PACKAGE_CAP");
+    }
+  });
+
+  it("bounds the expiry to between a week and a year", () => {
+    expect(
+      parseEnv({ ...valid, EXPIRE_AFTER_DAYS: "7" }).EXPIRE_AFTER_DAYS,
+    ).toBe(7);
+    expect(
+      parseEnv({ ...valid, EXPIRE_AFTER_DAYS: "365" }).EXPIRE_AFTER_DAYS,
+    ).toBe(365);
+    for (const value of ["6", "366"]) {
+      expect(() =>
+        parseEnv({ ...valid, EXPIRE_AFTER_DAYS: value }),
+      ).toThrowError("Invalid environment: invalid EXPIRE_AFTER_DAYS");
+    }
+  });
+
+  it("splits and lower-cases the admin emails", () => {
+    expect(
+      parseEnv({
+        ...valid,
+        ADMIN_EMAILS: " Ops@Example.test, b@example.test ,",
+      }).ADMIN_EMAILS,
+    ).toEqual(["ops@example.test", "b@example.test"]);
+  });
+
+  it("rejects an admin list with something that is not an email, without echoing it", () => {
+    expect(() =>
+      parseEnv({ ...valid, ADMIN_EMAILS: "a@example.test, secret-thing" }),
+    ).toThrowError(/^Invalid environment: invalid ADMIN_EMAILS$/);
+  });
+
+  it("reads the Ship24 allowance as a positive number", () => {
+    expect(
+      parseEnv({ ...valid, SHIP24_MONTHLY_ALLOWANCE: "500" })
+        .SHIP24_MONTHLY_ALLOWANCE,
+    ).toBe(500);
+    expect(() =>
+      parseEnv({ ...valid, SHIP24_MONTHLY_ALLOWANCE: "0" }),
+    ).toThrowError("Invalid environment: invalid SHIP24_MONTHLY_ALLOWANCE");
+  });
+
+  it("requires the Sentry DSN to be a URL", () => {
+    expect(() => parseEnv({ ...valid, SENTRY_DSN: "nope" })).toThrowError(
+      "Invalid environment: invalid SENTRY_DSN",
+    );
+    expect(
+      parseEnv({ ...valid, SENTRY_DSN: "https://key@o1.ingest.sentry.io/2" })
+        .SENTRY_DSN,
+    ).toBe("https://key@o1.ingest.sentry.io/2");
   });
 });

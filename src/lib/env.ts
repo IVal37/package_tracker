@@ -2,6 +2,14 @@
 // this module from client components: values must not reach the browser.
 import { z } from "zod";
 
+/** "A@x.com, b@y.com" -> ["a@x.com", "b@y.com"]. */
+function splitEmails(value: string): string[] {
+  return value
+    .split(",")
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 const envSchema = z
   .object({
     DATABASE_URL: z.url(),
@@ -67,6 +75,32 @@ const envSchema = z
     EMAIL_SENDER: z.enum(["fake", "resend"]).default("fake"),
     RESEND_API_KEY: z.string().min(1).optional(),
     EMAIL_FROM: z.string().min(3).max(320).optional(),
+    // Supabase's secret key. Used only by src/lib/auth/admin.ts, to delete a
+    // sign-in account when its owner deletes their account. Required in
+    // production; without it account deletion refuses.
+    SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+    // Error reporting. Without it errors are only logged.
+    SENTRY_DSN: z.url().optional(),
+    // Packages a user can follow at once (not archived, Delivered or Expired).
+    ACTIVE_PACKAGE_CAP: z.coerce.number().int().min(1).max(1000).default(25),
+    // A shipment with no tracker event for this many days becomes Expired.
+    EXPIRE_AFTER_DAYS: z.coerce.number().int().min(7).max(365).default(60),
+    // Comma-separated emails that may open /admin. Empty means nobody.
+    ADMIN_EMAILS: z
+      .string()
+      .refine(
+        (value) =>
+          splitEmails(value).every((e) => z.email().safeParse(e).success),
+        "comma-separated emails",
+      )
+      .optional(),
+    // Trackers the Ship24 plan allows per month, shown on /admin.
+    SHIP24_MONTHLY_ALLOWANCE: z.coerce.number().int().min(1).optional(),
+    // Contact address on the privacy policy and terms. Required in production.
+    SUPPORT_EMAIL: z.email().optional(),
+    // The Inngest SDK reads this itself: "1", "true" or a URL means dev mode,
+    // which skips request signing. Listed so production can refuse it.
+    INNGEST_DEV: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env) =>
@@ -106,9 +140,23 @@ const envSchema = z
       if (!env.RESEND_API_KEY) require("RESEND_API_KEY");
       if (!env.EMAIL_FROM) require("EMAIL_FROM");
     }
+    if (env.NODE_ENV === "production") {
+      if (!env.SUPABASE_SECRET_KEY) require("SUPABASE_SECRET_KEY");
+      if (!env.SUPPORT_EMAIL) require("SUPPORT_EMAIL");
+      // Dev mode turns off Inngest's request signing: never in production.
+      if (env.INNGEST_DEV && !["0", "false"].includes(env.INNGEST_DEV.trim())) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["INNGEST_DEV"],
+          message: "not allowed in production",
+        });
+      }
+    }
   })
   .transform((env) => ({
     ...env,
+    ADMIN_EMAILS: splitEmails(env.ADMIN_EMAILS ?? ""),
+    SUPPORT_EMAIL: env.SUPPORT_EMAIL ?? "support@localhost",
     FAKE_WEBHOOK_SECRET: env.FAKE_WEBHOOK_SECRET ?? "fake-secret",
     // Development-only defaults; production has to set both (checked above).
     INBOUND_EMAIL_DOMAIN: env.INBOUND_EMAIL_DOMAIN ?? "in.localhost",

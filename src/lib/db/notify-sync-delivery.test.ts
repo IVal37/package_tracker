@@ -90,6 +90,27 @@ describe("hasNewerNotification", () => {
     expect(await hasNewerNotification(ctx.db, mid)).toBe(false);
   });
 
+  it("is not superseded by a later alert that was skipped", async () => {
+    const held = await record({ createdAt: minutesAgo(30) });
+    await record(
+      { createdAt: minutesAgo(5), kind: "delay", status: "skipped" },
+      held.shipmentId,
+      held.userId,
+    );
+    expect(await hasNewerNotification(ctx.db, held)).toBe(false);
+
+    // A later one that was sent, failed or is still on its way does supersede.
+    for (const status of ["sent", "failed", "pending"] as const) {
+      const older = await record({ createdAt: minutesAgo(30) });
+      await record(
+        { createdAt: minutesAgo(5), status },
+        older.shipmentId,
+        older.userId,
+      );
+      expect(await hasNewerNotification(ctx.db, older)).toBe(true);
+    }
+  });
+
   it("does not look at other shipments, even of the same user", async () => {
     const mine = await record({ createdAt: minutesAgo(30) });
     const other = await insertShipment(ctx.db, mine.userId);

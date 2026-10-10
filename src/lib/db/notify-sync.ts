@@ -12,6 +12,7 @@ import {
   isNull,
   lt,
   lte,
+  ne,
   notInArray,
   sql,
 } from "drizzle-orm";
@@ -115,7 +116,11 @@ export async function loadNotification(
   return row ?? null;
 }
 
-/** Is there a later alert for the same shipment? Then this one is out of date. */
+/**
+ * Is there a later alert for the same shipment that was not skipped? Then this
+ * one is out of date. A skipped one (say, a delay alert the user switched off)
+ * was never delivered, so it supersedes nothing.
+ */
 export async function hasNewerNotification(
   db: Db,
   notification: Pick<NotificationRef, "id" | "shipmentId" | "createdAt">,
@@ -127,6 +132,7 @@ export async function hasNewerNotification(
       and(
         eq(notifications.shipmentId, notification.shipmentId),
         gt(notifications.createdAt, notification.createdAt),
+        ne(notifications.status, "skipped"),
       ),
     )
     .limit(1);

@@ -1,6 +1,6 @@
 // Rate-limit counters. Not user data: a row holds an opaque key (an action and
 // a user id or a hash), a window and a count. Shared by every server instance.
-import { lt, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import type { Db } from "./client";
 import { rateLimits } from "./schema";
 
@@ -23,6 +23,21 @@ export async function countHit(
     .returning({ count: rateLimits.count });
   if (!row) throw new Error("Rate limit upsert returned no row");
   return row.count;
+}
+
+/** The window's count so far, without counting a hit (0 if none). */
+export async function peekCount(
+  db: Db,
+  key: string,
+  windowStart: Date,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: rateLimits.count })
+    .from(rateLimits)
+    .where(
+      and(eq(rateLimits.key, key), eq(rateLimits.windowStart, windowStart)),
+    );
+  return row?.count ?? 0;
 }
 
 /** Deletes windows that started before the cutoff. Returns how many. */

@@ -31,5 +31,11 @@ export const LIMITS = {
   inboundAlias: { action: "inbound-alias", limit: 10, windowMs: MINUTE_MS },
 } as const satisfies Record<string, Limit>;
 
+/** Circuit breakers (see tripBreaker): tripped for the rest of their window. */
+export const BREAKERS = {
+  /** The re-fetch met a bad API key or an exhausted quota: pause it this hour. */
+  refetch: { action: "refetch-paused", limit: 0, windowMs: HOUR_MS },
+} as const satisfies Record<string, Limit>;
+
 /** Windows older than this are deleted by the daily cleanup (longer than any window). */
 export const KEEP_WINDOWS_MS = 2 * DAY_MS;

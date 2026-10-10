@@ -7,11 +7,12 @@ import {
   sendNotificationJob,
 } from "./notifications";
 import { rateLimitsCleanup } from "./rate-limits";
-import { refetchStale } from "./refetch-stale";
+import { refetchStale, refetchTrackerJob } from "./refetch-stale";
 
 export { inngest } from "./client";
 export const functions = [
   refetchStale,
+  refetchTrackerJob,
   archiveDelivered,
   expireQuiet,
   geocodeSweep,

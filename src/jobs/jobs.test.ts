@@ -2,21 +2,13 @@
 import { InngestTestEngine } from "@inngest/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  refetchStaleShipments,
-  archiveDeliveredShipments,
-  expireQuietShipments,
-  cleanupRateLimits,
-} = vi.hoisted(() => ({
-  refetchStaleShipments: vi.fn(),
-  archiveDeliveredShipments: vi.fn(),
-  expireQuietShipments: vi.fn(),
-  cleanupRateLimits: vi.fn(),
-}));
+const { archiveDeliveredShipments, expireQuietShipments, cleanupRateLimits } =
+  vi.hoisted(() => ({
+    archiveDeliveredShipments: vi.fn(),
+    expireQuietShipments: vi.fn(),
+    cleanupRateLimits: vi.fn(),
+  }));
 
-vi.mock("@/lib/shipments/sync/refetch-stale", () => ({
-  refetchStaleShipments,
-}));
 vi.mock("@/lib/shipments/sync/archive-delivered", () => ({
   archiveDeliveredShipments,
 }));
@@ -41,130 +33,10 @@ import {
   sendNotificationJob,
 } from "./notifications";
 import { rateLimitsCleanup } from "./rate-limits";
-import { refetchStale } from "./refetch-stale";
+import { refetchStale, refetchTrackerJob } from "./refetch-stale";
 
 beforeEach(() => {
-  refetchStaleShipments.mockReset();
   archiveDeliveredShipments.mockReset();
-});
-
-describe("refetchStale job: notifications", () => {
-  const ID_A = "11111111-1111-4111-8111-111111111111";
-  const ID_B = "22222222-2222-4222-8222-222222222222";
-
-  it("sends one event per alert recorded by the updates", async () => {
-    refetchStaleShipments.mockResolvedValue({
-      checked: 2,
-      updated: 0,
-      failed: 0,
-      stoppedEarly: false,
-      notificationIds: [ID_A, ID_B],
-    });
-
-    const { ctx } = await new InngestTestEngine({
-      function: refetchStale,
-    }).execute({
-      steps: [{ id: "request-notifications", handler: () => ({ ids: [] }) }],
-    });
-
-    expect(ctx.step.sendEvent).toHaveBeenCalledExactlyOnceWith(
-      "request-notifications",
-      [
-        {
-          id: `notification-${ID_A}`,
-          name: "wayfind/notification.created",
-          data: { notificationId: ID_A },
-        },
-        {
-          id: `notification-${ID_B}`,
-          name: "wayfind/notification.created",
-          data: { notificationId: ID_B },
-        },
-      ],
-    );
-  });
-
-  it("sends none when no alert was recorded", async () => {
-    refetchStaleShipments.mockResolvedValue({
-      checked: 2,
-      updated: 0,
-      failed: 0,
-      stoppedEarly: false,
-      notificationIds: [],
-    });
-    const { ctx } = await new InngestTestEngine({
-      function: refetchStale,
-    }).execute();
-    expect(ctx.step.sendEvent).not.toHaveBeenCalled();
-  });
-});
-
-describe("refetchStale job", () => {
-  it("runs the re-fetch with the real db and provider and returns its result", async () => {
-    const summary = {
-      checked: 3,
-      updated: 2,
-      failed: 1,
-      stoppedEarly: false,
-      notificationIds: [],
-    };
-    refetchStaleShipments.mockResolvedValue(summary);
-
-    const { result } = await new InngestTestEngine({
-      function: refetchStale,
-    }).execute({
-      steps: [{ id: "request-geocoding", handler: () => ({ ids: [] }) }],
-    });
-
-    expect(result).toEqual(summary);
-    const args = refetchStaleShipments.mock.calls[0]?.[0];
-    expect(args.db).toBe("db");
-    expect(args.provider).toBe("provider");
-    expect(args.now).toBeInstanceOf(Date);
-    expect(args.limit).toBe(100);
-  });
-
-  it("asks for geocoding when the re-fetch brought something new", async () => {
-    refetchStaleShipments.mockResolvedValue({
-      checked: 1,
-      updated: 1,
-      failed: 0,
-      stoppedEarly: false,
-      notificationIds: [],
-    });
-
-    const { ctx } = await new InngestTestEngine({
-      function: refetchStale,
-    }).execute({
-      steps: [{ id: "request-geocoding", handler: () => ({ ids: [] }) }],
-    });
-
-    expect(ctx.step.sendEvent).toHaveBeenCalledExactlyOnceWith(
-      "request-geocoding",
-      { name: "wayfind/geocode.requested" },
-    );
-  });
-
-  it("does not ask for geocoding when nothing changed", async () => {
-    refetchStaleShipments.mockResolvedValue({
-      checked: 4,
-      updated: 0,
-      failed: 1,
-      stoppedEarly: false,
-      notificationIds: [],
-    });
-
-    const { ctx } = await new InngestTestEngine({
-      function: refetchStale,
-    }).execute();
-
-    expect(ctx.step.sendEvent).not.toHaveBeenCalled();
-  });
-
-  it("is an hourly cron job", () => {
-    expect(refetchStale.opts.triggers).toEqual([{ cron: "0 * * * *" }]);
-    expect(refetchStale.opts.concurrency).toBe(1);
-  });
 });
 
 describe("archiveDelivered job", () => {
@@ -224,6 +96,7 @@ describe("function list", () => {
   it("registers every job", () => {
     expect(functions).toEqual([
       refetchStale,
+      refetchTrackerJob,
       archiveDelivered,
       expireQuiet,
       geocodeSweep,

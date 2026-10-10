@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestDb } from "../../../tests/db/pglite";
 import { rateLimits } from "@/lib/db/schema";
 import {
+  BREAKERS,
   LIMITS,
   cleanupRateLimits,
   clientIp,
@@ -11,9 +12,11 @@ import {
   hitAddPackage,
   hitAll,
   hitSignIn,
+  isBreakerTripped,
   limitKey,
   logLimited,
   tooManyRequests,
+  tripBreaker,
   type Limit,
 } from "./index";
 
@@ -237,5 +240,27 @@ describe("logLimited", () => {
     logLimited("sign-in");
     expect(warn).toHaveBeenCalledWith("rate limited", { action: "sign-in" });
     warn.mockRestore();
+  });
+});
+
+describe("circuit breakers", () => {
+  it("are not tripped until tripped, then stay tripped for the window", async () => {
+    const breaker = BREAKERS.refetch;
+    expect(await isBreakerTripped(ctx.db, breaker, "prov-a", NOW)).toBe(false);
+
+    expect(await tripBreaker(ctx.db, breaker, "prov-a", NOW)).toEqual({
+      first: true,
+    });
+    expect(await tripBreaker(ctx.db, breaker, "prov-a", at(1000))).toEqual({
+      first: false,
+    });
+    expect(await isBreakerTripped(ctx.db, breaker, "prov-a", at(5000))).toBe(
+      true,
+    );
+    // Another subject is unaffected, and the next hour starts clear.
+    expect(await isBreakerTripped(ctx.db, breaker, "prov-b", NOW)).toBe(false);
+    expect(
+      await isBreakerTripped(ctx.db, breaker, "prov-a", at(60 * 60 * 1000)),
+    ).toBe(false);
   });
 });

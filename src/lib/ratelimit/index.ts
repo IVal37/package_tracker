@@ -2,10 +2,14 @@
 // Not system-scope: it takes a key and returns a verdict, nothing else.
 import { createHash } from "node:crypto";
 import type { Db } from "@/lib/db/client";
-import { countHit, deleteRateLimitWindowsBefore } from "@/lib/db/rate-limits";
+import {
+  countHit,
+  deleteRateLimitWindowsBefore,
+  peekCount,
+} from "@/lib/db/rate-limits";
 import { KEEP_WINDOWS_MS, LIMITS, type Limit } from "./limits";
 
-export { LIMITS, type Limit } from "./limits";
+export { BREAKERS, LIMITS, type Limit } from "./limits";
 
 export interface Verdict {
   allowed: boolean;
@@ -26,6 +30,43 @@ export function limitKey(limit: Limit, subject: string): string {
   return `${limit.action}:${digest}`;
 }
 
+const windowStart = (limit: Limit, now: Date) =>
+  new Date(Math.floor(now.getTime() / limit.windowMs) * limit.windowMs);
+
+/**
+ * A circuit breaker on the same table: once tripped, it stays tripped until
+ * its window ends. tripBreaker says whether this was the first trip in the
+ * window, so a problem seen by many runs at once is reported once.
+ */
+export async function tripBreaker(
+  db: Db,
+  breaker: Limit,
+  subject: string,
+  now: Date,
+): Promise<{ first: boolean }> {
+  const count = await countHit(
+    db,
+    limitKey(breaker, subject),
+    windowStart(breaker, now),
+  );
+  return { first: count === 1 };
+}
+
+export async function isBreakerTripped(
+  db: Db,
+  breaker: Limit,
+  subject: string,
+  now: Date,
+): Promise<boolean> {
+  return (
+    (await peekCount(
+      db,
+      limitKey(breaker, subject),
+      windowStart(breaker, now),
+    )) > 0
+  );
+}
+
 /** Counts one use of `limit` by `subject` and says whether it is allowed. */
 export async function hit(
   db: Db,
@@ -33,7 +74,7 @@ export async function hit(
   subject: string,
   now: Date,
 ): Promise<Verdict> {
-  const start = Math.floor(now.getTime() / limit.windowMs) * limit.windowMs;
+  const start = windowStart(limit, now).getTime();
   const count = await countHit(db, limitKey(limit, subject), new Date(start));
   if (count <= limit.limit) return { allowed: true, retryAfterSeconds: 0 };
   return {

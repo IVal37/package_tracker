@@ -20,9 +20,13 @@ import {
   createTrackingProvider,
   type TrackingProvider,
 } from "@/lib/tracking";
-import { refetchStaleShipments } from "./refetch-stale";
+import {
+  buildRefetchEvents,
+  findTrackersToRefetch,
+  refetchTracker,
+} from "./refetch-stale";
 
-const NOW = new Date("2026-06-20T12:00:00Z");
+const NOW = new Date("2026-06-20T12:10:00Z");
 const HOUR = 3_600_000;
 const ago = (hours: number) => new Date(NOW.getTime() - hours * HOUR);
 
@@ -53,11 +57,12 @@ async function add(
   syncedHoursAgo: number,
   extra: Partial<typeof shipments.$inferInsert> = {},
 ) {
+  seq += 1;
   const [row] = await ctx.db
     .insert(shipments)
     .values({
       userId,
-      trackingNumber: `RF-${++seq}`,
+      trackingNumber: "RF-" + seq,
       provider: "fake",
       providerTrackerId: trackerId,
       lastSyncedAt: ago(syncedHoursAgo),
@@ -77,29 +82,22 @@ const reload = async (id: string) => {
   return row;
 };
 
-const run = (limit = 100) =>
-  refetchStaleShipments({ db: ctx.db, provider, now: NOW, limit });
+const find = (limit = 100, now = NOW) =>
+  findTrackersToRefetch({ db: ctx.db, provider, now, limit });
+const refetch = (trackerId: string, now = NOW) =>
+  refetchTracker({ db: ctx.db, provider, trackerId, now });
 
-describe("refetchStaleShipments", () => {
-  it("fetches only stale trackers and applies what comes back", async () => {
-    const stale = await add("fake:FAKE-OFD-1", 30);
-    const fresh = await add("fake:FAKE-TRANSIT-2", 2);
+describe("findTrackersToRefetch", () => {
+  it("finds only stale trackers, oldest first, up to the limit", async () => {
+    await add("fake:FAKE-TRANSIT-A", 30);
+    await add("fake:FAKE-TRANSIT-B", 90);
+    await add("fake:FAKE-TRANSIT-C", 60);
+    await add("fake:FAKE-TRANSIT-FRESH", 2);
 
-    const result = await run();
-
-    expect(getTracking).toHaveBeenCalledTimes(1);
-    expect(getTracking).toHaveBeenCalledWith("fake:FAKE-OFD-1");
-    expect(result).toEqual({
-      checked: 1,
-      updated: 1,
-      failed: 0,
-      stoppedEarly: false,
-      notificationIds: [expect.any(String)],
-    });
-    const updated = await reload(stale.id);
-    expect(updated.status).toBe("OutForDelivery");
-    expect(updated.lastSyncedAt).toEqual(NOW);
-    expect((await reload(fresh.id)).lastSyncedAt).toEqual(ago(2));
+    expect(await find(2)).toEqual([
+      "fake:FAKE-TRANSIT-B",
+      "fake:FAKE-TRANSIT-C",
+    ]);
   });
 
   it("skips archived, delivered, expired, other-provider and tracker-less shipments", async () => {
@@ -108,136 +106,173 @@ describe("refetchStaleShipments", () => {
     await add("fake:FAKE-TRANSIT-3", 48, { status: "Expired" });
     await add("fake:FAKE-TRANSIT-4", 48, { provider: "ship24" });
     await add(null, 48);
-
-    const result = await run();
-
-    expect(getTracking).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      checked: 0,
-      updated: 0,
-      failed: 0,
-      stoppedEarly: false,
-      notificationIds: [],
-    });
+    expect(await find()).toEqual([]);
   });
 
-  it("fetches a tracker shared by two shipments once and updates both", async () => {
+  it("lists a tracker shared by two shipments once", async () => {
     const other = (await insertUser(ctx.db)).id;
-    const a = await add("fake:FAKE-OFD-5", 30);
-    const [b] = await ctx.db
-      .insert(shipments)
-      .values({
-        userId: other,
-        trackingNumber: "RF-shared",
-        provider: "fake",
-        providerTrackerId: "fake:FAKE-OFD-5",
-        lastSyncedAt: ago(30),
-      })
-      .returning();
-
-    await run();
-
-    expect(getTracking).toHaveBeenCalledTimes(1);
-    expect((await reload(a.id)).status).toBe("OutForDelivery");
-    expect((await reload(b!.id)).status).toBe("OutForDelivery");
+    await add("fake:FAKE-OFD-5", 30);
+    await add("fake:FAKE-OFD-5", 30, { userId: other });
+    expect(await find()).toEqual(["fake:FAKE-OFD-5"]);
   });
 
-  it("goes oldest first and respects the limit", async () => {
-    await add("fake:FAKE-TRANSIT-A", 30);
-    await add("fake:FAKE-TRANSIT-B", 90);
-    await add("fake:FAKE-TRANSIT-C", 60);
+  it("finds nothing while the re-fetch is paused, and resumes the next hour", async () => {
+    await add("fake:FAKE-TRANSIT-P", 30);
+    getTracking.mockRejectedValueOnce(new ProviderAuthError("401"));
+    await refetch("fake:FAKE-TRANSIT-P");
 
-    await run(2);
-
-    expect(getTracking.mock.calls.map(([id]) => id)).toEqual([
-      "fake:FAKE-TRANSIT-B",
-      "fake:FAKE-TRANSIT-C",
+    expect(await find()).toEqual([]);
+    expect(await find(100, new Date(NOW.getTime() + HOUR))).toEqual([
+      "fake:FAKE-TRANSIT-P",
     ]);
   });
+});
 
-  it("is a no-op for a tracker that has nothing new, but still counts it as synced", async () => {
-    const row = await add("fake:FAKE-OFD-6", 30);
-    await run();
-    // Make it stale again; the same events come back, so nothing is new.
-    await ctx.db
-      .update(shipments)
-      .set({ lastSyncedAt: ago(40) })
-      .where(eq(shipments.id, row.id));
+describe("refetchTracker", () => {
+  it("applies what comes back to the tracker's shipments", async () => {
+    const stale = await add("fake:FAKE-OFD-1", 30);
 
-    const second = await run();
+    const result = await refetch("fake:FAKE-OFD-1");
 
-    expect(second).toEqual({
-      checked: 1,
-      updated: 0,
-      failed: 0,
-      stoppedEarly: false,
-      notificationIds: [],
-    });
-    expect((await reload(row.id)).lastSyncedAt).toEqual(NOW);
-  });
-
-  it("marks a permanently failing tracker synced and carries on", async () => {
-    const broken = await add("fake:FAKE-TRANSIT-BROKEN", 90);
-    const healthy = await add("fake:FAKE-OFD-7", 30);
-    getTracking.mockRejectedValueOnce(new TrackerNotFoundError("gone"));
-
-    const result = await run();
-
+    expect(getTracking).toHaveBeenCalledExactlyOnceWith("fake:FAKE-OFD-1");
     expect(result).toEqual({
-      checked: 2,
-      updated: 1,
-      failed: 1,
-      stoppedEarly: false,
+      outcome: "updated",
+      newCheckpoints: 3,
       notificationIds: [expect.any(String)],
     });
+    const updated = await reload(stale.id);
+    expect(updated.status).toBe("OutForDelivery");
+    expect(updated.lastSyncedAt).toEqual(NOW);
+  });
+
+  it("updates every user's shipment on a shared tracker", async () => {
+    const other = (await insertUser(ctx.db)).id;
+    const a = await add("fake:FAKE-OFD-6", 30);
+    const b = await add("fake:FAKE-OFD-6", 30, { userId: other });
+
+    await refetch("fake:FAKE-OFD-6");
+
+    expect(getTracking).toHaveBeenCalledOnce();
+    expect((await reload(a.id)).status).toBe("OutForDelivery");
+    expect((await reload(b.id)).status).toBe("OutForDelivery");
+  });
+
+  it("reports unchanged when nothing is new, but still counts it as synced", async () => {
+    const row = await add("fake:FAKE-OFD-7", 30);
+    await refetch("fake:FAKE-OFD-7");
+    const later = new Date(NOW.getTime() + 2 * HOUR);
+
+    expect(await refetch("fake:FAKE-OFD-7", later)).toEqual({
+      outcome: "unchanged",
+      newCheckpoints: 0,
+      notificationIds: [],
+    });
+    expect((await reload(row.id)).lastSyncedAt).toEqual(later);
+  });
+
+  it("marks a permanently failing tracker synced, logging the error name only", async () => {
+    const broken = await add("fake:FAKE-TRANSIT-BROKEN", 90);
+    getTracking.mockRejectedValueOnce(
+      new TrackerNotFoundError("secret-detail"),
+    );
+
+    expect(await refetch("fake:FAKE-TRANSIT-BROKEN")).toEqual({
+      outcome: "failed",
+    });
     expect((await reload(broken.id)).lastSyncedAt).toEqual(NOW);
+    const logged = JSON.stringify(vi.mocked(console.warn).mock.calls);
+    expect(logged).toContain("TrackerNotFoundError");
+    expect(logged).not.toContain("secret-detail");
+  });
+
+  it("does not let one tracker's failure affect another", async () => {
+    await add("fake:FAKE-TRANSIT-BAD", 90);
+    const healthy = await add("fake:FAKE-OFD-8", 30);
+    getTracking.mockRejectedValueOnce(new TrackerNotFoundError("gone"));
+
+    await refetch("fake:FAKE-TRANSIT-BAD");
+    const result = await refetch("fake:FAKE-OFD-8");
+
+    expect(result.outcome).toBe("updated");
     expect((await reload(healthy.id)).status).toBe("OutForDelivery");
   });
 
   it.each([
     ["rate limiting", () => new RateLimitedError()],
     ["the provider being down", () => new ProviderUnavailableError()],
-    ["a bad API key", () => new ProviderAuthError("401")],
-    ["an exhausted quota", () => new QuotaExceededError("quota")],
   ])(
-    "stops on %s and leaves everything stale for the next run",
+    "throws on %s so the job retries, and leaves the tracker stale",
     async (_name, makeError) => {
+      const row = await add("fake:FAKE-TRANSIT-R", 90);
+      getTracking.mockRejectedValueOnce(makeError());
+
+      await expect(refetch("fake:FAKE-TRANSIT-R")).rejects.toThrow();
+      expect((await reload(row.id)).lastSyncedAt).toEqual(ago(90));
+    },
+  );
+
+  it.each([
+    ["a bad API key", () => new ProviderAuthError("401"), "auth"],
+    ["an exhausted quota", () => new QuotaExceededError("quota"), "quota"],
+  ] as const)(
+    "on %s, stops the work for the hour, reports once and leaves trackers stale",
+    async (_name, makeError, reason) => {
       const first = await add("fake:FAKE-TRANSIT-X", 90);
       const second = await add("fake:FAKE-TRANSIT-Y", 60);
       getTracking.mockRejectedValueOnce(makeError());
 
-      const result = await run();
-
-      expect(getTracking).toHaveBeenCalledTimes(1);
-      expect(result).toEqual({
-        checked: 0,
-        updated: 0,
-        failed: 0,
-        stoppedEarly: true,
-        notificationIds: [],
+      expect(await refetch("fake:FAKE-TRANSIT-X")).toEqual({
+        outcome: "stopped",
+        reason,
+        firstReport: true,
       });
+      // Every other queued tracker this hour skips the provider.
+      expect(await refetch("fake:FAKE-TRANSIT-Y")).toEqual({
+        outcome: "paused",
+      });
+      expect(getTracking).toHaveBeenCalledOnce();
       expect((await reload(first.id)).lastSyncedAt).toEqual(ago(90));
       expect((await reload(second.id)).lastSyncedAt).toEqual(ago(60));
     },
   );
 
+  it("a second run that meets the same problem in the same hour does not report again", async () => {
+    await add("fake:FAKE-TRANSIT-Q1", 90);
+    await add("fake:FAKE-TRANSIT-Q2", 90);
+    getTracking.mockRejectedValue(new QuotaExceededError("quota"));
+
+    // Two runs racing past the pause check before either tripped it.
+    const [a, b] = await Promise.all([
+      refetch("fake:FAKE-TRANSIT-Q1"),
+      refetch("fake:FAKE-TRANSIT-Q2"),
+    ]);
+    const reports = [a, b].filter(
+      (r) => r.outcome === "stopped" && r.firstReport,
+    );
+    expect(reports).toHaveLength(1);
+  });
+
   it("lets an unexpected error escape so the job retries", async () => {
     await add("fake:FAKE-TRANSIT-Z", 30);
     getTracking.mockRejectedValueOnce(new Error("socket hang up"));
-
-    await expect(run()).rejects.toThrow("socket hang up");
-  });
-
-  it("logs only the error name for a failed tracker", async () => {
-    await add("fake:FAKE-TRANSIT-LOG", 30);
-    getTracking.mockRejectedValueOnce(
-      new TrackerNotFoundError("secret-detail"),
+    await expect(refetch("fake:FAKE-TRANSIT-Z")).rejects.toThrow(
+      "socket hang up",
     );
+  });
+});
 
-    await run();
-
-    const logged = JSON.stringify(vi.mocked(console.warn).mock.calls);
-    expect(logged).toContain("TrackerNotFoundError");
-    expect(logged).not.toContain("secret-detail");
+describe("buildRefetchEvents", () => {
+  it("makes one event per tracker, with an id per tracker per hour", () => {
+    const bucket = Math.floor(NOW.getTime() / HOUR);
+    expect(buildRefetchEvents(["fake:A"], NOW)).toEqual([
+      {
+        id: "refetch-fake:A-" + bucket,
+        name: "wayfind/tracker.refetch",
+        data: { trackerId: "fake:A" },
+      },
+    ]);
+    expect(
+      buildRefetchEvents(["fake:A"], new Date(NOW.getTime() + HOUR))[0]?.id,
+    ).not.toBe("refetch-fake:A-" + bucket);
   });
 });

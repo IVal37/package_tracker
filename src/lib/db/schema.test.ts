@@ -15,6 +15,7 @@ import {
   orders,
   places,
   pushSubscriptions,
+  rateLimits,
   shipments,
   users,
 } from "./schema";
@@ -72,6 +73,7 @@ describe("schema (PGlite)", () => {
       "orders",
       "places",
       "push_subscriptions",
+      "rate_limits",
       "shipments",
       "users",
     ]);
@@ -108,6 +110,7 @@ describe("schema (PGlite)", () => {
     expect(result.rows.map((row) => row.indexname)).toEqual([
       "shipments_archive_due_idx",
       "shipments_eta_due_idx",
+      "shipments_expire_due_idx",
       "shipments_sync_due_idx",
     ]);
     expect(byName("shipments_archive_due_idx")?.indexdef).toMatch(
@@ -120,6 +123,26 @@ describe("schema (PGlite)", () => {
     expect(byName("shipments_eta_due_idx")?.indexdef).toMatch(
       /WHERE .*archived_at IS NULL.*eta IS NOT NULL/,
     );
+    // The expiry scan: quiet time of live shipments only.
+    expect(byName("shipments_expire_due_idx")?.indexdef).toMatch(
+      /COALESCE\(last_event_at, created_at\).*WHERE .*archived_at IS NULL/,
+    );
+  });
+
+  it("indexes expired shipments for the archive job", async () => {
+    const result = await ctx.client.query<{ indexdef: string }>(
+      `select indexdef from pg_indexes where indexname = 'shipments_expired_archive_idx'`,
+    );
+    expect(result.rows[0]?.indexdef).toMatch(
+      /COALESCE\(last_event_at, created_at\).*WHERE .*'Expired'/,
+    );
+  });
+
+  it("lets the same email belong to two user rows (a recreated sign-in account)", async () => {
+    await ctx.db.insert(users).values({ email: "same@example.test" });
+    await expect(
+      ctx.db.insert(users).values({ email: "same@example.test" }),
+    ).resolves.toBeDefined();
   });
 
   it("no longer stores coordinates or a mode on checkpoints", async () => {
@@ -425,6 +448,38 @@ describe("users.forwarding_alias", () => {
         .set({ forwardingAlias: "dup-alias" })
         .where(eq(users.id, b.id)),
     ).rejects.toThrow();
+  });
+});
+
+describe("rate_limits", () => {
+  const window = new Date("2026-10-09T12:00:00Z");
+
+  it("keeps one row per key and window", async () => {
+    await ctx.db
+      .insert(rateLimits)
+      .values({ key: "k-pk", windowStart: window });
+    await expect(
+      ctx.db.insert(rateLimits).values({ key: "k-pk", windowStart: window }),
+    ).rejects.toThrow();
+    await expect(
+      ctx.db.insert(rateLimits).values({
+        key: "k-pk",
+        windowStart: new Date(window.getTime() + 60_000),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("counts from 1 and indexes the window for the cleanup", async () => {
+    const [row] = await ctx.db
+      .insert(rateLimits)
+      .values({ key: "k-count", windowStart: window })
+      .returning();
+    expect(row?.count).toBe(1);
+
+    const index = await ctx.client.query(
+      `select 1 from pg_indexes where indexname = 'rate_limits_window_start_idx'`,
+    );
+    expect(index.rows).toHaveLength(1);
   });
 });
 

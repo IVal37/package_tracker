@@ -8,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -58,7 +59,9 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    email: text("email").notNull().unique(),
+    // Not unique: the id is the identity. A sign-in account recreated with the
+    // same email gets a new id, and a unique email would lock it out for good.
+    email: text("email").notNull(),
     // Private forwarding address local part, e.g. "izaak-7f3k". Lower-case.
     forwardingAlias: text("forwarding_alias").unique(),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
@@ -119,6 +122,16 @@ export const shipments = pgTable(
       .where(
         sql`${t.archivedAt} is null and ${t.eta} is not null and ${t.status} not in ('Delivered', 'Expired')`,
       ),
+    // The daily expiry scan: live shipments by when they last heard anything.
+    index("shipments_expire_due_idx")
+      .on(sql`coalesce(${t.lastEventAt}, ${t.createdAt})`)
+      .where(
+        sql`${t.archivedAt} is null and ${t.status} not in ('Delivered', 'Expired')`,
+      ),
+    // ...and the archive of shipments that expired long enough ago.
+    index("shipments_expired_archive_idx")
+      .on(sql`coalesce(${t.lastEventAt}, ${t.createdAt})`)
+      .where(sql`${t.archivedAt} is null and ${t.status} = 'Expired'`),
   ],
 ).enableRLS();
 
@@ -337,4 +350,22 @@ export const pushSubscriptions = pgTable(
     lastSuccessAt: timestamptz("last_success_at"),
   },
   (t) => [index("push_subscriptions_user_idx").on(t.userId)],
+).enableRLS();
+
+// Fixed-window counters for rate limiting, shared by every server instance.
+// One row per (key, window); a hit is a single atomic upsert. The key names the
+// action and who is limited (a user id, a hashed email or IP), never anything
+// readable on its own. Old windows are deleted by a daily job.
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamptz("window_start").notNull(),
+    count: integer("count").notNull().default(1),
+  },
+  (t) => [
+    primaryKey({ columns: [t.key, t.windowStart] }),
+    // The cleanup deletes by window age, across every key.
+    index("rate_limits_window_start_idx").on(t.windowStart),
+  ],
 ).enableRLS();

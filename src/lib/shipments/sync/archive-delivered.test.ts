@@ -59,9 +59,13 @@ describe("archiveDeliveredShipments", () => {
     const stuck = await add({ status: "InTransit", lastEventAt: days(60) });
     const exception = await add({ status: "Exception", lastEventAt: days(60) });
 
-    const result = await archiveDeliveredShipments({ db: ctx.db, now: NOW });
+    const result = await archiveDeliveredShipments({
+      db: ctx.db,
+      now: NOW,
+      expireAfterDays: 60,
+    });
 
-    expect(result).toEqual({ archived: 2 });
+    expect(result).toEqual({ archived: 2, archivedExpired: 0 });
     expect(await archivedAt(old.id)).toEqual(NOW);
     expect(await archivedAt(exactly.id)).toEqual(NOW);
     expect(await archivedAt(justUnder.id)).toBeNull();
@@ -70,8 +74,45 @@ describe("archiveDeliveredShipments", () => {
   });
 
   it("a second run archives nothing more", async () => {
-    expect(await archiveDeliveredShipments({ db: ctx.db, now: NOW })).toEqual({
-      archived: 0,
+    expect(
+      await archiveDeliveredShipments({
+        db: ctx.db,
+        now: NOW,
+        expireAfterDays: 60,
+      }),
+    ).toEqual({ archived: 0, archivedExpired: 0 });
+  });
+
+  it("archives Expired shipments 14 days after they expired", async () => {
+    const days = (n: number) => ago(n * 24);
+    // Expired after 60 quiet days, so archived at 74.
+    const longGone = await add({ status: "Expired", lastEventAt: days(80) });
+    const atSeventyFour = await add({
+      status: "Expired",
+      lastEventAt: days(74),
     });
+    const recentlyExpired = await add({
+      status: "Expired",
+      lastEventAt: days(70),
+    });
+    // No events: quiet since it was added.
+    const neverHeard = await add({ status: "Expired", createdAt: days(75) });
+    const quietButLive = await add({
+      status: "InTransit",
+      lastEventAt: days(90),
+    });
+
+    const result = await archiveDeliveredShipments({
+      db: ctx.db,
+      now: NOW,
+      expireAfterDays: 60,
+    });
+
+    expect(result).toEqual({ archived: 0, archivedExpired: 3 });
+    expect(await archivedAt(longGone.id)).toEqual(NOW);
+    expect(await archivedAt(atSeventyFour.id)).toEqual(NOW);
+    expect(await archivedAt(neverHeard.id)).toEqual(NOW);
+    expect(await archivedAt(recentlyExpired.id)).toBeNull();
+    expect(await archivedAt(quietButLive.id)).toBeNull();
   });
 });

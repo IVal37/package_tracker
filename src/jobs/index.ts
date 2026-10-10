@@ -1,4 +1,4 @@
-import { archiveDelivered } from "./archive-delivered";
+import { archiveDelivered, expireQuiet } from "./archive-delivered";
 import { geocodePlaceJob, geocodeSweep } from "./geocode";
 import { emailCleanup, emailSweep, processEmailJob } from "./inbound-email";
 import {
@@ -13,6 +13,7 @@ export { inngest } from "./client";
 export const functions = [
   refetchStale,
   archiveDelivered,
+  expireQuiet,
   geocodeSweep,
   geocodePlaceJob,
   processEmailJob,

@@ -15,6 +15,7 @@ import {
   min,
   ne,
   notInArray,
+  sql,
 } from "drizzle-orm";
 import { alertsForUpdate } from "@/lib/notifications/rules";
 import { decideShipmentUpdate } from "@/lib/shipments/sync/decide-update";
@@ -202,6 +203,53 @@ export async function archiveDeliveredBefore(
         eq(shipments.status, "Delivered"),
         isNull(shipments.archivedAt),
         lte(shipments.lastEventAt, cutoff),
+      ),
+    )
+    .returning({ id: shipments.id });
+  return archived.length;
+}
+
+/** When a shipment last heard anything: its newest event, or when it was added. */
+const quietSince = sql`coalesce(${shipments.lastEventAt}, ${shipments.createdAt})`;
+
+/**
+ * Marks live shipments Expired when nothing has been heard since the cutoff
+ * (shipments_expire_due_idx). Delivered and archived shipments are never
+ * touched. Returns how many expired. No alert is recorded for expiring.
+ */
+export async function expireQuietBefore(
+  db: Db,
+  cutoff: Date,
+  now: Date,
+): Promise<number> {
+  const expired = await db
+    .update(shipments)
+    .set({ status: "Expired", updatedAt: now })
+    .where(
+      and(
+        isNull(shipments.archivedAt),
+        notInArray(shipments.status, [...TERMINAL]),
+        lt(quietSince, cutoff),
+      ),
+    )
+    .returning({ id: shipments.id });
+  return expired.length;
+}
+
+/** Archives Expired shipments quiet since at or before the cutoff. */
+export async function archiveExpiredBefore(
+  db: Db,
+  cutoff: Date,
+  now: Date,
+): Promise<number> {
+  const archived = await db
+    .update(shipments)
+    .set({ archivedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(shipments.status, "Expired"),
+        isNull(shipments.archivedAt),
+        lte(quietSince, cutoff),
       ),
     )
     .returning({ id: shipments.id });

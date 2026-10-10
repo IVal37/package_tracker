@@ -63,6 +63,20 @@ describe("SignInPage", () => {
   });
 });
 
+describe("SignInPage: legal", () => {
+  it("links the privacy policy and the terms", async () => {
+    await renderPage();
+    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+  });
+});
+
 describe("SignInPage: leftovers from a previous session", () => {
   it("clears any saved package list from this device", async () => {
     await renderPage();

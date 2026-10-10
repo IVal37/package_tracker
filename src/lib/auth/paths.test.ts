@@ -5,6 +5,8 @@ describe("isPublicPath", () => {
   it.each([
     "/sign-in",
     "/account-deleted",
+    "/privacy",
+    "/terms",
     "/auth",
     "/auth/callback",
     "/auth/anything/else",
@@ -24,6 +26,8 @@ describe("isPublicPath", () => {
     "/settings/export",
     "/admin",
     "/account-deleted/extra",
+    "/privacy/extra",
+    "/termsx",
     "/sign-in/extra",
     "/authors",
     "/api/shipments",

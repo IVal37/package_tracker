@@ -37,6 +37,8 @@ export interface EmailMessage {
   html: string;
   /** Sending twice with the same key sends once (the alert's id). */
   idempotencyKey: string;
+  /** Extra headers, e.g. List-Unsubscribe. Values are built by us, never from an email. */
+  headers?: Record<string, string>;
 }
 
 export interface EmailSender {

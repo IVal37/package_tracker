@@ -179,6 +179,18 @@ describe("Settings page", () => {
 });
 
 describe("Settings page: your data", () => {
+  it("links the privacy policy and the terms in the footer", async () => {
+    await renderPage();
+    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+  });
+
   it("links to the export and offers account deletion", async () => {
     await renderPage();
     expect(

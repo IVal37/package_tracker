@@ -235,3 +235,19 @@ describe("escapeHtml", () => {
     expect(escapeHtml("&lt;")).toBe("&amp;lt;");
   });
 });
+
+describe("email headers", () => {
+  it("offers List-Unsubscribe pointing at Settings, built from our own origin", () => {
+    expect(build("delivered", {}, `${APP}/`).email.headers).toEqual({
+      "List-Unsubscribe": `<${APP}/settings>`,
+    });
+  });
+
+  it("never puts anything from the package in a header", () => {
+    const headers = JSON.stringify(
+      build("problem", { nickname: "<script>evil</script>" }).email.headers,
+    );
+    expect(headers).not.toContain("evil");
+    expect(headers).not.toContain("1Z999AA10123456784");
+  });
+});

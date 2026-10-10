@@ -22,7 +22,12 @@ export interface AlertSubject {
 
 export interface BuiltMessage {
   push: PushPayload;
-  email: { subject: string; text: string; html: string };
+  email: {
+    subject: string;
+    text: string;
+    html: string;
+    headers: Record<string, string>;
+  };
 }
 
 const MAX_TITLE = 100;
@@ -151,6 +156,13 @@ export function buildMessage(args: {
 
   return {
     push: { title, body, url, tag: `shipment-${shipmentId}` },
-    email: { subject: title, text, html },
+    email: {
+      subject: title,
+      text,
+      html,
+      // Mail apps show an unsubscribe button for this. It opens Settings,
+      // where alerts are switched off (one-click unsubscribe is later work).
+      headers: { "List-Unsubscribe": `<${settingsUrl}>` },
+    },
   };
 }

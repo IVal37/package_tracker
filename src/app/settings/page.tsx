@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { LegalLinks } from "@/components/legal-page";
 import { DeleteAccount } from "@/components/delete-account";
 import { FailedEmails } from "@/components/failed-emails";
 import { ForwardingInstructions } from "@/components/forwarding-instructions";
@@ -197,6 +198,9 @@ export default async function SettingsPage() {
           </h3>
           <DeleteAccount action={deleteAccountAction} />
         </section>
+        <footer className="border-t border-slate-200 pt-4">
+          <LegalLinks />
+        </footer>
       </main>
     </>
   );

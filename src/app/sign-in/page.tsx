@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ClearOfflineCache } from "@/components/clear-offline-cache";
+import { LegalLinks } from "@/components/legal-page";
 import { SignInForm } from "@/components/sign-in-form";
 import { Wordmark } from "@/components/wordmark";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -43,6 +44,10 @@ export default async function SignInPage({
           Continue with Google
         </button>
       </form>
+      <p className="text-xs text-slate-500">
+        By signing in you agree to the terms and the privacy policy.
+      </p>
+      <LegalLinks />
     </main>
   );
 }

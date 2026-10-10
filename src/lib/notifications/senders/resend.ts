@@ -41,6 +41,7 @@ export class ResendEmailSender implements EmailSender {
           subject: message.subject,
           text: message.text,
           html: message.html,
+          ...(message.headers && { headers: message.headers }),
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });

@@ -53,6 +53,25 @@ describe("ResendEmailSender", () => {
     });
   });
 
+  it("passes extra headers such as List-Unsubscribe to Resend", async () => {
+    let body: Record<string, unknown> | undefined;
+    server.use(
+      http.post(URL, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: "email_123" });
+      }),
+    );
+    await sender.send({
+      ...message,
+      headers: {
+        "List-Unsubscribe": "<https://wayfind.example.test/settings>",
+      },
+    });
+    expect(body?.headers).toEqual({
+      "List-Unsubscribe": "<https://wayfind.example.test/settings>",
+    });
+  });
+
   it("accepts any 2xx, even with an unexpected body", async () => {
     server.use(http.post(URL, () => new HttpResponse("ok", { status: 200 })));
     await expect(sender.send(message)).resolves.toBeUndefined();

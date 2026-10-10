@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   savePushSubscription: vi.fn(),
   removePushSubscription: vi.fn(),
   sendTestPush: vi.fn(),
+  retryFailedEmail: vi.fn(),
+  deleteFailedEmail: vi.fn(),
+  requestEmailRetry: vi.fn(),
   revalidatePath: vi.fn(),
   db: { marker: "db" },
   sender: { marker: "push-sender" },
@@ -35,10 +38,21 @@ vi.mock("@/lib/notifications/test-push", () => ({
   sendTestPush: mocks.sendTestPush,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/email/failed", () => ({
+  retryFailedEmail: mocks.retryFailedEmail,
+}));
+vi.mock("@/lib/db/inbound-emails", () => ({
+  deleteFailedEmail: mocks.deleteFailedEmail,
+}));
+vi.mock("@/jobs/events", () => ({
+  requestEmailRetry: mocks.requestEmailRetry,
+}));
 
 import { FIELD } from "@/lib/notifications/form";
 import {
+  dismissEmailAction,
   regenerateAddressAction,
+  retryEmailAction,
   removePushSubscriptionAction,
   saveNotificationSettingsAction,
   savePushSubscriptionAction,
@@ -248,5 +262,68 @@ describe("sendTestPushAction", () => {
 
   it("takes no input, so no argument can name another user", () => {
     expect(sendTestPushAction.length).toBe(0);
+  });
+});
+
+describe("retryEmailAction and dismissEmailAction", () => {
+  const ID = "11111111-1111-4111-8111-111111111111";
+  const form = () => {
+    const data = new FormData();
+    data.set("emailId", ID);
+    data.set("userId", "someone-else");
+    return data;
+  };
+
+  it("retries the session user's email and queues it again", async () => {
+    mocks.retryFailedEmail.mockResolvedValue("retried");
+    const state = await retryEmailAction({ status: "idle" }, form());
+    expect(state).toEqual({ status: "retried" });
+    expect(mocks.retryFailedEmail).toHaveBeenCalledWith({
+      db: mocks.db,
+      userId: "session-user",
+      emailId: ID,
+      now: expect.any(Date),
+    });
+    expect(mocks.requestEmailRetry).toHaveBeenCalledWith(ID, expect.any(Date));
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/settings");
+  });
+
+  it.each(["not_found", "rate_limited"] as const)(
+    "queues nothing when the retry is %s",
+    async (result) => {
+      mocks.retryFailedEmail.mockResolvedValue(result);
+      expect(await retryEmailAction({ status: "idle" }, form())).toEqual({
+        status: result,
+      });
+      expect(mocks.requestEmailRetry).not.toHaveBeenCalled();
+    },
+  );
+
+  it("dismisses the session user's email only", async () => {
+    mocks.deleteFailedEmail.mockResolvedValue(true);
+    expect(await dismissEmailAction({ status: "idle" }, form())).toEqual({
+      status: "dismissed",
+    });
+    expect(mocks.deleteFailedEmail).toHaveBeenCalledWith(
+      mocks.db,
+      "session-user",
+      ID,
+    );
+    mocks.deleteFailedEmail.mockResolvedValue(false);
+    expect(await dismissEmailAction({ status: "idle" }, form())).toEqual({
+      status: "not_found",
+    });
+  });
+
+  it("does nothing for a signed-out caller", async () => {
+    mocks.requireUser.mockRejectedValue(SIGNED_OUT);
+    await expect(
+      retryEmailAction({ status: "idle" }, form()),
+    ).rejects.toThrow();
+    await expect(
+      dismissEmailAction({ status: "idle" }, form()),
+    ).rejects.toThrow();
+    expect(mocks.retryFailedEmail).not.toHaveBeenCalled();
+    expect(mocks.deleteFailedEmail).not.toHaveBeenCalled();
   });
 });

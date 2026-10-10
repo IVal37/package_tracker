@@ -1,15 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requestEmailRetry } from "@/jobs/events";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { rotateAlias } from "@/lib/db/forwarding";
+import { deleteFailedEmail } from "@/lib/db/inbound-emails";
 import { saveNotificationPrefs } from "@/lib/db/notification-settings";
 import {
   removePushSubscription,
   savePushSubscription,
 } from "@/lib/db/push-subscriptions";
 import { ensureUser } from "@/lib/db/users";
+import { retryFailedEmail } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
 import {
   parseSettingsForm,
@@ -74,6 +77,47 @@ export async function removePushSubscriptionAction(
   if (typeof endpoint !== "string" || endpoint.length > 2048) return;
   await removePushSubscription(getDb(), user.id, endpoint);
   revalidatePath("/settings");
+}
+
+export type FailedEmailState =
+  | { status: "idle" }
+  | { status: "retried" | "dismissed" | "rate_limited" | "not_found" };
+
+/** Reads one of the user's failed emails again. Only their own, and only a failed one. */
+export async function retryEmailAction(
+  _previous: FailedEmailState,
+  formData: FormData,
+): Promise<FailedEmailState> {
+  const user = await requireUser();
+  const emailId = String(formData.get("emailId") ?? "");
+  const now = new Date();
+  const result = await retryFailedEmail({
+    db: getDb(),
+    userId: user.id,
+    emailId,
+    now,
+  });
+  if (result === "retried") {
+    // Best effort: the hourly sweep picks up a pending email this misses.
+    await requestEmailRetry(emailId, now);
+    revalidatePath("/settings");
+  }
+  return { status: result };
+}
+
+/** Forgets one of the user's failed emails. Anyone else's is untouched. */
+export async function dismissEmailAction(
+  _previous: FailedEmailState,
+  formData: FormData,
+): Promise<FailedEmailState> {
+  const user = await requireUser();
+  const deleted = await deleteFailedEmail(
+    getDb(),
+    user.id,
+    String(formData.get("emailId") ?? ""),
+  );
+  if (deleted) revalidatePath("/settings");
+  return { status: deleted ? "dismissed" : "not_found" };
 }
 
 export async function sendTestPushAction(): Promise<TestPushResult> {

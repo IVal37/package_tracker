@@ -6,6 +6,7 @@ vi.mock("./client", () => ({ inngest: { send } }));
 
 import {
   requestEmailProcessing,
+  requestEmailRetry,
   requestGeocoding,
   requestNotifications,
 } from "./events";
@@ -48,6 +49,26 @@ describe("requestGeocoding", () => {
 
     await expect(done).resolves.toBeUndefined();
     expect(console.warn).toHaveBeenCalledOnce();
+  });
+});
+
+describe("requestEmailRetry", () => {
+  it("sends the email.received event with a fresh id each time", async () => {
+    send.mockResolvedValue({ ids: ["x"] });
+    await requestEmailRetry("abc-123", new Date(1000));
+    await requestEmailRetry("abc-123", new Date(2000));
+    expect(send.mock.calls.map(([event]) => event)).toEqual([
+      {
+        name: "wayfind/email.received",
+        id: "email-abc-123-retry-1000",
+        data: { emailId: "abc-123" },
+      },
+      {
+        name: "wayfind/email.received",
+        id: "email-abc-123-retry-2000",
+        data: { emailId: "abc-123" },
+      },
+    ]);
   });
 });
 

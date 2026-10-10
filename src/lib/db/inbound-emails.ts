@@ -4,7 +4,7 @@ import { and, count, desc, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "./client";
 import { inboundEmails } from "./schema";
-import { isUniqueViolation } from "./shipments";
+import { isUniqueViolation, isUuid } from "./shipments";
 
 export interface NewInboundEmail {
   /** The normalized email as JSON text. */
@@ -69,6 +69,91 @@ export async function countFailedEmails(
       ),
     );
   return row?.total ?? 0;
+}
+
+export interface FailedEmail {
+  id: string;
+  fromAddress: string | null;
+  subject: string | null;
+  receivedAt: Date;
+  /** The error recorded when it failed, if any (our own words, not the email's). */
+  error: string | null;
+}
+
+const failureSchema = z.object({ error: z.string() });
+
+/** This user's emails that could not be read, newest first. */
+export async function listFailedEmails(
+  db: Db,
+  userId: string,
+  limit = 20,
+): Promise<FailedEmail[]> {
+  const rows = await db
+    .select({
+      id: inboundEmails.id,
+      fromAddress: inboundEmails.fromAddress,
+      subject: inboundEmails.subject,
+      receivedAt: inboundEmails.receivedAt,
+      extracted: inboundEmails.extracted,
+    })
+    .from(inboundEmails)
+    .where(
+      and(
+        eq(inboundEmails.userId, userId),
+        eq(inboundEmails.parseStatus, "failed"),
+      ),
+    )
+    .orderBy(desc(inboundEmails.receivedAt))
+    .limit(limit);
+
+  return rows.map(({ extracted, ...row }) => {
+    const parsed = failureSchema.safeParse(extracted);
+    return { ...row, error: parsed.success ? parsed.data.error : null };
+  });
+}
+
+/**
+ * Puts one of the user's failed emails back to pending, to be read again.
+ * Only a failed email can be retried. Returns whether one was.
+ */
+export async function resetFailedEmail(
+  db: Db,
+  userId: string,
+  emailId: string,
+): Promise<boolean> {
+  if (!isUuid(emailId)) return false;
+  const updated = await db
+    .update(inboundEmails)
+    .set({ parseStatus: "pending", extracted: null })
+    .where(
+      and(
+        eq(inboundEmails.id, emailId),
+        eq(inboundEmails.userId, userId),
+        eq(inboundEmails.parseStatus, "failed"),
+      ),
+    )
+    .returning({ id: inboundEmails.id });
+  return updated.length > 0;
+}
+
+/** Deletes one of the user's failed emails. Returns whether one was. */
+export async function deleteFailedEmail(
+  db: Db,
+  userId: string,
+  emailId: string,
+): Promise<boolean> {
+  if (!isUuid(emailId)) return false;
+  const deleted = await db
+    .delete(inboundEmails)
+    .where(
+      and(
+        eq(inboundEmails.id, emailId),
+        eq(inboundEmails.userId, userId),
+        eq(inboundEmails.parseStatus, "failed"),
+      ),
+    )
+    .returning({ id: inboundEmails.id });
+  return deleted.length > 0;
 }
 
 /** How many emails this user received since the given moment. */

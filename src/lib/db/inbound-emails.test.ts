@@ -4,10 +4,12 @@ import { createTestDb, insertUser } from "../../../tests/db/pglite";
 import {
   countEmailsSince,
   countFailedEmails,
+  deleteFailedEmail,
   finishEmail,
   hasMessageId,
   insertInboundEmail,
   latestGmailConfirmation,
+  listFailedEmails,
 } from "./inbound-emails";
 import { inboundEmails } from "./schema";
 
@@ -213,5 +215,78 @@ describe("insertInboundEmail errors", () => {
         email({ messageId: "<x@y.test>" }),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe("listFailedEmails", () => {
+  const failed = async (
+    userId: string,
+    receivedAt: Date,
+    extracted: unknown = { error: "unreadable" },
+  ) => {
+    const [row] = await ctx.db
+      .insert(inboundEmails)
+      .values({
+        userId,
+        raw: "{}",
+        parseStatus: "failed",
+        subject: "Order " + receivedAt.getTime(),
+        fromAddress: "shop@example.test",
+        extracted,
+        receivedAt,
+      })
+      .returning();
+    return row!;
+  };
+
+  it("lists only this user's failed emails, newest first, up to the limit", async () => {
+    const me = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    const old = await failed(me.id, daysAgo(3));
+    const recent = await failed(me.id, daysAgo(1));
+    await failed(me.id, daysAgo(5));
+    await failed(other.id, daysAgo(0));
+    await ctx.db
+      .insert(inboundEmails)
+      .values({ userId: me.id, raw: "{}", parseStatus: "parsed" });
+
+    const listed = await listFailedEmails(ctx.db, me.id, 2);
+
+    expect(listed.map((e) => e.id)).toEqual([recent.id, old.id]);
+    expect(listed[0]).toEqual({
+      id: recent.id,
+      fromAddress: "shop@example.test",
+      subject: recent.subject,
+      receivedAt: daysAgo(1),
+      error: "unreadable",
+    });
+  });
+
+  it("gives a null error when none was recorded in the expected shape", async () => {
+    const me = await insertUser(ctx.db);
+    await failed(me.id, daysAgo(1), { something: "else" });
+    expect((await listFailedEmails(ctx.db, me.id))[0]?.error).toBeNull();
+  });
+});
+
+describe("deleteFailedEmail", () => {
+  it("deletes only the user's own failed email", async () => {
+    const me = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    const [mine] = await ctx.db
+      .insert(inboundEmails)
+      .values({ userId: me.id, raw: "{}", parseStatus: "failed" })
+      .returning();
+    const [parsed] = await ctx.db
+      .insert(inboundEmails)
+      .values({ userId: me.id, raw: "{}", parseStatus: "parsed" })
+      .returning();
+
+    expect(await deleteFailedEmail(ctx.db, other.id, mine!.id)).toBe(false);
+    expect(await deleteFailedEmail(ctx.db, me.id, parsed!.id)).toBe(false);
+    expect(await deleteFailedEmail(ctx.db, me.id, "not-a-uuid")).toBe(false);
+    expect(await deleteFailedEmail(ctx.db, me.id, mine!.id)).toBe(true);
+    expect(await listFailedEmails(ctx.db, me.id)).toEqual([]);
+    expect(await countFailedEmails(ctx.db, me.id)).toBe(0);
   });
 });

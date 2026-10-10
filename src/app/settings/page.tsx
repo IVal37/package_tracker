@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { FailedEmails } from "@/components/failed-emails";
 import { ForwardingInstructions } from "@/components/forwarding-instructions";
 import { InstallCard } from "@/components/install-card";
 import { NotificationSettingsForm } from "@/components/notification-settings-form";
@@ -12,15 +13,19 @@ import { getOrCreateAlias } from "@/lib/db/forwarding";
 import {
   countFailedEmails,
   latestGmailConfirmation,
+  listFailedEmails,
 } from "@/lib/db/inbound-emails";
 import { getNotificationPrefs } from "@/lib/db/notification-settings";
 import { ensureUser } from "@/lib/db/users";
 import { formatAddress } from "@/lib/email/alias";
+import { failureReason } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
 import { formatRelativeTime } from "@/lib/shipments/format";
 import { signOut } from "../sign-in/actions";
 import {
+  dismissEmailAction,
   regenerateAddressAction,
+  retryEmailAction,
   removePushSubscriptionAction,
   saveNotificationSettingsAction,
   savePushSubscriptionAction,
@@ -49,7 +54,7 @@ export default async function SettingsPage() {
     env.PUSH_SENDER === "webpush" ? (env.VAPID_PUBLIC_KEY ?? null) : null;
   const timeZones = Intl.supportedValuesOf("timeZone");
 
-  const [prefs, confirmation, failed] = await Promise.all([
+  const [prefs, confirmation, failed, failedEmails] = await Promise.all([
     getNotificationPrefs(db, user.id),
     latestGmailConfirmation(
       db,
@@ -57,6 +62,7 @@ export default async function SettingsPage() {
       new Date(now.getTime() - CONFIRMATION_WINDOW_MS),
     ),
     countFailedEmails(db, user.id),
+    listFailedEmails(db, user.id, 20),
   ]);
 
   return (
@@ -147,17 +153,18 @@ export default async function SettingsPage() {
           </p>
         )}
 
-        {failed > 0 && (
-          <p
-            role="status"
-            className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm"
-          >
-            {failed === 1
-              ? "1 forwarded email couldn't be read."
-              : `${failed} forwarded emails couldn't be read.`}{" "}
-            Add those packages by hand with their tracking numbers.
-          </p>
-        )}
+        <FailedEmails
+          total={failed}
+          emails={failedEmails.map((email) => ({
+            id: email.id,
+            from: email.fromAddress,
+            subject: email.subject,
+            received: formatRelativeTime(email.receivedAt, now),
+            reason: failureReason(email.error),
+          }))}
+          retryAction={retryEmailAction}
+          dismissAction={dismissEmailAction}
+        />
       </main>
     </>
   );

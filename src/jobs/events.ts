@@ -43,6 +43,19 @@ export function requestEmailProcessing(emailId: string): Promise<void> {
   });
 }
 
+/**
+ * Asks for an email to be read again after the user pressed Try again. The id
+ * is new each time: the first event's id is remembered for a day and would
+ * drop this one.
+ */
+export function requestEmailRetry(emailId: string, now: Date): Promise<void> {
+  return sendBestEffort("email retry request", {
+    name: EMAIL_RECEIVED,
+    id: `email-${emailId}-retry-${now.getTime()}`,
+    data: { emailId },
+  });
+}
+
 /** Asks for recorded alerts to be delivered. The ids make a repeat send harmless. */
 export function requestNotifications(
   notificationIds: readonly string[],

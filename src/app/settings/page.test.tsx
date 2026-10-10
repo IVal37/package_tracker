@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getOrCreateAlias: vi.fn(),
   latestGmailConfirmation: vi.fn(),
   countFailedEmails: vi.fn(),
+  listFailedEmails: vi.fn(),
   getNotificationPrefs: vi.fn(),
   getEnv: vi.fn(),
   db: { marker: "db" },
@@ -24,6 +25,7 @@ vi.mock("@/lib/db/forwarding", () => ({
 vi.mock("@/lib/db/inbound-emails", () => ({
   latestGmailConfirmation: mocks.latestGmailConfirmation,
   countFailedEmails: mocks.countFailedEmails,
+  listFailedEmails: mocks.listFailedEmails,
 }));
 vi.mock("@/lib/env", () => ({ getEnv: mocks.getEnv }));
 vi.mock("../sign-in/actions", () => ({ signOut: vi.fn() }));
@@ -33,6 +35,8 @@ vi.mock("./actions", () => ({
   savePushSubscriptionAction: vi.fn(),
   removePushSubscriptionAction: vi.fn(),
   sendTestPushAction: vi.fn(),
+  retryEmailAction: vi.fn(),
+  dismissEmailAction: vi.fn(),
 }));
 
 import { DEFAULT_PREFS } from "@/lib/notifications/prefs";
@@ -48,6 +52,7 @@ beforeEach(() => {
   mocks.getOrCreateAlias.mockResolvedValue("izaak-7f3k");
   mocks.latestGmailConfirmation.mockResolvedValue(null);
   mocks.countFailedEmails.mockResolvedValue(0);
+  mocks.listFailedEmails.mockResolvedValue([]);
   mocks.getNotificationPrefs.mockResolvedValue(structuredClone(DEFAULT_PREFS));
   mocks.getEnv.mockReturnValue({
     INBOUND_EMAIL_DOMAIN: "in.wayfind.test",
@@ -96,6 +101,11 @@ describe("Settings page", () => {
       mocks.db,
       "session-user",
     );
+    expect(mocks.listFailedEmails).toHaveBeenCalledExactlyOnceWith(
+      mocks.db,
+      "session-user",
+      20,
+    );
     const [db, userId, since] = mocks.latestGmailConfirmation.mock.calls[0]!;
     expect(db).toBe(mocks.db);
     expect(userId).toBe("session-user");
@@ -124,18 +134,37 @@ describe("Settings page", () => {
     ).not.toBeInTheDocument();
   });
 
-  it.each([
-    [0, null],
-    [1, "1 forwarded email couldn't be read."],
-    [3, "3 forwarded emails couldn't be read."],
-  ])("reports %i unreadable emails", async (count, text) => {
-    mocks.countFailedEmails.mockResolvedValue(count);
+  it("shows no unreadable-email section when there are none", async () => {
     await renderPage();
-    if (text) {
-      expect(screen.getByRole("status")).toHaveTextContent(text);
-    } else {
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    }
+    expect(
+      screen.queryByRole("heading", { name: "Emails we couldn't read" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lists unreadable emails with a plain reason, rendering the subject as text", async () => {
+    mocks.countFailedEmails.mockResolvedValue(1);
+    mocks.listFailedEmails.mockResolvedValue([
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        fromAddress: "Shop <orders@shop.example>",
+        subject: '<img src=x onerror="alert(1)"> Your order',
+        receivedAt: new Date(Date.now() - 2 * 86_400_000),
+        error: "unreadable",
+      },
+    ]);
+    const { container } = await renderPage();
+
+    expect(
+      screen.getByRole("heading", { name: "Emails we couldn't read" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('<img src=x onerror="alert(1)"> Your order'),
+    ).toBeInTheDocument();
+    expect(container.querySelector("img")).toBeNull();
+    expect(
+      screen.getByText("The email could not be opened."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/)).toBeInTheDocument();
   });
 
   it("degrades to a message when no address could be made", async () => {

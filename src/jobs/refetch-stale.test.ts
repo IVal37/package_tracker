@@ -2,10 +2,15 @@
 import { InngestTestEngine } from "@inngest/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findTrackersToRefetch, refetchTracker } = vi.hoisted(() => ({
-  findTrackersToRefetch: vi.fn(),
-  refetchTracker: vi.fn(),
-}));
+const { findTrackersToRefetch, refetchTracker, reportIssue } = vi.hoisted(
+  () => ({
+    findTrackersToRefetch: vi.fn(),
+    refetchTracker: vi.fn(),
+    reportIssue: vi.fn(),
+  }),
+);
+
+vi.mock("@/lib/monitoring", () => ({ reportIssue }));
 
 vi.mock("@/lib/shipments/sync/refetch-stale", async (importOriginal) => ({
   ...(await importOriginal<
@@ -28,6 +33,7 @@ const ID_B = "22222222-2222-4222-8222-222222222222";
 beforeEach(() => {
   findTrackersToRefetch.mockReset();
   refetchTracker.mockReset();
+  reportIssue.mockReset();
 });
 
 const runTracker = (trackerId = "fake:T1") =>
@@ -149,6 +155,27 @@ describe("refetchTracker job", () => {
     const { result, ctx } = await runTracker();
     expect(result).toEqual(outcome);
     expect(ctx.step.sendEvent).not.toHaveBeenCalled();
+  });
+
+  it("reports a stopped re-fetch once: only from the run that tripped the pause", async () => {
+    refetchTracker.mockResolvedValue({
+      outcome: "stopped",
+      reason: "auth",
+      firstReport: true,
+    });
+    await runTracker("fake:A");
+    refetchTracker.mockResolvedValue({
+      outcome: "stopped",
+      reason: "auth",
+      firstReport: false,
+    });
+    await runTracker("fake:B");
+    refetchTracker.mockResolvedValue({ outcome: "paused" });
+    await runTracker("fake:C");
+
+    expect(reportIssue).toHaveBeenCalledExactlyOnceWith("refetch_stopped", {
+      reason: "auth",
+    });
   });
 
   it("rejects an invalid event without retrying", async () => {

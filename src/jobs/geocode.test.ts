@@ -2,11 +2,16 @@
 import { InngestTestEngine } from "@inngest/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findPendingPlaces, geocodePlace, geocoder } = vi.hoisted(() => ({
-  findPendingPlaces: vi.fn(),
-  geocodePlace: vi.fn(),
-  geocoder: { name: "fake" },
-}));
+const { findPendingPlaces, geocodePlace, geocoder, reportIssue } = vi.hoisted(
+  () => ({
+    findPendingPlaces: vi.fn(),
+    geocodePlace: vi.fn(),
+    geocoder: { name: "fake" },
+    reportIssue: vi.fn(),
+  }),
+);
+
+vi.mock("@/lib/monitoring", () => ({ reportIssue }));
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/db/geo-sync", () => ({ findPendingPlaces }));
@@ -22,6 +27,27 @@ import { geocodePlaceJob, geocodeSweep } from "./geocode";
 beforeEach(() => {
   findPendingPlaces.mockReset();
   geocodePlace.mockReset();
+});
+
+describe("geocodePlace failure", () => {
+  it("reports a place that ran out of retries, without its text", async () => {
+    await geocodePlaceJob.opts.onFailure?.({
+      event: {
+        data: {
+          event: {
+            name: "wayfind/place.geocode",
+            data: { key: "memphis, tn", text: "MEMPHIS, TN" },
+          },
+          error: { message: "x" },
+        },
+      },
+      error: new Error("Nominatim 503"),
+    } as never);
+    expect(reportIssue).toHaveBeenCalledExactlyOnceWith("job_out_of_retries", {
+      job: "geocode-place",
+      error: "error",
+    });
+  });
 });
 
 describe("geocodeSweep", () => {

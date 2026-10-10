@@ -10,6 +10,7 @@ import {
   placeEventSchema,
 } from "@/lib/geo/place-events";
 import { inngest } from "./client";
+import { reportJobFailure } from "./failure";
 
 const MAX_PLACES_PER_SWEEP = 200;
 
@@ -45,6 +46,8 @@ export const geocodePlaceJob = inngest.createFunction(
     triggers: { event: PLACE_GEOCODE },
     throttle: { limit: 1, period: "1s" },
     retries: 3,
+    // The place stays un-geocoded until its event can be sent again (24 h).
+    onFailure: reportJobFailure("geocode-place"),
   },
   async ({ event, step }) => {
     const data = placeEventSchema.safeParse(event.data);

@@ -89,6 +89,20 @@ const notifySyncImportPattern = {
     "notify-sync is system-scope (scans every user's shipments). Only src/lib/notifications and src/jobs may import it.",
 };
 
+// Error reporting goes through @/lib/monitoring; only that folder may touch
+// Sentry or a specific monitor (and so decide what leaves the server).
+const monitorImportPattern = {
+  group: [
+    "@sentry/*",
+    "@/lib/monitoring/sentry",
+    "@/lib/monitoring/noop",
+    "**/monitoring/sentry",
+    "**/monitoring/noop",
+  ],
+  message:
+    "Import from @/lib/monitoring (reportIssue, reportError), not Sentry or a specific monitor.",
+};
+
 const restrict = (...patterns) => ["error", { patterns }];
 
 const eslintConfig = defineConfig([
@@ -108,6 +122,7 @@ const eslintConfig = defineConfig([
     // Default: pages, actions, routes and components may import none of these.
     rules: {
       "no-restricted-imports": restrict(
+        monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
@@ -123,6 +138,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/shipments/sync/**"],
     rules: {
       "no-restricted-imports": restrict(
+        monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
@@ -137,6 +153,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/db/**", "src/jobs/**"],
     rules: {
       "no-restricted-imports": restrict(
+        monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
@@ -148,6 +165,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/geo/**"],
     rules: {
       "no-restricted-imports": restrict(
+        monitorImportPattern,
         providerImportPattern,
         extractorImportPattern,
         senderImportPattern,
@@ -161,6 +179,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/email/**"],
     rules: {
       "no-restricted-imports": restrict(
+        monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         trackerSyncImportPattern,
@@ -174,6 +193,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/notifications/**"],
     rules: {
       "no-restricted-imports": restrict(
+        monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,
@@ -183,7 +203,25 @@ const eslintConfig = defineConfig([
       ),
     },
   },
-  { files: ["src/lib/tracking/**"], rules: { "no-restricted-imports": "off" } },
+  {
+    files: ["src/lib/tracking/**"],
+    rules: { "no-restricted-imports": restrict(monitorImportPattern) },
+  },
+  {
+    files: ["src/lib/monitoring/**"],
+    rules: {
+      "no-restricted-imports": restrict(
+        providerImportPattern,
+        geocoderImportPattern,
+        extractorImportPattern,
+        senderImportPattern,
+        trackerSyncImportPattern,
+        geoSyncImportPattern,
+        inboundSyncImportPattern,
+        notifySyncImportPattern,
+      ),
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

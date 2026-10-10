@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
   finishDelivery: vi.fn(),
   sweepNotifications: vi.fn(),
   cleanupNotifications: vi.fn(),
+  reportIssue: vi.fn(),
 }));
+
+vi.mock("@/lib/monitoring", () => ({ reportIssue: mocks.reportIssue }));
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/env", () => ({
@@ -296,6 +299,60 @@ describe("send-notification: failures", () => {
       expect.objectContaining({
         email: { attempted: 1, sent: 0, failed: 1 },
       }),
+    );
+  });
+
+  it("reports an alert that failed on every channel, once", async () => {
+    mocks.prepareNotification.mockResolvedValue(ready(["push", "email"]));
+    mocks.deliverPush.mockResolvedValue({
+      attempted: 1,
+      sent: 0,
+      gone: 0,
+      failed: 1,
+    });
+    mocks.deliverEmail.mockResolvedValue({ attempted: 1, sent: 0, failed: 1 });
+    mocks.finishDelivery.mockResolvedValue("failed");
+
+    const { result } = await new InngestTestEngine({
+      function: sendNotificationJob,
+    }).execute({ events: [event({ notificationId: ID })] });
+
+    expect(result).toMatchObject({ outcome: "failed" });
+    expect(mocks.reportIssue).toHaveBeenCalledExactlyOnceWith(
+      "notification_failed",
+      { notification_id: ID, push_failed: 1, email_failed: 1 },
+    );
+  });
+
+  it("reports nothing for a sent or skipped alert", async () => {
+    mocks.prepareNotification.mockResolvedValue(ready(["push"]));
+    mocks.deliverPush.mockResolvedValue(PUSH_OK);
+    await new InngestTestEngine({ function: sendNotificationJob }).execute({
+      events: [event({ notificationId: ID })],
+    });
+    mocks.prepareNotification.mockResolvedValue({
+      outcome: "skipped",
+      reason: "stale",
+    });
+    await new InngestTestEngine({ function: sendNotificationJob }).execute({
+      events: [event({ notificationId: ID_B })],
+    });
+    expect(mocks.reportIssue).not.toHaveBeenCalled();
+  });
+
+  it("reports a run that ran out of retries, with the alert id only", async () => {
+    await sendNotificationJob.opts.onFailure?.({
+      event: {
+        data: {
+          event: event({ notificationId: ID }),
+          error: { message: "x" },
+        },
+      },
+      error: new Error("Push service down"),
+    } as never);
+    expect(mocks.reportIssue).toHaveBeenCalledExactlyOnceWith(
+      "job_out_of_retries",
+      { job: "send-notification", error: "error", notification_id: ID },
     );
   });
 

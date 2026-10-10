@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   processInboundEmail: vi.fn(),
+  reportIssue: vi.fn(),
   markInboundEmailFailed: vi.fn(),
   cleanupInboundData: vi.fn(),
   findStuckEmailIds: vi.fn(),
 }));
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
+vi.mock("@/lib/monitoring", () => ({ reportIssue: mocks.reportIssue }));
 vi.mock("@/lib/env", () => ({ getEnv: () => ({ ACTIVE_PACKAGE_CAP: 9 }) }));
 vi.mock("@/lib/tracking", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/tracking")>()),
@@ -150,6 +152,35 @@ describe("process-inbound-email", () => {
       "db",
       "email-9",
       "provider down",
+    );
+    expect(mocks.reportIssue).toHaveBeenCalledExactlyOnceWith("email_failed", {
+      email_id: "email-9",
+    });
+  });
+
+  it("does not report a temporary problem that will be retried", async () => {
+    mocks.processInboundEmail.mockRejectedValue(
+      new ProcessingRetryError("provider down"),
+    );
+    await new InngestTestEngine({ function: processEmailJob }).execute({
+      events: [event({ emailId: "e" })],
+    });
+    expect(mocks.reportIssue).not.toHaveBeenCalled();
+  });
+
+  it("reports a run that ran out of retries, with the email id only", async () => {
+    await processEmailJob.opts.onFailure?.({
+      event: {
+        data: {
+          event: event({ emailId: "email-7", subject: "secret" }),
+          error: { message: "x" },
+        },
+      },
+      error: new TypeError("for jane@example.test"),
+    } as never);
+    expect(mocks.reportIssue).toHaveBeenCalledExactlyOnceWith(
+      "job_out_of_retries",
+      { job: "process-inbound-email", error: "typeerror", email_id: "email-7" },
     );
   });
 

@@ -1,6 +1,7 @@
 import { NonRetriableError } from "inngest";
 import { getDb } from "@/lib/db/client";
 import { GEOCODE_REQUESTED } from "@/lib/geo/place-events";
+import { reportIssue } from "@/lib/monitoring";
 import { buildNotificationEvents } from "@/lib/notifications/events";
 import {
   TRACKER_REFETCH,
@@ -69,6 +70,14 @@ export const refetchTrackerJob = inngest.createFunction(
         now: new Date(),
       }),
     );
+
+    // A bad key or an empty quota pauses the re-fetch for the hour; the one
+    // run that tripped the pause reports it.
+    if (result.outcome === "stopped" && result.firstReport) {
+      await step.run("report-stopped", () =>
+        reportIssue("refetch_stopped", { reason: result.reason }),
+      );
+    }
 
     if (result.outcome === "updated") {
       // New checkpoints may mention places that still need coordinates. One

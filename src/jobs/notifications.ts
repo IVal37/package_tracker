@@ -25,7 +25,9 @@ import {
   getEmailSender,
   getPushSender,
 } from "@/lib/notifications/senders";
+import { reportIssue } from "@/lib/monitoring";
 import { inngest } from "./client";
+import { reportJobFailure } from "./failure";
 
 const MAX_PER_SWEEP = 200;
 /** Quiet hours are waited out at most this many times (settings can change meanwhile). */
@@ -44,6 +46,7 @@ export const sendNotificationJob = inngest.createFunction(
     // An alert is only ever worked on by one run at a time.
     concurrency: { limit: 1, key: "event.data.notificationId" },
     retries: RETRIES,
+    onFailure: reportJobFailure("send-notification", "notificationId"),
   },
   async ({ event, step, attempt, maxAttempts }) => {
     const data = notificationCreatedSchema.safeParse(event.data);
@@ -112,6 +115,16 @@ export const sendNotificationJob = inngest.createFunction(
     const outcome = await step.run("finish", () =>
       finishDelivery({ db, id, now: new Date(), push, email }),
     );
+    // In a step of its own, so a replay of the run cannot report it twice.
+    if (outcome === "failed") {
+      await step.run("report-failed", () =>
+        reportIssue("notification_failed", {
+          notification_id: id,
+          push_failed: push?.failed ?? 0,
+          email_failed: email?.failed ?? 0,
+        }),
+      );
+    }
     // Counts only: never the address, endpoint or message.
     console.info("notification", {
       outcome,

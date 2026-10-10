@@ -27,6 +27,8 @@ export const LIMITS = {
   testPush: { action: "test-push", limit: 3, windowMs: MINUTE_MS },
   exportData: { action: "export-data", limit: 3, windowMs: HOUR_MS },
   deleteAccount: { action: "delete-account", limit: 3, windowMs: HOUR_MS },
+  /** Browser-only error reports from one client IP. */
+  clientError: { action: "client-error", limit: 10, windowMs: HOUR_MS },
   /** Emails to one forwarding alias (the daily cap applies as well). */
   inboundAlias: { action: "inbound-alias", limit: 10, windowMs: MINUTE_MS },
 } as const satisfies Record<string, Limit>;

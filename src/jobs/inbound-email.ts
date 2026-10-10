@@ -16,7 +16,9 @@ import {
 import { getEnv } from "@/lib/env";
 import { GEOCODE_REQUESTED } from "@/lib/geo/place-events";
 import { getTrackingProvider } from "@/lib/tracking";
+import { reportIssue } from "@/lib/monitoring";
 import { inngest } from "./client";
+import { reportJobFailure } from "./failure";
 
 const MAX_SWEPT_PER_RUN = 100;
 
@@ -28,6 +30,7 @@ export const processEmailJob = inngest.createFunction(
     // An email is only ever worked on by one run at a time.
     concurrency: { limit: 1, key: "event.data.emailId" },
     retries: 3,
+    onFailure: reportJobFailure("process-inbound-email", "emailId"),
   },
   async ({ event, step, attempt, maxAttempts }) => {
     const data = emailReceivedSchema.safeParse(event.data);
@@ -50,6 +53,7 @@ export const processEmailJob = inngest.createFunction(
           if (error instanceof ProcessingRetryError && lastAttempt) {
             // Out of retries: stop leaving the email pending.
             await markInboundEmailFailed(getDb(), emailId, error.message);
+            reportIssue("email_failed", { email_id: emailId });
             return { status: "failed", created: 0 };
           }
           throw error;

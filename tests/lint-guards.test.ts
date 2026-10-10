@@ -267,3 +267,44 @@ describe("sender import guard", () => {
     }
   });
 });
+
+const SENTRY =
+  'import * as Sentry from "@sentry/nextjs";\nexport const x = Sentry;\n';
+const SENTRY_MONITOR =
+  'import { SentryMonitor } from "@/lib/monitoring/sentry";\nexport const x = SentryMonitor;\n';
+
+describe("monitoring import guard", () => {
+  it.each([
+    "src/app/page.tsx",
+    "src/app/global-error.tsx",
+    "src/instrumentation.ts",
+    "src/jobs/notifications.ts",
+    "src/lib/db/shipments.ts",
+    "src/lib/email/process.ts",
+    "src/lib/geo/geocode-place.ts",
+    "src/lib/notifications/send.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+    "src/lib/tracking/ship24/client.ts",
+  ])("rejects Sentry or a specific monitor from %s", async (file) => {
+    for (const source of [SENTRY, SENTRY_MONITOR]) {
+      const errors = await restrictedImportErrors(file, source);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]?.message).toContain("@/lib/monitoring");
+    }
+  });
+
+  it.each(["src/lib/monitoring/sentry.ts", "src/lib/monitoring/index.ts"])(
+    "allows them inside %s",
+    async (file) => {
+      for (const source of [SENTRY, SENTRY_MONITOR]) {
+        expect(await restrictedImportErrors(file, source)).toHaveLength(0);
+      }
+    },
+  );
+
+  it("keeps the system-scope modules off limits to the monitoring folder", async () => {
+    expect(
+      await restrictedImportErrors("src/lib/monitoring/index.ts", TRACKER_SYNC),
+    ).toHaveLength(1);
+  });
+});

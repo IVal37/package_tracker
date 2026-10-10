@@ -43,8 +43,11 @@ export const sendNotificationJob = inngest.createFunction(
   {
     id: "send-notification",
     triggers: { event: NOTIFICATION_CREATED },
-    // An alert is only ever worked on by one run at a time.
-    concurrency: { limit: 1, key: "event.data.notificationId" },
+    // One run per alert at a time, and a second event for an alert whose run
+    // is still alive (even asleep through quiet hours) is dropped, not queued:
+    // the hourly sweep re-sends every pending alert, and two runs waking
+    // together would both send the push.
+    singleton: { key: "event.data.notificationId", mode: "skip" },
     retries: RETRIES,
     onFailure: reportJobFailure("send-notification", "notificationId"),
   },

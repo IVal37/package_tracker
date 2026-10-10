@@ -67,10 +67,12 @@ describe("send-notification: configuration", () => {
     expect(sendNotificationJob.opts.triggers).toEqual([
       { event: "wayfind/notification.created" },
     ]);
-    expect(sendNotificationJob.opts.concurrency).toEqual({
-      limit: 1,
+    // A re-queued alert is dropped while its run is alive, even asleep.
+    expect(sendNotificationJob.opts.singleton).toEqual({
       key: "event.data.notificationId",
+      mode: "skip",
     });
+    expect(sendNotificationJob.opts.concurrency).toBeUndefined();
     expect(sendNotificationJob.opts.retries).toBe(4);
   });
 

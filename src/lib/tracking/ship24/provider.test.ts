@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import error401 from "../../../../tests/fixtures/ship24/error-401.json";
 import error403 from "../../../../tests/fixtures/ship24/error-403-quota.json";
 import trackInTransit from "../../../../tests/fixtures/ship24/track-in-transit.json";
@@ -162,6 +162,51 @@ describe("createTracking", () => {
       trackingNumber: CONFLICT_NUMBER,
     });
     expect(shipment.providerTrackerId).toBe(SEARCH_TRACKER_ID);
+  });
+
+  it("subscribes the existing tracker again, since a delete may have unsubscribed it", async () => {
+    let patched: { id: unknown; body: unknown } | null = null;
+    server.use(
+      http.patch(`${BASE}/trackers/:trackerId`, async ({ request, params }) => {
+        patched = { id: params.trackerId, body: await request.json() };
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+    await provider.createTracking({ trackingNumber: CONFLICT_NUMBER });
+    expect(patched).toEqual({
+      id: SEARCH_TRACKER_ID,
+      body: { isSubscribed: true },
+    });
+  });
+
+  it("still returns the existing tracker when subscribing it again fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    server.use(
+      http.patch(`${BASE}/trackers/:trackerId`, () =>
+        HttpResponse.json(error401, { status: 401 }),
+      ),
+    );
+    const shipment = await provider.createTracking({
+      trackingNumber: CONFLICT_NUMBER,
+    });
+    expect(shipment.providerTrackerId).toBe(SEARCH_TRACKER_ID);
+    expect(warn).toHaveBeenCalledWith(
+      "[ship24] could not resubscribe a tracker: ProviderAuthError",
+    );
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(API_KEY);
+    warn.mockRestore();
+  });
+
+  it("does not touch the subscription of a tracker it just created", async () => {
+    let patches = 0;
+    server.use(
+      http.patch(`${BASE}/trackers/:trackerId`, () => {
+        patches += 1;
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+    await provider.createTracking({ trackingNumber: VALID_NUMBER });
+    expect(patches).toBe(0);
   });
 
   it("fails if the search fallback finds nothing", async () => {

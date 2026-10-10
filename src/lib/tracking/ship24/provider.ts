@@ -104,7 +104,32 @@ export class Ship24Provider implements TrackingProvider {
         path: `/public/v1/trackers/search/${encodeURIComponent(input.trackingNumber)}/results`,
         schema: ship24TrackingsResponseSchema,
       });
-      return firstTracking(existing.data.trackings, "this tracking number");
+      const tracking = firstTracking(
+        existing.data.trackings,
+        "this tracking number",
+      );
+      // It may have been unsubscribed when its last follower deleted it; with
+      // a new follower it needs webhooks again.
+      await this.resubscribe(tracking.providerTrackerId);
+      return tracking;
+    }
+  }
+
+  /**
+   * Turns webhooks back on for an existing tracker. Best effort: the tracker
+   * is already known and readable, and the hourly re-fetch covers a tracker
+   * whose webhooks stay off.
+   */
+  private async resubscribe(providerTrackerId: string): Promise<void> {
+    try {
+      await ship24Request(this.config, {
+        method: "PATCH",
+        path: `/public/v1/trackers/${encodeURIComponent(providerTrackerId)}`,
+        body: { isSubscribed: true },
+      });
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "unknown error";
+      console.warn(`[ship24] could not resubscribe a tracker: ${name}`);
     }
   }
 

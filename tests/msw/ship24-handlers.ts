@@ -43,7 +43,8 @@ export const ship24Handlers = [
   ),
 
   http.patch(`${BASE}/trackers/:trackerId`, ({ params }) =>
-    params.trackerId === KNOWN_TRACKER_ID
+    params.trackerId === KNOWN_TRACKER_ID ||
+    params.trackerId === SEARCH_TRACKER_ID
       ? HttpResponse.json(unsubscribe)
       : HttpResponse.json(error404, { status: 404 }),
   ),

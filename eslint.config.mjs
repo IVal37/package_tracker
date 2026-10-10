@@ -103,6 +103,13 @@ const monitorImportPattern = {
     "Import from @/lib/monitoring (reportIssue, reportError), not Sentry or a specific monitor.",
 };
 
+// Counts across every user for the admin page; only src/lib/admin may read them.
+const adminStatsImportPattern = {
+  group: ["@/lib/db/admin-stats", "**/db/admin-stats"],
+  message:
+    "admin-stats is system-scope (counts across every user). Only src/lib/admin may import it.",
+};
+
 const restrict = (...patterns) => ["error", { patterns }];
 
 const eslintConfig = defineConfig([
@@ -122,6 +129,7 @@ const eslintConfig = defineConfig([
     // Default: pages, actions, routes and components may import none of these.
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -138,6 +146,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/shipments/sync/**"],
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -153,6 +162,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/db/**", "src/jobs/**"],
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -165,6 +175,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/geo/**"],
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         monitorImportPattern,
         providerImportPattern,
         extractorImportPattern,
@@ -179,6 +190,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/email/**"],
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -193,6 +205,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/notifications/**"],
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -205,12 +218,34 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/lib/tracking/**"],
-    rules: { "no-restricted-imports": restrict(monitorImportPattern) },
+    rules: {
+      "no-restricted-imports": restrict(
+        monitorImportPattern,
+        adminStatsImportPattern,
+      ),
+    },
+  },
+  {
+    files: ["src/lib/admin/**"],
+    rules: {
+      "no-restricted-imports": restrict(
+        monitorImportPattern,
+        providerImportPattern,
+        geocoderImportPattern,
+        extractorImportPattern,
+        senderImportPattern,
+        trackerSyncImportPattern,
+        geoSyncImportPattern,
+        inboundSyncImportPattern,
+        notifySyncImportPattern,
+      ),
+    },
   },
   {
     files: ["src/lib/monitoring/**"],
     rules: {
       "no-restricted-imports": restrict(
+        adminStatsImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,

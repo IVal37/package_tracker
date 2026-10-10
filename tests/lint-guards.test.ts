@@ -308,3 +308,33 @@ describe("monitoring import guard", () => {
     ).toHaveLength(1);
   });
 });
+
+const ADMIN_STATS =
+  'import { adminCounts } from "@/lib/db/admin-stats";\nexport const x = adminCounts;\n';
+
+describe("admin-stats import guard", () => {
+  it.each([
+    "src/app/admin/page.tsx",
+    "src/app/page.tsx",
+    "src/jobs/notifications.ts",
+    "src/lib/notifications/send.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+    "src/lib/monitoring/index.ts",
+  ])("rejects an import from %s", async (file) => {
+    const errors = await restrictedImportErrors(file, ADMIN_STATS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("admin-stats");
+  });
+
+  it("allows an import from src/lib/admin", async () => {
+    expect(
+      await restrictedImportErrors("src/lib/admin/index.ts", ADMIN_STATS),
+    ).toHaveLength(0);
+  });
+
+  it("keeps the other system-scope modules off limits to src/lib/admin", async () => {
+    expect(
+      await restrictedImportErrors("src/lib/admin/index.ts", TRACKER_SYNC),
+    ).toHaveLength(1);
+  });
+});

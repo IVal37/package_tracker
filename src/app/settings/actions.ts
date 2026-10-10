@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requestEmailRetry } from "@/jobs/events";
 import { requireUser } from "@/lib/auth/session";
+import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { getDb } from "@/lib/db/client";
 import { rotateAlias } from "@/lib/db/forwarding";
 import { deleteFailedEmail } from "@/lib/db/inbound-emails";
@@ -14,6 +15,9 @@ import {
 import { ensureUser } from "@/lib/db/users";
 import { retryFailedEmail } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
+import { DELETE_CONFIRMATION } from "@/lib/privacy/confirm";
+import { deleteAccount } from "@/lib/privacy/delete-account";
+import { getTrackingProvider } from "@/lib/tracking";
 import {
   parseSettingsForm,
   type SettingsFormState,
@@ -118,6 +122,38 @@ export async function dismissEmailAction(
   );
   if (deleted) revalidatePath("/settings");
   return { status: deleted ? "dismissed" : "not_found" };
+}
+
+export type DeleteAccountState =
+  | { status: "idle" }
+  | { status: "deleted"; signInRemoved: boolean }
+  | { status: "unconfirmed" | "rate_limited" | "unavailable" };
+
+/**
+ * Deletes the signed-in user's account and everything in it, then signs this
+ * browser out. The page clears this device and leaves once it hears back.
+ */
+export async function deleteAccountAction(
+  _previous: DeleteAccountState,
+  formData: FormData,
+): Promise<DeleteAccountState> {
+  const user = await requireUser();
+  if (String(formData.get("confirm") ?? "").trim() !== DELETE_CONFIRMATION) {
+    return { status: "unconfirmed" };
+  }
+
+  const result = await deleteAccount({
+    db: getDb(),
+    provider: getTrackingProvider(),
+    userId: user.id,
+    now: new Date(),
+  });
+  if (result.status !== "deleted") return result;
+
+  // Only this browser's cookies: the account behind them is gone.
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+  return result;
 }
 
 export async function sendTestPushAction(): Promise<TestPushResult> {

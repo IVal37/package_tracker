@@ -110,6 +110,13 @@ const adminStatsImportPattern = {
     "admin-stats is system-scope (counts across every user). Only src/lib/admin may import it.",
 };
 
+// The Supabase secret key bypasses every rule; only account deletion uses it.
+const authAdminImportPattern = {
+  group: ["@/lib/auth/admin", "**/auth/admin"],
+  message:
+    "auth/admin holds the Supabase secret key. Only src/lib/privacy may import it.",
+};
+
 const restrict = (...patterns) => ["error", { patterns }];
 
 const eslintConfig = defineConfig([
@@ -130,6 +137,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -147,6 +155,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -163,6 +172,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -176,6 +186,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         extractorImportPattern,
@@ -191,6 +202,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -206,6 +218,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -222,6 +235,24 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": restrict(
         monitorImportPattern,
         adminStatsImportPattern,
+        authAdminImportPattern,
+      ),
+    },
+  },
+  {
+    files: ["src/lib/privacy/**"],
+    rules: {
+      "no-restricted-imports": restrict(
+        adminStatsImportPattern,
+        monitorImportPattern,
+        providerImportPattern,
+        geocoderImportPattern,
+        extractorImportPattern,
+        senderImportPattern,
+        trackerSyncImportPattern,
+        geoSyncImportPattern,
+        inboundSyncImportPattern,
+        notifySyncImportPattern,
       ),
     },
   },
@@ -229,6 +260,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/admin/**"],
     rules: {
       "no-restricted-imports": restrict(
+        authAdminImportPattern,
         monitorImportPattern,
         providerImportPattern,
         geocoderImportPattern,
@@ -246,6 +278,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": restrict(
         adminStatsImportPattern,
+        authAdminImportPattern,
         providerImportPattern,
         geocoderImportPattern,
         extractorImportPattern,

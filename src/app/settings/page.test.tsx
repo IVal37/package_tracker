@@ -37,6 +37,7 @@ vi.mock("./actions", () => ({
   sendTestPushAction: vi.fn(),
   retryEmailAction: vi.fn(),
   dismissEmailAction: vi.fn(),
+  deleteAccountAction: vi.fn(),
 }));
 
 import { DEFAULT_PREFS } from "@/lib/notifications/prefs";
@@ -177,13 +178,29 @@ describe("Settings page", () => {
   });
 });
 
+describe("Settings page: your data", () => {
+  it("links to the export and offers account deletion", async () => {
+    await renderPage();
+    expect(
+      screen.getByRole("link", { name: "Download my data" }),
+    ).toHaveAttribute("href", "/settings/export");
+    expect(
+      screen.getByRole("button", { name: "Delete my account" }),
+    ).toBeDisabled();
+  });
+});
+
 describe("Settings page: notifications", () => {
   it("shows the notifications section above email forwarding", async () => {
     await renderPage();
     const headings = screen
       .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent);
-    expect(headings).toEqual(["Notifications", "Email forwarding"]);
+    expect(headings).toEqual([
+      "Notifications",
+      "Email forwarding",
+      "Your data",
+    ]);
   });
 
   it("loads the preferences for the session user only", async () => {

@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   retryFailedEmail: vi.fn(),
   deleteFailedEmail: vi.fn(),
   requestEmailRetry: vi.fn(),
+  deleteAccount: vi.fn(),
+  signOut: vi.fn(),
+  provider: { marker: "provider" },
   revalidatePath: vi.fn(),
   db: { marker: "db" },
   sender: { marker: "push-sender" },
@@ -44,12 +47,24 @@ vi.mock("@/lib/email/failed", () => ({
 vi.mock("@/lib/db/inbound-emails", () => ({
   deleteFailedEmail: mocks.deleteFailedEmail,
 }));
+vi.mock("@/lib/privacy/delete-account", () => ({
+  deleteAccount: mocks.deleteAccount,
+}));
+vi.mock("@/lib/auth/supabase-server", () => ({
+  createSupabaseServerClient: async () => ({
+    auth: { signOut: mocks.signOut },
+  }),
+}));
+vi.mock("@/lib/tracking", () => ({
+  getTrackingProvider: () => mocks.provider,
+}));
 vi.mock("@/jobs/events", () => ({
   requestEmailRetry: mocks.requestEmailRetry,
 }));
 
 import { FIELD } from "@/lib/notifications/form";
 import {
+  deleteAccountAction,
   dismissEmailAction,
   regenerateAddressAction,
   retryEmailAction,
@@ -325,5 +340,64 @@ describe("retryEmailAction and dismissEmailAction", () => {
     ).rejects.toThrow();
     expect(mocks.retryFailedEmail).not.toHaveBeenCalled();
     expect(mocks.deleteFailedEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteAccountAction", () => {
+  const confirm = (word: string) => {
+    const data = new FormData();
+    data.set("confirm", word);
+    data.set("userId", "someone-else");
+    return data;
+  };
+
+  beforeEach(() => {
+    mocks.signOut.mockResolvedValue({ error: null });
+  });
+
+  it("deletes the session user's account and signs this browser out", async () => {
+    mocks.deleteAccount.mockResolvedValue({
+      status: "deleted",
+      signInRemoved: true,
+    });
+    expect(
+      await deleteAccountAction({ status: "idle" }, confirm(" DELETE ")),
+    ).toEqual({ status: "deleted", signInRemoved: true });
+    expect(mocks.deleteAccount).toHaveBeenCalledWith({
+      db: mocks.db,
+      provider: mocks.provider,
+      userId: "session-user",
+      now: expect.any(Date),
+    });
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it.each(["", "delete", "DELETE ME"])(
+    "deletes nothing without the exact confirmation (%j)",
+    async (word) => {
+      expect(
+        await deleteAccountAction({ status: "idle" }, confirm(word)),
+      ).toEqual({ status: "unconfirmed" });
+      expect(mocks.deleteAccount).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["rate_limited", "unavailable"] as const)(
+    "passes on %s and stays signed in",
+    async (status) => {
+      mocks.deleteAccount.mockResolvedValue({ status });
+      expect(
+        await deleteAccountAction({ status: "idle" }, confirm("DELETE")),
+      ).toEqual({ status });
+      expect(mocks.signOut).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does nothing for a signed-out caller", async () => {
+    mocks.requireUser.mockRejectedValue(SIGNED_OUT);
+    await expect(
+      deleteAccountAction({ status: "idle" }, confirm("DELETE")),
+    ).rejects.toThrow();
+    expect(mocks.deleteAccount).not.toHaveBeenCalled();
   });
 });

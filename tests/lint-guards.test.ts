@@ -338,3 +338,33 @@ describe("admin-stats import guard", () => {
     ).toHaveLength(1);
   });
 });
+
+const AUTH_ADMIN =
+  'import { getAuthAdmin } from "@/lib/auth/admin";\nexport const x = getAuthAdmin;\n';
+
+describe("auth/admin (secret key) import guard", () => {
+  it.each([
+    "src/app/settings/page.tsx",
+    "src/app/sign-in/actions.ts",
+    "src/lib/auth/session.ts",
+    "src/jobs/notifications.ts",
+    "src/lib/db/users.ts",
+    "src/lib/admin/index.ts",
+    "src/lib/monitoring/index.ts",
+    "src/lib/shipments/sync/handle-webhook.ts",
+    "src/lib/tracking/index.ts",
+  ])("rejects an import from %s", async (file) => {
+    const errors = await restrictedImportErrors(file, AUTH_ADMIN);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("secret key");
+  });
+
+  it("allows an import from src/lib/privacy", async () => {
+    expect(
+      await restrictedImportErrors(
+        "src/lib/privacy/delete-account.ts",
+        AUTH_ADMIN,
+      ),
+    ).toHaveLength(0);
+  });
+});

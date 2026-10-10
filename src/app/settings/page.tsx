@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { DeleteAccount } from "@/components/delete-account";
 import { FailedEmails } from "@/components/failed-emails";
 import { ForwardingInstructions } from "@/components/forwarding-instructions";
 import { InstallCard } from "@/components/install-card";
@@ -23,6 +24,7 @@ import { getEnv } from "@/lib/env";
 import { formatRelativeTime } from "@/lib/shipments/format";
 import { signOut } from "../sign-in/actions";
 import {
+  deleteAccountAction,
   dismissEmailAction,
   regenerateAddressAction,
   retryEmailAction,
@@ -165,6 +167,36 @@ export default async function SettingsPage() {
           retryAction={retryEmailAction}
           dismissAction={dismissEmailAction}
         />
+
+        <h2 className="text-lg font-semibold">Your data</h2>
+        <section
+          aria-labelledby="export-heading"
+          className="space-y-2 rounded-lg border border-slate-200 bg-white p-4"
+        >
+          <h3 id="export-heading" className="font-semibold">
+            Download my data
+          </h3>
+          <p className="text-sm text-slate-600">
+            One file with your account, packages, orders, forwarded emails we
+            still keep, alert settings and history.
+          </p>
+          <a
+            href="/settings/export"
+            download
+            className="inline-block rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+          >
+            Download my data
+          </a>
+        </section>
+        <section
+          aria-labelledby="delete-heading"
+          className="space-y-2 rounded-lg border border-red-200 bg-white p-4"
+        >
+          <h3 id="delete-heading" className="font-semibold">
+            Delete my account
+          </h3>
+          <DeleteAccount action={deleteAccountAction} />
+        </section>
       </main>
     </>
   );

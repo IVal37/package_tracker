@@ -282,6 +282,19 @@ export async function countActiveShipments(
   return row?.total ?? 0;
 }
 
+/** The provider trackers the user's shipments use with this provider, each once. */
+export async function listTrackerIds(
+  db: Db,
+  userId: string,
+  provider: string,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ trackerId: shipments.providerTrackerId })
+    .from(shipments)
+    .where(and(eq(shipments.userId, userId), eq(shipments.provider, provider)));
+  return rows.flatMap((row) => (row.trackerId ? [row.trackerId] : []));
+}
+
 /** Inserts the shipment and its checkpoints atomically; returns the new id. */
 export async function createShipmentWithCheckpoints(
   db: Db,

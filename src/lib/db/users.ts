@@ -16,6 +16,19 @@ export async function ensureUser(
     .onConflictDoUpdate({ target: users.id, set: { email: user.email } });
 }
 
+/**
+ * Deletes the user's row. Every table holding their data cascades from it
+ * (shipments, checkpoints, orders, emails, alerts, settings, devices).
+ * Returns whether there was one.
+ */
+export async function deleteUserRow(db: Db, userId: string): Promise<boolean> {
+  const deleted = await db
+    .delete(users)
+    .where(eq(users.id, userId))
+    .returning({ id: users.id });
+  return deleted.length > 0;
+}
+
 /** The email address the account was created with, or null if there is no such user. */
 export async function getUserEmail(
   db: Db,

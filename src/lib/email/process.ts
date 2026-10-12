@@ -189,11 +189,16 @@ export async function processInboundEmail(args: {
   }
 
   // Shipping or delivery email: the model's grounded numbers, plus strong
-  // carrier-format numbers it missed.
+  // carrier-format numbers it missed. A model number only has to appear
+  // somewhere in the email, markup included. Numbers added without the model
+  // are looked for only in what a reader sees (link targets are kept): in raw
+  // markup, "dhl" in an image name next to a phone number looks like a DHL
+  // tracking number.
   const source = `${email.subject}\n${email.text}\n${email.html}\n${readable}`;
+  const visible = `${email.subject}\n${email.text}\n${fromHtml}`;
   const grounded = groundTrackingNumbers(extraction.tracking_numbers, source);
   const numbers = grounded.accepted.map((entry) => entry.trackingNumber);
-  for (const candidate of findTrackingCandidates(source)) {
+  for (const candidate of findTrackingCandidates(visible)) {
     if (
       candidate.strong &&
       !numbers.includes(candidate.trackingNumber) &&

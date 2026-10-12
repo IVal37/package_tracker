@@ -476,6 +476,52 @@ describe("carrier-format numbers the model missed", () => {
     expect(result.created).toBe(0);
   });
 
+  it("are not taken from raw markup: a DHL logo near a phone number is not a tracker", async () => {
+    const user = await insertUser(ctx.db);
+    const emailId = await store(user.id, {
+      from: "Shop <o@shop.example>",
+      subject: "Your order has shipped",
+      text: "",
+      html: '<table><tr><td><img src="https://cdn.shop.example/dhl-logo.png" alt="DHL"></td></tr><tr><td>Your parcel is on its way. Questions? Call 4155550132</td></tr></table>',
+    });
+    const result = await run(
+      emailId,
+      answering({
+        email_type: "shipping_confirmation",
+        retailer: "Shop",
+        item: null,
+        order_number: null,
+        tracking_numbers: [],
+      }),
+    );
+    expect(result.created).toBe(0);
+    expect(await shipmentsOf(user.id)).toHaveLength(0);
+  });
+
+  it("are still found in a link target", async () => {
+    const user = await insertUser(ctx.db);
+    const emailId = await store(user.id, {
+      from: "Shop <o@shop.example>",
+      subject: "Your order has shipped",
+      text: "",
+      html: '<p>Your parcel is on its way.</p><a href="https://track.example/?n=TBA123412341234">Track it</a>',
+    });
+    const result = await run(
+      emailId,
+      answering({
+        email_type: "shipping_confirmation",
+        retailer: "Shop",
+        item: null,
+        order_number: null,
+        tracking_numbers: [],
+      }),
+    );
+    expect(result.created).toBe(1);
+    expect((await shipmentsOf(user.id))[0]?.trackingNumber).toBe(
+      "TBA123412341234",
+    );
+  });
+
   it("are ignored in an order confirmation, which has no tracking", async () => {
     const user = await insertUser(ctx.db);
     const emailId = await store(user.id, {

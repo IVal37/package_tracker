@@ -1,10 +1,17 @@
 // @vitest-environment node
 import { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 // Runs the real eslint.config.mjs against snippets "located" at a given path,
 // so the import restrictions are proven, not just configured.
 const eslint = new ESLint();
+
+// The first lint loads the whole config and every plugin, which under a full
+// parallel run can take longer than one test is allowed. Do it once here, with
+// room to spare, so each case below times only its own lint.
+beforeAll(async () => {
+  await eslint.lintText("export {};\n", { filePath: "src/app/page.tsx" });
+}, 180_000);
 
 async function restrictedImportErrors(filePath: string, source: string) {
   const [result] = await eslint.lintText(source, { filePath });

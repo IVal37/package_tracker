@@ -197,6 +197,57 @@ describe("createTracking", () => {
     warn.mockRestore();
   });
 
+  it("subscribes again an existing tracker that /track returns unsubscribed", async () => {
+    // /trackers/track is idempotent: a number Ship24 already tracks comes back
+    // as a normal success with that tracker, unsubscribed after a delete.
+    const unsubscribed = structuredClone(trackInTransit);
+    unsubscribed.data.trackings[0]!.tracker.isSubscribed = false;
+    let patched: { id: unknown; body: unknown } | null = null;
+    server.use(
+      http.post(`${BASE}/trackers/track`, () =>
+        HttpResponse.json(unsubscribed),
+      ),
+      http.patch(`${BASE}/trackers/:trackerId`, async ({ request, params }) => {
+        patched = { id: params.trackerId, body: await request.json() };
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    const shipment = await provider.createTracking({
+      trackingNumber: VALID_NUMBER,
+    });
+
+    expect(shipment.providerTrackerId).toBe(KNOWN_TRACKER_ID);
+    expect(patched).toEqual({
+      id: KNOWN_TRACKER_ID,
+      body: { isSubscribed: true },
+    });
+  });
+
+  it("returns the tracker even when subscribing it again after /track fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unsubscribed = structuredClone(trackInTransit);
+    unsubscribed.data.trackings[0]!.tracker.isSubscribed = false;
+    server.use(
+      http.post(`${BASE}/trackers/track`, () =>
+        HttpResponse.json(unsubscribed),
+      ),
+      http.patch(`${BASE}/trackers/:trackerId`, () =>
+        HttpResponse.json({}, { status: 503 }),
+      ),
+    );
+
+    const shipment = await provider.createTracking({
+      trackingNumber: VALID_NUMBER,
+    });
+
+    expect(shipment.providerTrackerId).toBe(KNOWN_TRACKER_ID);
+    expect(warn).toHaveBeenCalledWith(
+      "[ship24] could not resubscribe a tracker: ProviderUnavailableError",
+    );
+    warn.mockRestore();
+  });
+
   it("does not touch the subscription of a tracker it just created", async () => {
     let patches = 0;
     server.use(

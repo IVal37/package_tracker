@@ -95,6 +95,13 @@ export class Ship24Provider implements TrackingProvider {
         },
         schema: ship24TrackingsResponseSchema,
       });
+      // /trackers/track is idempotent: for a number Ship24 already tracks it
+      // answers with that tracker, which may have been unsubscribed when its
+      // last follower deleted it. With a new follower it needs webhooks again.
+      const [found] = response.data.trackings;
+      if (found?.tracker.isSubscribed === false) {
+        await this.resubscribe(found.tracker.trackerId);
+      }
       return firstTracking(response.data.trackings, "this tracking number");
     } catch (error) {
       if (!(error instanceof TrackerConflictError)) throw error;

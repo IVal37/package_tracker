@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ShipmentListItem } from "@/lib/db/shipments";
-import { formatEta, formatRelativeTime } from "@/lib/shipments/format";
+import { formatRelativeTime, formatShipmentEta } from "@/lib/shipments/format";
 import type { ShipmentGroup } from "@/lib/shipments/grouping";
 import { StatusChip } from "./status-chip";
 
@@ -93,7 +93,7 @@ function renderGroup(group: ShipmentGroup<ShipmentListItem>, now: Date) {
                 </span>
               )}
               <span className="text-sm text-slate-600">
-                {formatEta(shipment.eta, now)}
+                {formatShipmentEta(shipment, now)}
               </span>
               {shipment.lastCheckpoint && (
                 <span className="text-sm text-slate-500">

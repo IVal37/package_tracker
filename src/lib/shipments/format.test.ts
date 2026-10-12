@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEta, formatRelativeTime } from "./format";
+import { formatEta, formatRelativeTime, formatShipmentEta } from "./format";
 
 const d = (iso: string) => new Date(iso);
 
@@ -32,6 +32,45 @@ describe("formatEta", () => {
     const before = d("2026-03-07T20:00:00Z");
     const after = d("2026-03-08T20:00:00Z");
     expect(formatEta(after, before, "America/New_York")).toBe("Tomorrow");
+  });
+});
+
+describe("formatShipmentEta", () => {
+  const now = d("2026-06-10T12:00:00Z");
+  const past = d("2026-06-05T12:00:00Z");
+  const soon = d("2026-06-11T08:00:00Z");
+
+  it.each(["Delivered", "AvailableForPickup", "Expired"] as const)(
+    "shows the plain date for %s, never Overdue or Tomorrow",
+    (status) => {
+      expect(formatShipmentEta({ eta: past, status }, now)).toBe("Jun 5");
+      expect(formatShipmentEta({ eta: soon, status }, now)).toBe("Jun 11");
+    },
+  );
+
+  it.each(["InTransit", "OutForDelivery", "Exception", "Pending"] as const)(
+    "keeps the relative wording for %s",
+    (status) => {
+      expect(formatShipmentEta({ eta: past, status }, now)).toBe("Overdue");
+      expect(formatShipmentEta({ eta: soon, status }, now)).toBe("Tomorrow");
+    },
+  );
+
+  it("says No ETA when there is none, whatever the status", () => {
+    expect(formatShipmentEta({ eta: null, status: "Delivered" }, now)).toBe(
+      "No ETA",
+    );
+  });
+
+  it("uses the given time zone for the date", () => {
+    const lateNight = d("2026-06-11T03:00:00Z");
+    expect(
+      formatShipmentEta(
+        { eta: lateNight, status: "Delivered" },
+        now,
+        "America/New_York",
+      ),
+    ).toBe("Jun 10");
   });
 });
 

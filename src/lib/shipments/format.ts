@@ -1,3 +1,5 @@
+import type { Status } from "@/lib/tracking/status";
+
 const DAY_MS = 86_400_000;
 
 /** Midnight at the start of the date's calendar day in the given time zone, as a UTC day number. */
@@ -34,11 +36,38 @@ export function formatEta(
       weekday: "long",
     }).format(eta);
   }
+  return shortDate(eta, timeZone);
+}
+
+function shortDate(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone,
     month: "short",
     day: "numeric",
-  }).format(eta);
+  }).format(date);
+}
+
+/** Statuses where the ETA is history rather than a promise. */
+const ETA_SETTLED: readonly Status[] = [
+  "Delivered",
+  "AvailableForPickup",
+  "Expired",
+];
+
+/**
+ * The ETA line for a shipment. Once it is delivered, waiting at a pickup point
+ * or expired, the estimate is shown as the plain date it was: never "Overdue",
+ * and never "Tomorrow" for a parcel that already arrived.
+ */
+export function formatShipmentEta(
+  shipment: { eta: Date | null; status: Status },
+  now: Date,
+  timeZone = "UTC",
+): string {
+  if (shipment.eta && ETA_SETTLED.includes(shipment.status)) {
+    return shortDate(shipment.eta, timeZone);
+  }
+  return formatEta(shipment.eta, now, timeZone);
 }
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [

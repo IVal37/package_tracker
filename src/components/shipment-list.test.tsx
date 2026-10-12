@@ -93,6 +93,17 @@ describe("ShipmentList", () => {
     expect(row.querySelector('[data-status="OutForDelivery"]')).not.toBeNull();
   });
 
+  it("shows a delivered package's past ETA as a date, not 'Overdue'", () => {
+    renderList([
+      shipment("a", "Delivered", { eta: new Date("2026-06-05T12:00:00Z") }),
+      shipment("b", "InTransit", { eta: new Date("2026-06-05T12:00:00Z") }),
+    ]);
+    const [late, delivered] = screen.getAllByRole("link");
+    expect(within(delivered!).getByText("Jun 5")).toBeInTheDocument();
+    expect(within(delivered!).queryByText("Overdue")).not.toBeInTheDocument();
+    expect(within(late!).getByText("Overdue")).toBeInTheDocument();
+  });
+
   it("shows 'No ETA' and omits the checkpoint line when there is none", () => {
     renderList([shipment("a", "Pending")]);
     expect(screen.getByText("No ETA")).toBeInTheDocument();

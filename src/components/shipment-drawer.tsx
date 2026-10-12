@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { CheckpointRow, ShipmentRow } from "@/lib/db/shipments";
-import { formatEta } from "@/lib/shipments/format";
+import { formatShipmentEta } from "@/lib/shipments/format";
 import type { Mode } from "@/lib/tracking";
 import { ModeIcon, MODE_LABELS } from "./mode-icons";
 import { Modal } from "./modal";
@@ -69,7 +69,7 @@ export function ShipmentDrawer({
           <StatusChip status={shipment.status} />
         </dd>
         <dt className="text-slate-500">Estimated delivery</dt>
-        <dd>{formatEta(shipment.eta, now)}</dd>
+        <dd>{formatShipmentEta(shipment, now)}</dd>
         {mode && (
           <>
             <dt className="text-slate-500">Moving by</dt>

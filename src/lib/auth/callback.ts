@@ -22,6 +22,13 @@ export async function completeSignIn(params: {
   const user = data?.user;
   if (error || !user?.email) return false;
 
-  await ensureUser(db, { id: user.id, email: user.email });
+  try {
+    await ensureUser(db, { id: user.id, email: user.email });
+  } catch (failure) {
+    // The exchange already set the session cookies. A session without its
+    // user row would later look like a deleted account, so undo it first.
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    throw failure;
+  }
   return true;
 }

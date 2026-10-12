@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requestEmailRetry } from "@/jobs/events";
+import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { getDb } from "@/lib/db/client";
@@ -12,7 +13,6 @@ import {
   removePushSubscription,
   savePushSubscription,
 } from "@/lib/db/push-subscriptions";
-import { ensureUser } from "@/lib/db/users";
 import { retryFailedEmail } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
 import { DELETE_CONFIRMATION } from "@/lib/privacy/confirm";
@@ -47,8 +47,8 @@ export async function saveNotificationSettingsAction(
   if (!parsed.ok) return { status: "error", message: parsed.message };
 
   const db = getDb();
-  // The settings row references the user row, which may not exist yet.
-  await ensureUser(db, user);
+  // The settings row references the user row (gone if the account was deleted).
+  await requireLiveAccount(db, user);
   await saveNotificationPrefs(db, user.id, parsed.prefs);
   revalidatePath("/settings");
   return { status: "saved" };
@@ -63,7 +63,7 @@ export async function savePushSubscriptionAction(
   if (!parsed.success) return { ok: false };
 
   const db = getDb();
-  await ensureUser(db, user);
+  await requireLiveAccount(db, user);
   await savePushSubscription(db, user.id, {
     endpoint: parsed.data.endpoint,
     p256dh: parsed.data.keys.p256dh,

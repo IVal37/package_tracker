@@ -61,6 +61,27 @@ describe("completeSignIn", () => {
     ).resolves.toBe(false);
   });
 
+  it("signs the new session out again when the user row cannot be created", async () => {
+    const signOut = vi.fn().mockResolvedValue({ error: null });
+    const exchangeCodeForSession = vi.fn().mockResolvedValue({
+      data: { user: { id: ID, email: "new@example.test" } },
+      error: null,
+    });
+    const client = {
+      auth: { exchangeCodeForSession, signOut },
+    } as unknown as Pick<SupabaseClient, "auth">;
+    const broken = {
+      insert: () => {
+        throw new Error("database down");
+      },
+    } as unknown as typeof ctx.db;
+
+    await expect(
+      completeSignIn({ supabase: client, db: broken, code: "good-code" }),
+    ).rejects.toThrow("database down");
+    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
   it("creates the user row and returns true on success", async () => {
     const { client, exchangeCodeForSession } = clientReturning({
       data: { user: { id: ID, email: "new@example.test" } },

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
-  ensureUser: vi.fn(),
+  requireLiveAccount: vi.fn(),
   addShipment: vi.fn(),
   removeShipment: vi.fn(),
   dismissOrder: vi.fn(),
@@ -27,7 +27,9 @@ vi.mock("@/lib/ratelimit", () => ({
 }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/orders", () => ({ dismissOrder: mocks.dismissOrder }));
-vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
+vi.mock("@/lib/auth/account", () => ({
+  requireLiveAccount: mocks.requireLiveAccount,
+}));
 vi.mock("@/lib/env", () => ({ getEnv: () => ({ ACTIVE_PACKAGE_CAP: 7 }) }));
 vi.mock("@/lib/shipments/add-shipment", () => ({
   addShipment: mocks.addShipment,
@@ -74,7 +76,7 @@ describe("addPackageAction", () => {
       ),
     ).rejects.toThrow("NEXT_REDIRECT /sign-in");
     expect(mocks.addShipment).not.toHaveBeenCalled();
-    expect(mocks.ensureUser).not.toHaveBeenCalled();
+    expect(mocks.requireLiveAccount).not.toHaveBeenCalled();
   });
 
   it("refuses when the add limit is reached, before any provider call", async () => {
@@ -103,6 +105,19 @@ describe("addPackageAction", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("sends a deleted account's session to be signed out and adds nothing", async () => {
+    mocks.requireLiveAccount.mockRejectedValueOnce(
+      new Error("NEXT_REDIRECT /auth/ended"),
+    );
+    await expect(
+      addPackageAction(
+        { status: "idle" },
+        form({ trackingNumber: "ABC12345" }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT /auth/ended");
+    expect(mocks.addShipment).not.toHaveBeenCalled();
+  });
+
   it("uses the session user id, never one supplied in the form", async () => {
     mocks.addShipment.mockResolvedValue({ ok: true, shipmentId: "s1" });
 
@@ -123,7 +138,7 @@ describe("addPackageAction", () => {
       input: { trackingNumber: "ABC12345", nickname: "Boots" },
       activeCap: 7,
     });
-    expect(mocks.ensureUser).toHaveBeenCalledWith(mocks.db, USER);
+    expect(mocks.requireLiveAccount).toHaveBeenCalledWith(mocks.db, USER);
   });
 
   it("revalidates the list and returns success when added", async () => {

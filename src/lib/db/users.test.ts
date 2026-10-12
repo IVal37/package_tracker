@@ -2,7 +2,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb } from "../../../tests/db/pglite";
-import { ensureUser } from "./users";
+import { ensureUser, refreshUserEmail } from "./users";
 import { users } from "./schema";
 
 let ctx: Awaited<ReturnType<typeof createTestDb>>;
@@ -34,5 +34,25 @@ describe("ensureUser", () => {
     const rows = await rowsFor(ID);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.email).toBe("renamed@example.test");
+  });
+});
+
+describe("refreshUserEmail", () => {
+  const OTHER = "33333333-3333-4333-8333-333333333333";
+
+  it("refreshes the email of an existing row and says it exists", async () => {
+    await ensureUser(ctx.db, { id: ID, email: "a@example.test" });
+    await expect(
+      refreshUserEmail(ctx.db, { id: ID, email: "fresh@example.test" }),
+    ).resolves.toBe(true);
+    const rows = await rowsFor(ID);
+    expect(rows.map((r) => r.email)).toEqual(["fresh@example.test"]);
+  });
+
+  it("never creates a row for an account that has none (a deleted one)", async () => {
+    await expect(
+      refreshUserEmail(ctx.db, { id: OTHER, email: "gone@example.test" }),
+    ).resolves.toBe(false);
+    expect(await rowsFor(OTHER)).toHaveLength(0);
   });
 });

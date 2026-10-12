@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
-  ensureUser: vi.fn(),
+  requireLiveAccount: vi.fn(),
   getOrCreateAlias: vi.fn(),
   latestGmailConfirmation: vi.fn(),
   countFailedEmails: vi.fn(),
@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
-vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
+vi.mock("@/lib/auth/account", () => ({
+  requireLiveAccount: mocks.requireLiveAccount,
+}));
 vi.mock("@/lib/db/notification-settings", () => ({
   getNotificationPrefs: mocks.getNotificationPrefs,
 }));
@@ -72,7 +74,7 @@ describe("Settings page", () => {
   it("shows the session user's own address, asking for it once", async () => {
     await renderPage();
 
-    expect(mocks.ensureUser).toHaveBeenCalledWith(mocks.db, USER);
+    expect(mocks.requireLiveAccount).toHaveBeenCalledWith(mocks.db, USER);
     expect(mocks.getOrCreateAlias).toHaveBeenCalledExactlyOnceWith(
       mocks.db,
       "session-user",

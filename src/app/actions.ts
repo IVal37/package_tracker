@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requestGeocoding } from "@/jobs/events";
+import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { dismissOrder } from "@/lib/db/orders";
-import { ensureUser } from "@/lib/db/users";
 import { getEnv } from "@/lib/env";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import { removeShipment } from "@/lib/shipments/delete-shipment";
@@ -37,8 +37,9 @@ export async function addPackageAction(
     logLimited("add-package");
     return rateLimitedState(values);
   }
-  // Cheap upsert so a valid session always has the row shipments reference.
-  await ensureUser(db, user);
+  // Shipments reference the user row; a session whose row is gone belongs to
+  // a deleted account and is signed out instead.
+  await requireLiveAccount(db, user);
 
   const result = await addShipment({
     db,

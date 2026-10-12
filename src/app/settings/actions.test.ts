@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
-  ensureUser: vi.fn(),
+  requireLiveAccount: vi.fn(),
   rotateAlias: vi.fn(),
   saveNotificationPrefs: vi.fn(),
   savePushSubscription: vi.fn(),
@@ -23,7 +23,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/forwarding", () => ({ rotateAlias: mocks.rotateAlias }));
-vi.mock("@/lib/db/users", () => ({ ensureUser: mocks.ensureUser }));
+vi.mock("@/lib/auth/account", () => ({
+  requireLiveAccount: mocks.requireLiveAccount,
+}));
 vi.mock("@/lib/db/notification-settings", () => ({
   saveNotificationPrefs: mocks.saveNotificationPrefs,
 }));
@@ -134,7 +136,7 @@ describe("saveNotificationSettingsAction", () => {
     );
 
     expect(state).toEqual({ status: "saved" });
-    expect(mocks.ensureUser).toHaveBeenCalledWith(mocks.db, USER);
+    expect(mocks.requireLiveAccount).toHaveBeenCalledWith(mocks.db, USER);
     expect(mocks.saveNotificationPrefs).toHaveBeenCalledExactlyOnceWith(
       mocks.db,
       "session-user",
@@ -194,7 +196,7 @@ describe("savePushSubscriptionAction", () => {
     });
 
     expect(result).toEqual({ ok: true });
-    expect(mocks.ensureUser).toHaveBeenCalledWith(mocks.db, USER);
+    expect(mocks.requireLiveAccount).toHaveBeenCalledWith(mocks.db, USER);
     expect(mocks.savePushSubscription).toHaveBeenCalledExactlyOnceWith(
       mocks.db,
       "session-user",
@@ -219,7 +221,7 @@ describe("savePushSubscriptionAction", () => {
   ])("refuses %s without storing anything", async (_name, input) => {
     expect(await savePushSubscriptionAction(input)).toEqual({ ok: false });
     expect(mocks.savePushSubscription).not.toHaveBeenCalled();
-    expect(mocks.ensureUser).not.toHaveBeenCalled();
+    expect(mocks.requireLiveAccount).not.toHaveBeenCalled();
   });
 });
 

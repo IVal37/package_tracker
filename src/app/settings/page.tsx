@@ -9,6 +9,7 @@ import { NotificationSettingsForm } from "@/components/notification-settings-for
 import { PushDeviceManager } from "@/components/push-device-manager";
 import { RegenerateAddress } from "@/components/regenerate-address";
 import { SiteHeader } from "@/components/site-header";
+import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { getOrCreateAlias } from "@/lib/db/forwarding";
@@ -18,7 +19,6 @@ import {
   listFailedEmails,
 } from "@/lib/db/inbound-emails";
 import { getNotificationPrefs } from "@/lib/db/notification-settings";
-import { ensureUser } from "@/lib/db/users";
 import { formatAddress } from "@/lib/email/alias";
 import { failureReason } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
@@ -43,8 +43,9 @@ export default async function SettingsPage() {
   const db = getDb();
   const now = new Date();
 
-  // The alias hangs off the user row, so make sure there is one.
-  await ensureUser(db, user);
+  // The alias hangs off the user row. If the account was deleted on another
+  // device, this session is signed out rather than given a new row.
+  await requireLiveAccount(db, user);
   const alias = await getOrCreateAlias(db, user.id);
   const address = alias
     ? formatAddress(alias, getEnv().INBOUND_EMAIL_DOMAIN)

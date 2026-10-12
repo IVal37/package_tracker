@@ -68,7 +68,8 @@ export default async function AdminPage() {
         </p>
         <p className="text-xs text-slate-500">
           A tracker shared by several users counts once. Counted from the
-          packages still stored, so deleted ones are missing.
+          packages still stored, so deleted ones are missing: Ship24&apos;s own
+          dashboard is the source of truth for billing.
         </p>
         <table className="w-full text-sm">
           <caption className="sr-only">Trackers first used per day</caption>

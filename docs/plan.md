@@ -139,6 +139,7 @@ Every Test gate means: Vitest unit tests for each new module, external services 
 - **AfterShip upgrade:** `AfterShipProvider` passing the same contract tests, selectable per user tier.
 - **Native apps:** Capacitor or React Native wrappers.
 - **Gmail/Outlook inbox sync:** only once revenue covers Google's restricted-scope security assessment.
+- **Post-launch polish** (accepted for launch in the final sweep; each is in `docs/unresolved-issues.md` under "Accepted for launch"): live refresh of the list when a webhook arrives; a nonce-based CSP without `'unsafe-inline'`; Sentry source maps; biasing geocoding by the destination country and labelling country-only pins; updating the map without a full rebuild; one-click email unsubscribe; checking webhook secrets before reading the body.
 
 ## 6. Risks to keep in mind while building
 

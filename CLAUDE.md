@@ -53,13 +53,13 @@ src/
   app/                 pages and layouts; app/actions.ts holds thin Server Actions (add / delete package, dismiss order)
   app/manifest.ts, app/icons/[file]/  web app manifest and the PNG icons drawn in code (lib/pwa/icons.tsx)
   public/sw.js         the service worker: push, the saved package list, hashed static files. Plain JS, tested in a Node sandbox by tests/service-worker.test.ts
-  app/sign-in/         sign-in page and actions;  app/auth/callback/ completes magic-link and Google sign-in
+  app/sign-in/         sign-in page and actions;  app/auth/callback/ completes magic-link and Google sign-in;  app/auth/ended/ signs out a session whose account was deleted
   instrumentation.ts   starts Sentry (Node runtime) and reports request errors without headers;  app/global-error.tsx + app/error-actions.ts report browser-only errors by class name
   app/admin/           tracker usage and job health, only for ADMIN_EMAILS (404 for everyone else)
   app/privacy/, app/terms/, app/account-deleted/  public pages;  app/settings/export/ "Download my data" (JSON)
   app/api/             route handlers and webhooks (keep thin)
   components/          UI components (Tailwind)
-  lib/auth/            Supabase server client, getCurrentUser()/requireUser(), sign-in and callback logic
+  lib/auth/            Supabase server client, getCurrentUser()/requireUser(), requireLiveAccount() (account.ts), sign-in and callback logic
   lib/auth/admin.ts    the ONLY user of SUPABASE_SECRET_KEY (deletes a sign-in account); import-restricted to src/lib/privacy
   lib/privacy/         export (buildUserExport), delete-account (trackers, then data, then sign-in), confirm word
   lib/ratelimit/       hit/hitAll, limits table (LIMITS), circuit breakers (BREAKERS), clientIp, tooManyRequests, cleanup
@@ -149,6 +149,7 @@ docs/
 - Never read, print or commit `.env` files. Secrets come from environment variables, are read server-side only, and are never sent to the browser.
 - Every query or mutation on user data checks that the signed-in user owns it (or relies on row-level security).
 - Every function in `src/lib/db/shipments.ts` takes `userId` and filters by it; do not add an unscoped shipments query. Another user's shipment must look exactly like a missing one. Take `userId` only from `requireUser()` (the verified session), never from form data, query strings or request bodies.
+- The user row is created only when a sign-in completes (`ensureUser` in the callback, which signs the session out again if it fails). Anything else that writes for the user calls `requireLiveAccount` first, which never creates the row: after "Delete my account" another device's token stays valid for up to an hour, and a session whose row is gone is signed out at `/auth/ended` rather than given a new row (which would bring the deleted email back).
 - Authorize on the server with `getClaims()`, never `getSession()`. The app connects to Postgres as the table owner (RLS does not apply), so the query-layer checks are the real guard; RLS is enabled with no policies on every table to deny Supabase's Data API.
 - Any page that reads the session must stay dynamic (`createSupabaseServerClient` reads cookies first), so builds never need env values.
 - Webhook handlers: authenticate exactly as the provider documents, read the raw body, make processing idempotent, return 2xx quickly and hand heavy work to a background job. A small, indexed update (the Phase 3 tracking webhook) may apply inline; a database failure returns 500 so the provider retries. Never log the body, headers or secret.
@@ -187,3 +188,13 @@ docs/
 - AfterShip integration.
 - Native iOS / Android apps.
 - Gmail or Outlook OAuth inbox sync.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

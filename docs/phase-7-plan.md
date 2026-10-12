@@ -21,6 +21,7 @@ Approving this plan approves these two and nothing else (details under "Dependen
 - **Approve changing a security rule:** `docs/supabase-setup.md` says never to use Supabase's secret key. Account deletion needs it, in one import-restricted module (decision below).
 - **Review the privacy policy and terms draft** before launch. I write it; it is not legal advice.
 - **Do the production setup** in step 15 (Vercel, Supabase, Ship24, Inngest, Cloudflare, Resend, Sentry, a domain), and **start the final Fable sweep** by switching the model. I cannot do these from here.
+  - Final sweep: done 2026-10-12. Its findings and fixes are in `docs/launch-audit.md` ("Final sweep"); what is left is the production setup in `docs/launch-checklist.md`.
 
 ## Decisions
 

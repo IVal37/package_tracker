@@ -9,6 +9,13 @@ Before you start, decide two things:
 
 Keep a private note of every secret as you create it. Never paste one into an issue, a chat or the repo.
 
+## 0. Push the code and see CI pass
+
+The final-sweep commits are on your local `main` only.
+
+1. `git push origin main`.
+2. On GitHub, Actions: both jobs (`check` and `e2e`) pass on that commit. Deploy only a commit that is green.
+
 ## 1. Supabase (database and sign-in)
 
 1. Create the production project (`docs/supabase-setup.md`, step 1). Region close to where Vercel will run.
@@ -131,10 +138,19 @@ Do every one; fix and redeploy until they pass. Then tag.
 - [ ] **Sentry**: in Inngest, invoke `send-notification` with data `{}`. A "wayfind: job_out_of_retries" warning appears in Sentry with only `job` and `error`: no email, tracking number or request data.
 - [ ] **Admin**: `/admin` works for you and is a 404 signed out and for another account.
 - [ ] **Export and delete**: with a second test account, Download my data (a JSON file with that account's data only), then Delete my account: you land on "Your account is deleted", the user is gone from Supabase Authentication, and its rows are gone from every table.
+- [ ] **Deleted account on another device**: before deleting that test account, also sign it in on a second browser. After the delete, open Settings there: it lands on "Your account is deleted" and is signed out, and the `users` table still has no row for that account.
 - [ ] **Legal**: `/privacy` and `/terms` load signed out, show `SUPPORT_EMAIL`, and you have reviewed the wording (it is a draft, not legal advice).
 - [ ] **Unit and launch tests** are green in CI on the commit you deployed.
 
-Then tag: `git tag mvp-launch && git push origin mvp-launch`, and set CLAUDE.md's current phase to "launched".
+Then tag the deployed commit and push the tags:
+
+```
+git tag phase-7-done
+git tag mvp-launch
+git push origin phase-7-done mvp-launch
+```
+
+Set CLAUDE.md's current phase to "launched" and tick M13 and M14 in `docs/launch-audit.md`.
 
 ## Rolling back
 

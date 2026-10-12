@@ -27,8 +27,12 @@ export const processEmailJob = inngest.createFunction(
   {
     id: "process-inbound-email",
     triggers: { event: EMAIL_RECEIVED },
-    // An email is only ever worked on by one run at a time.
-    concurrency: { limit: 1, key: "event.data.emailId" },
+    // One run per email at a time, and a second event for an email whose run
+    // is still alive (even waiting between retries) is dropped, not queued:
+    // the hourly sweep re-sends every email still pending, and a queued
+    // second run would ask the model again. A failed email retried from
+    // Settings has no live run, so its new event runs.
+    singleton: { key: "event.data.emailId", mode: "skip" },
     retries: 3,
     onFailure: reportJobFailure("process-inbound-email", "emailId"),
   },

@@ -42,14 +42,17 @@ const event = (data: unknown) => ({
 const geocodeStep = { id: "request-geocoding", handler: () => ({ ids: [] }) };
 
 describe("process-inbound-email", () => {
-  it("is triggered by the email.received event, one run per email, with retries", () => {
+  it("is triggered by the email.received event, one live run per email, with retries", () => {
     expect(processEmailJob.opts.triggers).toEqual([
       { event: "wayfind/email.received" },
     ]);
-    expect(processEmailJob.opts.concurrency).toEqual({
-      limit: 1,
+    // A second event for an email whose run is alive (even waiting to retry)
+    // is dropped, so the hourly sweep cannot make the model read it twice.
+    expect(processEmailJob.opts.singleton).toEqual({
       key: "event.data.emailId",
+      mode: "skip",
     });
+    expect(processEmailJob.opts.concurrency).toBeUndefined();
     expect(processEmailJob.opts.retries).toBe(3);
   });
 

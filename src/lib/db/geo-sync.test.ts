@@ -125,6 +125,48 @@ describe("findPendingPlaces", () => {
     expect(await findPendingPlaces(ctx.db, 3)).toHaveLength(3);
   });
 
+  it("takes the newest places first, so old failing keys cannot crowd out new ones", async () => {
+    const s = await addShipment();
+    const seen = async (locationText: string, iso: string) =>
+      ctx.db.insert(checkpoints).values({
+        shipmentId: s.id,
+        providerEventId: `evt-${++seq}`,
+        occurredAt: new Date("2026-06-01T00:00:00Z"),
+        status: "InTransit",
+        locationText,
+        createdAt: new Date(iso),
+      });
+    await seen("OLD ONE", "2026-01-01T00:00:00Z");
+    await seen("OLD TWO", "2026-01-02T00:00:00Z");
+    await seen("NEW ONE", "2026-06-01T00:00:00Z");
+    await seen("NEW TWO", "2026-06-02T00:00:00Z");
+    // Seen again recently: counts by its latest sighting.
+    await seen("old one", "2026-06-03T00:00:00Z");
+
+    const pending = await findPendingPlaces(ctx.db, 3);
+
+    expect(pending.map((p) => p.key)).toEqual([
+      "old one",
+      "new two",
+      "new one",
+    ]);
+  });
+
+  it("orders destinations by their shipment's latest update", async () => {
+    await addShipment({
+      destinationText: "STALE TOWN",
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    });
+    await addShipment({
+      destinationText: "FRESH TOWN",
+      updatedAt: new Date("2026-06-01T00:00:00Z"),
+    });
+
+    const pending = await findPendingPlaces(ctx.db, 1);
+
+    expect(pending.map((p) => p.key)).toEqual(["fresh town"]);
+  });
+
   it("never exposes anything but key and text", async () => {
     const s = await addShipment({
       nickname: "secret nickname",

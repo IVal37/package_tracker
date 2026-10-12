@@ -3,7 +3,7 @@
 // tracker-sync.ts, they take no userId and ESLint only lets src/lib/geo and
 // src/jobs import this module. They return location text and counts only;
 // never shipment ids, tracking numbers, nicknames or anything about a user.
-import { and, eq, isNotNull, isNull, min } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, max, min } from "drizzle-orm";
 import type { Db } from "./client";
 import { checkpoints, places, shipments } from "./schema";
 
@@ -18,6 +18,11 @@ export interface PendingPlace {
  * Distinct place keys, from live shipments' checkpoints and destinations, that
  * have no `places` row yet (a remembered miss counts as a row). Checkpoint
  * places come first because they place the icon; at most `limit` in total.
+ *
+ * Newest first within each kind: a place whose geocode failed for good is not
+ * cached (so it heals if the failure was the service's), and it is asked
+ * about again once a day. Sorting by when the place was last seen keeps such
+ * old keys behind new places, so they can never crowd a sweep.
  */
 export async function findPendingPlaces(
   db: Db,
@@ -36,6 +41,7 @@ export async function findPendingPlaces(
     .leftJoin(places, eq(places.queryKey, checkpoints.locationKey))
     .where(and(live, isNotNull(checkpoints.locationKey), uncached))
     .groupBy(checkpoints.locationKey)
+    .orderBy(desc(max(checkpoints.createdAt)), checkpoints.locationKey)
     .limit(limit);
 
   const fromDestinations = await db
@@ -47,6 +53,9 @@ export async function findPendingPlaces(
     .leftJoin(places, eq(places.queryKey, shipments.destinationKey))
     .where(and(live, isNotNull(shipments.destinationKey), uncached))
     .groupBy(shipments.destinationKey)
+    // updated_at moves on every provider update, so a destination that just
+    // changed counts as new.
+    .orderBy(desc(max(shipments.updatedAt)), shipments.destinationKey)
     .limit(limit);
 
   const seen = new Set<string>();

@@ -426,3 +426,73 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation(error)).toBe(expected);
   });
 });
+
+describe("createShipmentWithCheckpoints replacing an archived shipment", () => {
+  it("deletes only the user's own archived row with that id", async () => {
+    const a = await insertUser(ctx.db);
+    const b = await insertUser(ctx.db);
+    const live = await createShipmentWithCheckpoints(
+      ctx.db,
+      a.id,
+      shipmentData("REPLACE-LIVE-1"),
+      [],
+    );
+    const othersArchived = await createShipmentWithCheckpoints(
+      ctx.db,
+      b.id,
+      shipmentData("REPLACE-OTHER-1"),
+      [],
+    );
+    await ctx.db
+      .update(shipments)
+      .set({ archivedAt: new Date() })
+      .where(eq(shipments.id, othersArchived));
+
+    // Neither a live row nor someone else's archived row is ever removed.
+    await createShipmentWithCheckpoints(
+      ctx.db,
+      a.id,
+      shipmentData("REPLACE-NEW-1"),
+      [],
+      { replacesArchivedId: live },
+    );
+    await createShipmentWithCheckpoints(
+      ctx.db,
+      a.id,
+      shipmentData("REPLACE-NEW-2"),
+      [],
+      { replacesArchivedId: othersArchived },
+    );
+
+    expect(await getShipment(ctx.db, a.id, live)).not.toBeNull();
+    expect(await getShipment(ctx.db, b.id, othersArchived)).not.toBeNull();
+  });
+
+  it("removes the archived row and its checkpoints in the same transaction", async () => {
+    const user = await insertUser(ctx.db);
+    const old = await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      shipmentData("REPLACE-ME-1"),
+      [event("old-1", 1)],
+    );
+    await ctx.db
+      .update(shipments)
+      .set({ archivedAt: new Date() })
+      .where(eq(shipments.id, old));
+
+    const fresh = await createShipmentWithCheckpoints(
+      ctx.db,
+      user.id,
+      shipmentData("REPLACE-ME-1"),
+      [event("new-1", 2)],
+      { replacesArchivedId: old },
+    );
+
+    expect(await getShipment(ctx.db, user.id, old)).toBeNull();
+    const detail = await getShipmentDetail(ctx.db, user.id, fresh);
+    expect(detail?.checkpoints.map((c) => c.providerEventId)).toEqual([
+      "new-1",
+    ]);
+  });
+});

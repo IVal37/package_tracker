@@ -34,6 +34,10 @@ export const DEFAULT_ACTIVE_PACKAGE_CAP = 25;
  * checkpoints. The provider is never called for invalid input, a duplicate or
  * a user at the cap, which saves tracking quota.
  *
+ * A number the user tracked before that is now archived (delivered or expired
+ * and out of sight) is not a duplicate: the new package replaces the archived
+ * one, so a reused or re-added number shows up again.
+ *
  * The count and the insert are not atomic, so parallel adds can overshoot the
  * cap by a few; the per-minute add limit bounds that.
  */
@@ -58,7 +62,12 @@ export async function addShipment(params: {
   }
   const { trackingNumber, nickname } = parsed.data;
 
-  if (await findShipmentByTrackingNumber(db, userId, trackingNumber)) {
+  const existing = await findShipmentByTrackingNumber(
+    db,
+    userId,
+    trackingNumber,
+  );
+  if (existing && !existing.archivedAt) {
     return { ok: false, error: "duplicate" };
   }
   if ((await countActiveShipments(db, userId)) >= activeCap) {
@@ -97,6 +106,7 @@ export async function addShipment(params: {
         destinationText: tracked.destination,
       },
       tracked.events,
+      { replacesArchivedId: existing?.id },
     );
     return { ok: true, shipmentId };
   } catch (error) {

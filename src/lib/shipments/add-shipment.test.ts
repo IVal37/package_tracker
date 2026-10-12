@@ -152,6 +152,82 @@ describe("addShipment: rejections that never reach the provider", () => {
   });
 });
 
+describe("addShipment: a number that was archived", () => {
+  const archive = (shipmentId: string) =>
+    ctx.db
+      .update(shipments)
+      .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
+      .where(eq(shipments.id, shipmentId));
+
+  const rowsFor = (userId: string, trackingNumber: string) =>
+    ctx.db
+      .select()
+      .from(shipments)
+      .where(eq(shipments.userId, userId))
+      .then((rows) => rows.filter((r) => r.trackingNumber === trackingNumber));
+
+  it("adds it again, replacing the archived shipment", async () => {
+    const user = await insertUser(ctx.db);
+    const first = await add(user.id, { trackingNumber: "FAKE-OFD-ARCH1" });
+    if (!first.ok) throw new Error("setup failed");
+    await archive(first.shipmentId);
+
+    const again = await add(user.id, {
+      trackingNumber: "fake-ofd-arch1",
+      nickname: "Again",
+    });
+
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    expect(again.shipmentId).not.toBe(first.shipmentId);
+    const rows = await rowsFor(user.id, "FAKE-OFD-ARCH1");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: again.shipmentId,
+      archivedAt: null,
+      nickname: "Again",
+    });
+    const listed = await listShipments(ctx.db, user.id);
+    expect(listed.map((s) => s.id)).toEqual([again.shipmentId]);
+    const detail = await getShipmentDetail(ctx.db, user.id, again.shipmentId);
+    expect(detail?.checkpoints.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the archived shipment when the provider fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = await insertUser(ctx.db);
+    const first = await add(user.id, { trackingNumber: "FAKE-ARCH-KEEP1" });
+    if (!first.ok) throw new Error("setup failed");
+    await archive(first.shipmentId);
+
+    const again = await add(
+      user.id,
+      { trackingNumber: "FAKE-ARCH-KEEP1" },
+      providerWith(() => Promise.reject(new ProviderUnavailableError())),
+    );
+
+    expect(again).toEqual({ ok: false, error: "unavailable" });
+    const rows = await rowsFor(user.id, "FAKE-ARCH-KEEP1");
+    expect(rows.map((r) => r.id)).toEqual([first.shipmentId]);
+  });
+
+  it("leaves another user's archived shipment alone", async () => {
+    const owner = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    const theirs = await add(owner.id, { trackingNumber: "FAKE-ARCH-OTHER1" });
+    if (!theirs.ok) throw new Error("setup failed");
+    await archive(theirs.shipmentId);
+
+    expect(
+      (await add(other.id, { trackingNumber: "FAKE-ARCH-OTHER1" })).ok,
+    ).toBe(true);
+
+    const ownerRows = await rowsFor(owner.id, "FAKE-ARCH-OTHER1");
+    expect(ownerRows.map((r) => r.id)).toEqual([theirs.shipmentId]);
+    expect(ownerRows[0]?.archivedAt).not.toBeNull();
+  });
+});
+
 describe("addShipment: the active-package cap", () => {
   const addCapped = (userId: string, trackingNumber: string, activeCap = 2) =>
     addShipment({

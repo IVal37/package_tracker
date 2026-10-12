@@ -8,6 +8,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  isNotNull,
   isNull,
   notInArray,
   sql,
@@ -295,14 +296,33 @@ export async function listTrackerIds(
   return rows.flatMap((row) => (row.trackerId ? [row.trackerId] : []));
 }
 
-/** Inserts the shipment and its checkpoints atomically; returns the new id. */
+/**
+ * Inserts the shipment and its checkpoints atomically; returns the new id.
+ *
+ * `replacesArchivedId` names the user's archived shipment with the same number
+ * (the unique key is per user and number). It is deleted in the same
+ * transaction, with everything that cascades from it, and only if it is still
+ * theirs and still archived.
+ */
 export async function createShipmentWithCheckpoints(
   db: Db,
   userId: string,
   data: NewShipment,
   events: NormalizedEvent[],
+  options: { replacesArchivedId?: string } = {},
 ): Promise<string> {
   return db.transaction(async (tx) => {
+    if (options.replacesArchivedId) {
+      await tx
+        .delete(shipments)
+        .where(
+          and(
+            eq(shipments.id, options.replacesArchivedId),
+            eq(shipments.userId, userId),
+            isNotNull(shipments.archivedAt),
+          ),
+        );
+    }
     const [created] = await tx
       .insert(shipments)
       .values({ ...data, userId })

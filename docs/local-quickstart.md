@@ -71,4 +71,4 @@ The launch test (`npm run e2e`) needs a throwaway Postgres; see the end of `docs
 - **Blank map**: stop `npm run dev` and start it again (the map's worker file is copied into `public/` at start-up), then check the browser console for "Worker failed to load".
 - **Sign-in link goes nowhere**: the redirect URL is not set in Supabase (`docs/supabase-setup.md`, step 4), or `APP_URL` does not match the address you are using.
 - **A stale offline copy or odd behaviour after testing the installable app**: in the browser's dev tools open Application, then Service Workers and Cache Storage, unregister the worker and clear the `wayfind-*` caches.
-- **A test run dies with a "Worker exited unexpectedly" error**: run `npm test` again; it is an occasional Windows crash and is logged in `docs/unresolved-issues.md`.
+- **A test run dies with a "Worker exited unexpectedly" error**: this was a Windows memory crash from too many parallel test databases, fixed in the final sweep by capping Vitest at 8 workers (`vitest.config.mts`). If it comes back on a smaller machine, lower that cap.

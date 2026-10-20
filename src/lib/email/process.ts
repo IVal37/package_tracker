@@ -9,6 +9,7 @@ import {
   findOrdersByKey,
 } from "@/lib/db/orders";
 import { findShipmentByTrackingNumber } from "@/lib/db/shipments";
+import { reportIssue } from "@/lib/monitoring";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import type { TrackingProvider } from "@/lib/tracking";
 import {
@@ -145,6 +146,10 @@ export async function processInboundEmail(args: {
     if (!(error instanceof ExtractionError)) throw error;
     if (error.retryable) throw new ProcessingRetryError(error.message);
     await finishEmail(db, userId, emailId, "failed", { error: error.message });
+    // Non-retryable and not from a retry loop, so nothing else will ever flag
+    // this one. A bad key or an exhausted Anthropic balance fails every email
+    // the same way, one at a time, with nobody told unless this fires here.
+    reportIssue("email_failed", { email_id: emailId });
     return result("failed");
   }
 

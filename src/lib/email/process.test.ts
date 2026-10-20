@@ -27,6 +27,9 @@ import {
   processInboundEmail,
 } from "./process";
 
+const { reportIssue } = vi.hoisted(() => ({ reportIssue: vi.fn() }));
+vi.mock("@/lib/monitoring", () => ({ reportIssue }));
+
 interface Fixture {
   name: string;
   email: { from: string; subject: string; text: string; html?: string };
@@ -57,6 +60,7 @@ afterAll(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  reportIssue.mockClear();
 });
 
 const answering = (answer: Extraction) => {
@@ -734,9 +738,26 @@ describe("failures and retries", () => {
     });
     expect(await shipmentsOf(user.id)).toHaveLength(0);
     expect(await ordersOf(user.id)).toHaveLength(0);
+    // Nothing else will ever flag this one: it never enters a retry loop.
+    expect(reportIssue).toHaveBeenCalledExactlyOnceWith("email_failed", {
+      email_id: emailId,
+    });
   });
 
-  it("a temporary model failure leaves the email pending and asks for a retry", async () => {
+  it("an account-level failure (bad key, exhausted balance, ...) is flagged the same way, not just content the model rejected", async () => {
+    const user = await insertUser(ctx.db);
+    const emailId = await store(user.id, byName("amazon-shipped").email);
+    await run(
+      emailId,
+      failing(new ExtractionError("Anthropic error 400", { retryable: false })),
+    );
+    expect((await emailRow(emailId)).parseStatus).toBe("failed");
+    expect(reportIssue).toHaveBeenCalledExactlyOnceWith("email_failed", {
+      email_id: emailId,
+    });
+  });
+
+  it("a temporary model failure leaves the email pending and asks for a retry, without flagging it itself (the job flags it only once retries run out)", async () => {
     const user = await insertUser(ctx.db);
     const emailId = await store(user.id, byName("amazon-shipped").email);
     await expect(
@@ -746,6 +767,7 @@ describe("failures and retries", () => {
       ),
     ).rejects.toBeInstanceOf(ProcessingRetryError);
     expect((await emailRow(emailId)).parseStatus).toBe("pending");
+    expect(reportIssue).not.toHaveBeenCalled();
   });
 
   it("an unexpected error is not swallowed", async () => {

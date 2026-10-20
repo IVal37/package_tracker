@@ -8,7 +8,8 @@ export type IssueKind =
   | "notification_failed"
   /** The re-fetch met a bad API key or an exhausted quota and paused. */
   | "refetch_stopped"
-  /** A forwarded email was given up on after its retries. */
+  /** A forwarded email was given up on: after its retries, or immediately
+   *  when retrying would not help (a bad key, an exhausted balance, ...). */
   | "email_failed"
   /** A deleted account's sign-in could not be removed. */
   | "account_deletion_incomplete"

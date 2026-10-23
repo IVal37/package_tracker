@@ -7,7 +7,7 @@ compatibility_date = "2025-01-01"
 
 [vars]
 # The app's public origin, no trailing path. Change it to your own.
-APP_URL = "https://wayfind.example"
+APP_URL = "https://wayfindtracking.com"
 
 # The shared secret is not stored here. Set it with:
 #   npx wrangler secret put INBOUND_WEBHOOK_SECRET

@@ -84,14 +84,16 @@ src/
   lib/email/extract/   import only from index.ts: Extractor, getExtractor(); claude.ts and fake.ts are never imported from outside lib/email. validate.ts grounds and cleans model output
   lib/db/inbound-sync.ts  system-scope alias -> user lookup and email loading for the webhook and jobs (import-restricted by ESLint)
   lib/db/orders.ts, forwarding.ts, inbound-emails.ts  user-scoped queries for orders, the forwarding alias and stored emails
-  app/settings/        Settings page: notifications (push on this device, which alerts, quiet hours, install), private forwarding address, Gmail confirmation code, filter instructions
+  app/settings/        Settings page, controls only: appearance (match device / light / dark), notifications (push on this device, which alerts, quiet hours), the private forwarding address with Regenerate, unreadable emails, your data
+  app/setup/           Setup page (header tab next to Settings): the walkthrough. Opens on the device in use (iPhone & iPad / Android / Computer, switchable): forwarding steps per mail service, the Gmail confirmation code, install and push steps. components/device-setup.tsx, forwarding-instructions.tsx
+  lib/theme.ts         light / dark choice (localStorage, per device), the boot script that applies it before first paint; the dark colour values are in app/globals.css
   lib/notifications/   rules (alertsForUpdate, isOverdue), prefs and form parsing, quiet-hours, message (push and email text), send (prepare / deliver / finish one alert), maintenance (sweep, cleanup), subscription (endpoint allow-list), test-push, rate-limit, events
   lib/notifications/senders/  import only from index.ts: PushSender, EmailSender, getPushSender(), getEmailSender(); webpush.ts, resend.ts and fake.ts are never imported from outside lib/notifications
   lib/db/notify-sync.ts  system-scope alert queries: the overdue scan, loading and finishing an alert, the sweep (import-restricted by ESLint)
   lib/db/notification-settings.ts, push-subscriptions.ts  user-scoped queries for a user's alert settings and devices
   lib/db/export.ts     userId-scoped loads of everything a user has (for the export);  lib/db/rate-limits.ts  counter upserts
   lib/db/admin-stats.ts  system-scope counts for /admin (import-restricted to src/lib/admin)
-  lib/pwa/             browser-side helpers (register the service worker, push support detection, device clean-up) and the icon drawing
+  lib/pwa/             browser-side helpers (register the service worker, push support detection, deviceKind, device clean-up) and the icon drawing
   app/api/webhooks/inbound-email/  inbound email webhook (authenticates with INBOUND_WEBHOOK_SECRET)
   jobs/                Inngest functions (re-fetch stale, archive delivered, geocode, process inbound email and its sweep and cleanup, send notification and its sweep and cleanup), thin wrappers over lib code
 e2e/                   the launch test: launch.spec.ts, env.ts (every app setting for the run), global-setup.ts (migrations, seeded places), fake-auth/server.mjs
@@ -135,6 +137,7 @@ docs/
 - Notification env keys: `PUSH_SENDER` (`fake` default | `webpush`), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (all three required when `PUSH_SENDER=webpush`; generate keys with `npx web-push generate-vapid-keys`; the private key is server-only), `EMAIL_SENDER` (`fake` default | `resend`), `RESEND_API_KEY` and `EMAIL_FROM` (both required when `EMAIL_SENDER=resend`; the from address needs a domain verified in Resend). The fakes never touch the network. Setup steps and a no-keys local walkthrough are in `docs/notifications-setup.md`.
 - Internal shipment status is the `Status` enum: `Pending`, `InfoReceived`, `InTransit`, `OutForDelivery`, `AttemptFail`, `Delivered`, `AvailableForPickup`, `Exception`, `Expired`. Provider-specific statuses are mapped to it inside the provider.
 - File names in kebab-case; components and types in PascalCase; functions and variables in camelCase.
+- Colours come from Tailwind shades whose dark values are set once in `src/app/globals.css` (no `dark:` classes). A shade a component uses needs a dark value there (`tests/theme-css.test.ts` fails otherwise). Cards use `bg-surface`, links `text-link`, error text `text-danger`, the selected-toggle fill `bg-ink text-on-ink`; never `bg-white`, `text-brand-700` or `text-red-600/700`. Filled buttons stay `bg-brand-600` / `bg-red-600` with `text-white`.
 
 ## Testing rules
 

@@ -17,7 +17,7 @@ Uses the fake extractor and the fake tracking provider, so nothing leaves your m
 
 1. `.env.local` needs `INNGEST_DEV=1` (as in `docs/webhooks-and-jobs-setup.md`). The inbound settings all have development defaults: domain `in.localhost`, secret `dev-inbound-secret`, extractor `fake`.
 2. Run `npm run dev` and, in another terminal, `npm run jobs:dev`.
-3. Sign in, open **Settings** (header) and copy your address. It looks like `you-7f3k@in.localhost`. Use it as `recipient` below.
+3. Sign in, open **Setup** (header) and copy your address. It looks like `you-7f3k@in.localhost`. Use it as `recipient` below.
 4. Send an order confirmation. PowerShell:
 
 ```powershell
@@ -57,8 +57,8 @@ Expected: the **Ordered** row is gone and `TBA309876543210` is a tracked package
    - Send either request again with the same `messageId`: still `200`, still one package.
    - Change `recipient` to `nobody-abcd@in.localhost`: `200`, nothing stored.
    - Leave the `Authorization` header off, or change the secret: `401`.
-7. Gmail's confirmation message: send `from = "Gmail Team <forwarding-noreply@google.com>"`, any `subject`, `text = "Your confirmation code: 12345678"`. The code appears on **Settings** for 3 days.
-8. **Regenerate address** on Settings: the old address now gets `200` and nothing is stored.
+7. Gmail's confirmation message: send `from = "Gmail Team <forwarding-noreply@google.com>"`, any `subject`, `text = "Your confirmation code: 12345678"`. The code appears on **Setup** for 3 days.
+8. **Regenerate address** on Settings (Setup then shows the new one): the old address now gets `200` and nothing is stored.
 
 The fake extractor reads emails with plain rules, so it needs wording like "Thanks for your order" / "has shipped" / "Tracking number:". The real model reads far more varied emails.
 
@@ -105,10 +105,10 @@ Menu names move around over time; the idea is "everything sent to `*@in.<domain>
 
 ### 4. Forward from Gmail
 
-Settings (in Wayfind) shows the same steps with your address filled in.
+Setup (in Wayfind) shows the same steps with your address filled in, for the device you are on, plus iCloud Mail, Yahoo and "forward one by hand".
 
 1. Gmail → Settings → See all settings → **Forwarding and POP/IMAP** → **Add a forwarding address** → your Wayfind address.
-2. Gmail sends a confirmation message to that address. Wayfind recognises it (sender `forwarding-noreply@google.com`) and shows the 8-digit code on **Settings**. Enter it in Gmail. Only the digits are kept, never the link.
+2. Gmail sends a confirmation message to that address. Wayfind recognises it (sender `forwarding-noreply@google.com`) and shows the 8-digit code on **Setup**. Enter it in Gmail. Only the digits are kept, never the link.
 3. Gmail → **Filters and Blocked Addresses** → **Create a new filter** (for example subject contains `order` or `shipped`, or from your favourite retailers) → **Forward it to** your Wayfind address.
 
 If the code does not show within a couple of minutes, see "Troubleshooting".
@@ -120,7 +120,7 @@ Settings → Mail → **Rules** → **Add new rule**: condition "Subject include
 ## Troubleshooting
 
 - **Nothing arrives.** Email Routing → Activity log shows whether Cloudflare received the message and which rule handled it. `npx wrangler tail` (in `workers/inbound-email`) shows the Worker running; it logs nothing from the email itself.
-- **Everything is dropped silently.** An unknown address answers `200` on purpose. Check that the address on Settings is the one used, that `INBOUND_EMAIL_DOMAIN` matches the subdomain exactly, and that you did not regenerate the address after setting up the forward.
+- **Everything is dropped silently.** An unknown address answers `200` on purpose. Check that the address on Setup or Settings is the one used, that `INBOUND_EMAIL_DOMAIN` matches the subdomain exactly, and that you did not regenerate the address after setting up the forward.
 - **`401` in the Worker's logs.** The secret differs between `wrangler secret put` and the app's `INBOUND_WEBHOOK_SECRET`. The Worker drops a rejected email without retrying.
 - **The email is stored but no package appears.** Open the Inngest dashboard and look at `process-inbound-email`. Settings shows how many emails could not be read; add those packages by hand.
 - **The Worker retries.** It throws on a `5xx` or an unreachable app on purpose, so the sending server tries again later.

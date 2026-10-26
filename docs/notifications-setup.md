@@ -105,7 +105,7 @@ Push works on iOS 16.4 and later, and **only for an app installed to the Home Sc
 3. Open Wayfind from the Home Screen icon (not from Safari).
 4. Settings → **Turn on push** → allow.
 
-Until it is installed, Settings shows the same steps instead of the button.
+Until it is installed, Setup shows the same steps for iPhone and iPad.
 
 ## Real email (Resend)
 
@@ -125,8 +125,8 @@ Check Resend's current free-plan limits (a daily and a monthly cap) against how 
 
 The manifest and icons are served without sign-in on purpose (browsers fetch them without cookies). Once the site is on HTTPS:
 
-- Chrome or Edge on a computer: the install icon appears in the address bar, and Settings → **Install app** offers the same.
-- Chrome on Android: Settings → **Install app**, or the browser menu → Install app.
+- Chrome or Edge on a computer: the install icon appears in the address bar, and Setup → **Install app** offers the same.
+- Chrome on Android: Setup → **Install app**, or the browser menu → Install app.
 
 Installed, Wayfind opens in its own window. The package list is saved as you use it and shown when you are offline, with a note saying when it was saved.
 

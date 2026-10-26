@@ -132,7 +132,7 @@ Do every one; fix and redeploy until they pass. Then tag.
 - [ ] **Map**: the Map view draws the base map and your package's icon, and the browser console shows no "Refused to" (CSP) errors and no "Worker failed to load". `https://<domain>/maplibre-gl-worker.mjs` is served as JavaScript.
 - [ ] **Real package**: add a real tracking number; it shows its status and events. `/admin` shows one tracker this month.
 - [ ] **Ship24 webhook**: when the carrier next scans that package, Vercel's function logs show `tracking webhook` with status 200 and the package's status changes without waiting for the hourly re-fetch.
-- [ ] **Forwarding**: in Settings, copy your address; set up Gmail forwarding (the confirmation code appears in Settings); forward a real shipping email; the package appears. An email that cannot be read shows in Settings with Try again.
+- [ ] **Forwarding**: in Setup, copy your address; set up Gmail forwarding (the confirmation code appears in Setup); forward a real shipping email; the package appears. An email that cannot be read shows in Settings with Try again.
 - [ ] **Push**: turn on push on a desktop browser, Send a test; then on an iPhone with Wayfind added to the Home Screen.
 - [ ] **Alert email**: an alert email arrives from `EMAIL_FROM`; its headers include `List-Unsubscribe: <https://<domain>/settings>`.
 - [ ] **Sentry**: in Inngest, invoke `send-notification` with data `{}`. A "wayfind: job_out_of_retries" warning appears in Sentry with only `job` and `error`: no email, tracking number or request data.

@@ -8,23 +8,20 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-type Mode = "hidden" | "chromium" | "ios";
+type Mode = "hidden" | "chromium";
 
 /**
- * Offers to install Wayfind to the home screen. Chromium browsers get a button
- * (the browser decides when installing is possible); iPhone and iPad get the
- * Share steps, since Safari has no prompt. Nothing shows once installed.
+ * A one-click Install button, shown on Setup when the browser offers one
+ * (Chromium decides when installing is possible). Safari has no prompt; its
+ * steps are written out on Setup instead. Nothing shows once installed.
  */
 export function InstallCard() {
   const [mode, setMode] = useState<Mode>("hidden");
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    const env = currentPushEnvironment();
-    if (env.isStandalone) return;
     // Reads the browser, so it can only run after mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (env.isIos) setMode("ios");
+    if (currentPushEnvironment().isStandalone) return;
 
     const onPrompt = (event: Event) => {
       event.preventDefault();
@@ -47,13 +44,10 @@ export function InstallCard() {
 
   return (
     <section
-      aria-labelledby="install-heading"
+      aria-label="Install Wayfind"
       className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
     >
-      <h3 id="install-heading" className="font-semibold">
-        Install Wayfind
-      </h3>
-      {mode === "chromium" && prompt && (
+      {prompt && (
         <>
           <p className="text-sm text-slate-600">
             Add Wayfind to your home screen or desktop. It opens like an app and
@@ -71,13 +65,6 @@ export function InstallCard() {
             Install app
           </button>
         </>
-      )}
-      {mode === "ios" && (
-        <p className="text-sm text-slate-600">
-          To install on iPhone or iPad, tap the Share button in Safari, then
-          choose <strong>Add to Home Screen</strong>. Push notifications work
-          once Wayfind is installed.
-        </p>
       )}
     </section>
   );

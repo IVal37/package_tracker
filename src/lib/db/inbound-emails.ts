@@ -22,7 +22,7 @@ const gmailConfirmationSchema = z.object({
 
 /**
  * The newest Gmail forwarding confirmation code this user received since the
- * given moment, for the Settings page. Only the digits are ever stored.
+ * given moment, for the Setup page. Only the digits are ever stored.
  */
 export async function latestGmailConfirmation(
   db: Db,

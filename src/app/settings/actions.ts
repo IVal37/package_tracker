@@ -36,6 +36,8 @@ export async function regenerateAddressAction(): Promise<void> {
   const user = await requireUser();
   await rotateAlias(getDb(), user.id);
   revalidatePath("/settings");
+  // Setup shows the same address.
+  revalidatePath("/setup");
 }
 
 export async function saveNotificationSettingsAction(

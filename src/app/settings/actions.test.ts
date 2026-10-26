@@ -101,6 +101,8 @@ describe("regenerateAddressAction", () => {
       "session-user",
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/settings");
+    // Setup shows the same address, so it must not keep the old one.
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/setup");
   });
 
   it("takes no input, so no form field can name another user", () => {

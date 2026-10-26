@@ -57,6 +57,7 @@ describe("proxy matcher", () => {
     "/api/webhooks/tracking",
     "/api/inngest",
     "/settings",
+    "/setup",
     "/sw.json",
     "/manifest",
     "/iconsx",

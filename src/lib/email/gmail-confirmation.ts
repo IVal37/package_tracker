@@ -1,6 +1,6 @@
 // Gmail will not forward to a new address until the owner confirms it with a
 // code Gmail emails to that address. The only mail that address ever sees is
-// what we receive, so we catch the code and show it in Settings.
+// what we receive, so we catch the code and show it on the Setup page.
 //
 // Only the digits are kept, never the confirmation link: the email is untrusted,
 // and a code someone spoofed is harmless (Gmail simply rejects it).

@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
   requireLiveAccount: vi.fn(),
   getOrCreateAlias: vi.fn(),
-  latestGmailConfirmation: vi.fn(),
   countFailedEmails: vi.fn(),
   listFailedEmails: vi.fn(),
   getNotificationPrefs: vi.fn(),
@@ -25,7 +24,6 @@ vi.mock("@/lib/db/forwarding", () => ({
   getOrCreateAlias: mocks.getOrCreateAlias,
 }));
 vi.mock("@/lib/db/inbound-emails", () => ({
-  latestGmailConfirmation: mocks.latestGmailConfirmation,
   countFailedEmails: mocks.countFailedEmails,
   listFailedEmails: mocks.listFailedEmails,
 }));
@@ -53,7 +51,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireUser.mockResolvedValue(USER);
   mocks.getOrCreateAlias.mockResolvedValue("izaak-7f3k");
-  mocks.latestGmailConfirmation.mockResolvedValue(null);
   mocks.countFailedEmails.mockResolvedValue(0);
   mocks.listFailedEmails.mockResolvedValue([]);
   mocks.getNotificationPrefs.mockResolvedValue(structuredClone(DEFAULT_PREFS));
@@ -88,16 +85,17 @@ describe("Settings page", () => {
     ).toBeInTheDocument();
   });
 
-  it("explains Gmail and Outlook forwarding with the address", async () => {
+  it("links to the Setup page for the forwarding steps instead of repeating them", async () => {
     await renderPage();
-    expect(screen.getByRole("heading", { name: "Gmail" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Outlook" }),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: /How to set up forwarding/ }),
+    ).toHaveAttribute("href", "/setup");
+    expect(screen.queryByRole("heading", { name: "Gmail" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Outlook" })).toBeNull();
+    expect(screen.queryByText(/Install Wayfind/)).toBeNull();
   });
 
-  it("looks up the confirmation code and failures for the session user only", async () => {
-    const before = Date.now();
+  it("looks up failures for the session user only, and no Gmail code (that is on Setup)", async () => {
     await renderPage();
 
     expect(mocks.countFailedEmails).toHaveBeenCalledExactlyOnceWith(
@@ -109,29 +107,6 @@ describe("Settings page", () => {
       "session-user",
       20,
     );
-    const [db, userId, since] = mocks.latestGmailConfirmation.mock.calls[0]!;
-    expect(db).toBe(mocks.db);
-    expect(userId).toBe("session-user");
-    // Only the last 3 days count.
-    const ageMs = before - (since as Date).getTime();
-    expect(Math.abs(ageMs - 3 * 86_400_000)).toBeLessThan(5_000);
-  });
-
-  it("shows a recent Gmail confirmation code", async () => {
-    mocks.latestGmailConfirmation.mockResolvedValue({
-      code: "12345678",
-      receivedAt: new Date(Date.now() - 5 * 60_000),
-    });
-    await renderPage();
-
-    expect(
-      screen.getByRole("heading", { name: "Gmail confirmation code" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("12345678")).toBeInTheDocument();
-  });
-
-  it("shows no confirmation section when there is no recent code", async () => {
-    await renderPage();
     expect(
       screen.queryByRole("heading", { name: "Gmail confirmation code" }),
     ).not.toBeInTheDocument();

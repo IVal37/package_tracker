@@ -24,6 +24,7 @@ describe("isPublicPath", () => {
     "/",
     "/settings",
     "/settings/export",
+    "/setup",
     "/admin",
     "/account-deleted/extra",
     "/privacy/extra",

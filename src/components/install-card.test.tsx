@@ -51,16 +51,10 @@ describe("InstallCard", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("explains Share then Add to Home Screen on iPhone and iPad", () => {
+  it("shows nothing on iPhone and iPad, whose steps are written out on Setup", () => {
     mocks.currentPushEnvironment.mockReturnValue(env({ isIos: true }));
-    render(<InstallCard />);
-    expect(
-      screen.getByRole("heading", { name: "Install Wayfind" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Add to Home Screen")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Install app" }),
-    ).not.toBeInTheDocument();
+    const { container } = render(<InstallCard />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("offers an Install button when Chromium fires its install event", () => {
@@ -87,7 +81,7 @@ describe("InstallCard", () => {
 
     expect(prompt).toHaveBeenCalledOnce();
     expect(
-      screen.queryByRole("heading", { name: "Install Wayfind" }),
+      screen.queryByRole("region", { name: "Install Wayfind" }),
     ).not.toBeInTheDocument();
   });
 

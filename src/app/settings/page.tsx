@@ -1,24 +1,17 @@
 import Link from "next/link";
-import { CopyButton } from "@/components/copy-button";
 import { LegalLinks } from "@/components/legal-page";
 import { DeleteAccount } from "@/components/delete-account";
 import { FailedEmails } from "@/components/failed-emails";
-import { ForwardingInstructions } from "@/components/forwarding-instructions";
-import { InstallCard } from "@/components/install-card";
+import { ForwardingAddress } from "@/components/forwarding-address";
 import { NotificationSettingsForm } from "@/components/notification-settings-form";
 import { PushDeviceManager } from "@/components/push-device-manager";
-import { RegenerateAddress } from "@/components/regenerate-address";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { getOrCreateAlias } from "@/lib/db/forwarding";
-import {
-  countFailedEmails,
-  latestGmailConfirmation,
-  listFailedEmails,
-} from "@/lib/db/inbound-emails";
+import { countFailedEmails, listFailedEmails } from "@/lib/db/inbound-emails";
 import { getNotificationPrefs } from "@/lib/db/notification-settings";
 import { formatAddress } from "@/lib/email/alias";
 import { failureReason } from "@/lib/email/failed";
@@ -35,9 +28,6 @@ import {
   savePushSubscriptionAction,
   sendTestPushAction,
 } from "./actions";
-
-/** A Gmail code is only useful for a short while after it is sent. */
-const CONFIRMATION_WINDOW_MS = 3 * 86_400_000;
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -59,13 +49,8 @@ export default async function SettingsPage() {
     env.PUSH_SENDER === "webpush" ? (env.VAPID_PUBLIC_KEY ?? null) : null;
   const timeZones = Intl.supportedValuesOf("timeZone");
 
-  const [prefs, confirmation, failed, failedEmails] = await Promise.all([
+  const [prefs, failed, failedEmails] = await Promise.all([
     getNotificationPrefs(db, user.id),
-    latestGmailConfirmation(
-      db,
-      user.id,
-      new Date(now.getTime() - CONFIRMATION_WINDOW_MS),
-    ),
     countFailedEmails(db, user.id),
     listFailedEmails(db, user.id, 20),
   ]);
@@ -76,6 +61,7 @@ export default async function SettingsPage() {
         email={user.email}
         signOutAction={signOut}
         removeDeviceAction={removePushSubscriptionAction}
+        current="settings"
       />
       <main className="mx-auto max-w-3xl space-y-8 px-4 py-8">
         <Link href="/" className="text-sm text-link hover:underline">
@@ -106,7 +92,6 @@ export default async function SettingsPage() {
             action={saveNotificationSettingsAction}
           />
         </section>
-        <InstallCard />
 
         <h2 className="text-lg font-semibold">Email forwarding</h2>
 
@@ -124,35 +109,16 @@ export default async function SettingsPage() {
                 in your list. Keep this address to yourself: anyone who has it
                 can add packages to your account.
               </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <code className="break-all rounded bg-slate-100 px-2 py-1 text-sm">
-                  {address}
-                </code>
-                <CopyButton text={address} />
-              </div>
-              <RegenerateAddress action={regenerateAddressAction} />
+              <ForwardingAddress
+                address={address}
+                regenerateAction={regenerateAddressAction}
+              />
+              <p className="text-sm text-slate-600">
+                <Link href="/setup" className="text-link hover:underline">
+                  How to set up forwarding →
+                </Link>
+              </p>
             </section>
-
-            {confirmation && (
-              <section
-                aria-labelledby="confirmation-heading"
-                className="space-y-2 rounded-lg border border-brand-600 bg-brand-50 p-4"
-              >
-                <h3 id="confirmation-heading" className="font-semibold">
-                  Gmail confirmation code
-                </h3>
-                <p className="font-mono text-2xl tracking-widest">
-                  {confirmation.code}
-                </p>
-                <p className="text-sm text-slate-600">
-                  Enter this code in Gmail to finish adding the forwarding
-                  address. Received{" "}
-                  {formatRelativeTime(confirmation.receivedAt, now)}.
-                </p>
-              </section>
-            )}
-
-            <ForwardingInstructions address={address} />
           </>
         ) : (
           <p className="text-sm text-slate-600">

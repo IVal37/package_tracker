@@ -12,7 +12,7 @@ export function ViewToggle({ view }: { view: View }) {
   return (
     <nav
       aria-label="View"
-      className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 text-sm"
+      className="inline-flex rounded-md border border-slate-300 bg-surface p-0.5 text-sm"
     >
       {LINKS.map((link) => (
         <Link
@@ -21,7 +21,7 @@ export function ViewToggle({ view }: { view: View }) {
           aria-current={link.view === view ? "page" : undefined}
           className={
             link.view === view
-              ? "rounded bg-slate-900 px-3 py-1 font-medium text-white"
+              ? "rounded bg-ink px-3 py-1 font-medium text-on-ink"
               : "rounded px-3 py-1 text-slate-700 hover:bg-slate-100"
           }
         >

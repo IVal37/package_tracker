@@ -28,18 +28,54 @@ afterEach(() => {
 
 describe("deviceKind", () => {
   it.each([
-    ["an iPhone", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" }, "ios"],
+    [
+      "an iPhone",
+      { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" },
+      "ios",
+    ],
     ["an iPad", { userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0)" }, "ios"],
     [
       "iPadOS posing as a Mac",
-      { userAgent: "Mozilla/5.0 (Macintosh)", platform: "MacIntel", maxTouchPoints: 5 },
+      {
+        userAgent: "Mozilla/5.0 (Macintosh)",
+        platform: "MacIntel",
+        maxTouchPoints: 5,
+      },
       "ios",
     ],
-    ["an Android phone", { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile" }, "android"],
-    ["an Android tablet", { userAgent: "Mozilla/5.0 (Linux; Android 14; SM-X900)" }, "android"],
-    ["desktop Chrome", { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130", platform: "Win32", maxTouchPoints: 0 }, "computer"],
-    ["a Mac without a touch screen", { userAgent: "Mozilla/5.0 (Macintosh)", platform: "MacIntel", maxTouchPoints: 0 }, "computer"],
-    ["a user agent alone, as the server sees it", { userAgent: "Mozilla/5.0 (Macintosh)" }, "computer"],
+    [
+      "an Android phone",
+      { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile" },
+      "android",
+    ],
+    [
+      "an Android tablet",
+      { userAgent: "Mozilla/5.0 (Linux; Android 14; SM-X900)" },
+      "android",
+    ],
+    [
+      "desktop Chrome",
+      {
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130",
+        platform: "Win32",
+        maxTouchPoints: 0,
+      },
+      "computer",
+    ],
+    [
+      "a Mac without a touch screen",
+      {
+        userAgent: "Mozilla/5.0 (Macintosh)",
+        platform: "MacIntel",
+        maxTouchPoints: 0,
+      },
+      "computer",
+    ],
+    [
+      "a user agent alone, as the server sees it",
+      { userAgent: "Mozilla/5.0 (Macintosh)" },
+      "computer",
+    ],
     ["an empty user agent", { userAgent: "" }, "computer"],
   ] as const)("recognises %s", (_name, info, expected) => {
     expect(deviceKind(info)).toBe(expected);

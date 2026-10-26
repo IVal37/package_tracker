@@ -20,10 +20,7 @@ export default async function PrivacyPage() {
         Wayfind tracks your packages. This page says what we keep about you,
         why, who else sees it, how long we keep it, and how to take it with you
         or delete it. Questions:{" "}
-        <a
-          className="text-brand-700 underline"
-          href={`mailto:${SUPPORT_EMAIL}`}
-        >
+        <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
           {SUPPORT_EMAIL}
         </a>
         .

@@ -5,6 +5,17 @@
  */
 export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
+/** The same service's dark style (same origin, so the CSP is unchanged). */
+export const MAP_STYLE_DARK_URL = "https://tiles.openfreemap.org/styles/dark";
+
+/** The base style for the theme that is showing. */
+export const mapStyleUrl = (theme: "light" | "dark") =>
+  theme === "dark" ? MAP_STYLE_DARK_URL : MAP_STYLE_URL;
+
+/** The route line must stand out from the base map in either theme. */
+export const routeLineColor = (theme: "light" | "dark") =>
+  theme === "dark" ? "#94a3b8" : "#475569";
+
 /**
  * Where MapLibre's Web Worker is served from. MapLibre derives this from
  * import.meta.url, which is wrong under Next's bundler (the worker 404s and the

@@ -71,7 +71,7 @@ export function DeleteAccount({
         </button>
       </div>
       {state.status !== "idle" && state.status !== "deleted" && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger">
           {MESSAGES[state.status]}
         </p>
       )}

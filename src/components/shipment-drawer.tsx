@@ -113,7 +113,7 @@ export function ShipmentDrawer({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+            className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-danger hover:bg-red-50"
           >
             Delete
           </button>

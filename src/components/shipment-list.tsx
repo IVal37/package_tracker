@@ -74,7 +74,7 @@ function renderGroup(group: ShipmentGroup<ShipmentListItem>, now: Date) {
           ({group.shipments.length})
         </span>
       </h2>
-      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-surface">
         {group.shipments.map((shipment) => (
           <li key={shipment.id}>
             <Link
@@ -135,7 +135,7 @@ function OrderedSection({ orders, now, dismissAction }: OrderedSectionProps) {
         Ordered{" "}
         <span className="font-normal text-slate-400">({orders.length})</span>
       </h2>
-      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-surface">
         {orders.map((order) => {
           const details = [
             order.item ? order.retailer : null,

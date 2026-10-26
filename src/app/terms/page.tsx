@@ -16,10 +16,7 @@ export default async function TermsPage() {
       <p>
         By using Wayfind you agree to these terms. If you don&apos;t, please
         don&apos;t use it. Questions:{" "}
-        <a
-          className="text-brand-700 underline"
-          href={`mailto:${SUPPORT_EMAIL}`}
-        >
+        <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
           {SUPPORT_EMAIL}
         </a>
         .
@@ -69,7 +66,7 @@ export default async function TermsPage() {
       <h2>Your data</h2>
       <p>
         You own your data. How we handle it is in the{" "}
-        <Link className="text-brand-700 underline" href="/privacy">
+        <Link className="text-link underline" href="/privacy">
           privacy policy
         </Link>
         . You can download it or delete your account at any time in Settings.

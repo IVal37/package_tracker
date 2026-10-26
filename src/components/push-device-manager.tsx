@@ -155,7 +155,7 @@ export function PushDeviceManager({
   return (
     <section
       aria-labelledby="push-heading"
-      className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
     >
       <h3 id="push-heading" className="font-semibold">
         Push on this device

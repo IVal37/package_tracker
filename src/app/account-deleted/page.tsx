@@ -28,7 +28,7 @@ export default async function AccountDeletedPage({
           new, empty account.
         </p>
       )}
-      <Link href="/sign-in" className="text-sm text-brand-700 hover:underline">
+      <Link href="/sign-in" className="text-sm text-link hover:underline">
         Back to sign-in
       </Link>
     </main>

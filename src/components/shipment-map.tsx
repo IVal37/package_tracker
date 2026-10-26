@@ -8,9 +8,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
-  MAP_STYLE_URL,
   MAP_WORKER_URL,
+  mapStyleUrl,
+  routeLineColor,
 } from "@/lib/geo/map-style";
+import { resolvedTheme, type ResolvedTheme } from "@/lib/theme";
 import type { MapData, MapListItem } from "@/lib/geo/map-data";
 // status.ts, not the @/lib/tracking index: the index pulls provider code and
 // node:crypto into the client bundle.
@@ -36,6 +38,7 @@ async function loadModeImage(mode: Mode): Promise<HTMLImageElement> {
 async function populate(
   map: MapLibreMap,
   data: MapData,
+  theme: ResolvedTheme,
   open: (id: string) => void,
 ) {
   for (const mode of MODES) {
@@ -49,7 +52,11 @@ async function populate(
     id: "routes-line",
     type: "line",
     source: "routes",
-    paint: { "line-color": "#475569", "line-width": 2, "line-opacity": 0.7 },
+    paint: {
+      "line-color": routeLineColor(theme),
+      "line-width": 2,
+      "line-opacity": 0.7,
+    },
   });
 
   map.addSource("shipments", {
@@ -155,7 +162,7 @@ function PackageList({
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">{empty}</p>
       ) : (
-        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-surface">
           {items.map((item) => (
             <li key={item.id}>
               <Link
@@ -212,16 +219,22 @@ export function ShipmentMap({ data }: ShipmentMapProps) {
         // Must be set before the first map is created.
         maplibre.setWorkerUrl(MAP_WORKER_URL);
 
+        // The theme showing now; the map is not restyled if it changes later.
+        const theme = resolvedTheme(
+          document.documentElement,
+          typeof window.matchMedia === "function" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches,
+        );
         map = new maplibre.Map({
           container: container.current,
-          style: MAP_STYLE_URL,
+          style: mapStyleUrl(theme),
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
         });
         const created = map;
         created.on("load", async () => {
           try {
-            await populate(created, mapData, (id) =>
+            await populate(created, mapData, theme, (id) =>
               routerRef.current.push(drawerHref(id)),
             );
             await fitToPoints(created, mapData);

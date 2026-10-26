@@ -19,7 +19,7 @@ export function UpgradeButton() {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-brand-600 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50"
+        className="rounded-md border border-brand-600 px-3 py-1.5 text-sm font-medium text-link hover:bg-brand-50"
       >
         Upgrade
       </button>

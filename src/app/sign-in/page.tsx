@@ -29,7 +29,7 @@ export default async function SignInPage({
       {message && (
         <p
           role="alert"
-          className="rounded-md bg-red-50 p-3 text-sm text-red-700"
+          className="rounded-md bg-red-50 p-3 text-sm text-danger"
         >
           {message}
         </p>
@@ -39,7 +39,7 @@ export default async function SignInPage({
       <form action={signInWithGoogle}>
         <button
           type="submit"
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-medium hover:bg-slate-50"
+          className="w-full rounded-md border border-slate-300 bg-surface px-3 py-2 font-medium hover:bg-slate-50"
         >
           Continue with Google
         </button>

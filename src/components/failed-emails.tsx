@@ -85,7 +85,7 @@ export function FailedEmails({
                 <button
                   type="submit"
                   disabled={busy}
-                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
+                  className="rounded-md border border-slate-300 bg-surface px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
                 >
                   Try again
                 </button>

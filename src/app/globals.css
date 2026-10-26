@@ -6,6 +6,117 @@
   --color-brand-500: #3b82f6;
   --color-brand-600: #2563eb;
   --color-brand-700: #1d4ed8;
+
+  /*
+   * Colours whose meaning differs from the shade they replace in the dark
+   * theme. Use these, not the shade, for: card backgrounds (bg-surface),
+   * links and the wordmark (text-link), error text (text-danger) and the
+   * selected-toggle fill (bg-ink with text-on-ink). Buttons keep
+   * bg-brand-600 / bg-red-600 with text-white in both themes.
+   */
+  --color-surface: #ffffff;
+  --color-link: #1d4ed8;
+  --color-danger: #dc2626;
+  --color-ink: #0f172a;
+  --color-on-ink: #ffffff;
+}
+
+/*
+ * Dark theme: the same variable names with dark values, so components need no
+ * dark: classes. Two copies of one block, because CSS has no way to share it:
+ *  - [data-theme="dark"]: the user picked Dark in Settings;
+ *  - the media query: no choice made, so follow the device.
+ * tests/theme-css.test.ts fails if the two drift apart. Every shade a
+ * component uses needs a value here.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-slate-50: #0b1120;
+  --color-slate-100: #1c2740;
+  --color-slate-200: #2a3752;
+  --color-slate-300: #3d4d6e;
+  --color-slate-400: #7d8ca6;
+  --color-slate-500: #98a6bd;
+  --color-slate-600: #adb9cc;
+  --color-slate-700: #cbd5e1;
+  --color-slate-900: #f1f5f9;
+  --color-brand-50: #14264a;
+  --color-brand-100: #1b3266;
+  --color-surface: #121b2e;
+  --color-link: #7db3ff;
+  --color-danger: #f87171;
+  --color-ink: #e2e8f0;
+  --color-on-ink: #0f172a;
+  --color-red-50: #2b1216;
+  --color-red-100: #3d171c;
+  --color-red-200: #5e2128;
+  --color-red-300: #8a2f38;
+  --color-red-800: #fca5a5;
+  --color-amber-50: #2b2209;
+  --color-amber-100: #3d300c;
+  --color-amber-200: #5a4510;
+  --color-amber-300: #7d601a;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fde68a;
+  --color-green-100: #0f3322;
+  --color-green-700: #4ade80;
+  --color-green-800: #86efac;
+  --color-blue-100: #172e57;
+  --color-blue-800: #93c5fd;
+  --color-indigo-100: #26245e;
+  --color-indigo-800: #a5b4fc;
+  --color-teal-100: #0f3533;
+  --color-teal-800: #5eead4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-slate-50: #0b1120;
+    --color-slate-100: #1c2740;
+    --color-slate-200: #2a3752;
+    --color-slate-300: #3d4d6e;
+    --color-slate-400: #7d8ca6;
+    --color-slate-500: #98a6bd;
+    --color-slate-600: #adb9cc;
+    --color-slate-700: #cbd5e1;
+    --color-slate-900: #f1f5f9;
+    --color-brand-50: #14264a;
+    --color-brand-100: #1b3266;
+    --color-surface: #121b2e;
+    --color-link: #7db3ff;
+    --color-danger: #f87171;
+    --color-ink: #e2e8f0;
+    --color-on-ink: #0f172a;
+    --color-red-50: #2b1216;
+    --color-red-100: #3d171c;
+    --color-red-200: #5e2128;
+    --color-red-300: #8a2f38;
+    --color-red-800: #fca5a5;
+    --color-amber-50: #2b2209;
+    --color-amber-100: #3d300c;
+    --color-amber-200: #5a4510;
+    --color-amber-300: #7d601a;
+    --color-amber-800: #fcd34d;
+    --color-amber-900: #fde68a;
+    --color-green-100: #0f3322;
+    --color-green-700: #4ade80;
+    --color-green-800: #86efac;
+    --color-blue-100: #172e57;
+    --color-blue-800: #93c5fd;
+    --color-indigo-100: #26245e;
+    --color-indigo-800: #a5b4fc;
+    --color-teal-100: #0f3533;
+    --color-teal-800: #5eead4;
+  }
+}
+
+:root:not([data-theme]) {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {

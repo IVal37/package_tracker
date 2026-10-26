@@ -48,7 +48,7 @@ export function InstallCard() {
   return (
     <section
       aria-labelledby="install-heading"
-      className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
     >
       <h3 id="install-heading" className="font-semibold">
         Install Wayfind

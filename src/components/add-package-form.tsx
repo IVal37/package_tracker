@@ -29,7 +29,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
   return (
     <form
       action={formAction}
-      className="rounded-lg border border-slate-200 bg-white p-4"
+      className="rounded-lg border border-slate-200 bg-surface p-4"
     >
       <h2 className="mb-3 font-semibold">Add a package</h2>
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-start">
@@ -53,7 +53,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
             className="w-full rounded-md border border-slate-300 px-3 py-2"
           />
           {error?.fieldErrors.trackingNumber && (
-            <p id="trackingNumber-error" className="mt-1 text-sm text-red-600">
+            <p id="trackingNumber-error" className="mt-1 text-sm text-danger">
               {error.fieldErrors.trackingNumber}
             </p>
           )}
@@ -75,7 +75,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
             className="w-full rounded-md border border-slate-300 px-3 py-2"
           />
           {error?.fieldErrors.nickname && (
-            <p id="nickname-error" className="mt-1 text-sm text-red-600">
+            <p id="nickname-error" className="mt-1 text-sm text-danger">
               {error.fieldErrors.nickname}
             </p>
           )}
@@ -89,7 +89,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
         </button>
       </div>
       {generalMessage && (
-        <p role="alert" className="mt-3 text-sm text-red-600">
+        <p role="alert" className="mt-3 text-sm text-danger">
           {generalMessage}
         </p>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 import { reportClientErrorAction } from "./error-actions";
 import "./globals.css";
 
@@ -25,7 +26,10 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body>
         <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-4">
           <title>Something went wrong · Wayfind</title>

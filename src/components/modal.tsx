@@ -52,7 +52,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`relative overflow-y-auto bg-white p-5 shadow-xl outline-none ${layout}`}
+        className={`relative overflow-y-auto bg-surface p-5 shadow-xl outline-none ${layout}`}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 id={titleId} className="text-lg font-semibold">

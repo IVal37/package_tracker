@@ -13,7 +13,7 @@ export function LegalPage({
 }) {
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-4 py-10 text-sm leading-6 text-slate-700 [&_h2]:pt-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-slate-900 [&_li]:ml-5 [&_li]:list-disc">
-      <Link href="/" className="font-semibold text-brand-700">
+      <Link href="/" className="font-semibold text-link">
         Wayfind
       </Link>
       <div>

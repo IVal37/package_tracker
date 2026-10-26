@@ -1,6 +1,19 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { MAP_STYLE_URL, MAP_WORKER_URL } from "@/lib/geo/map-style";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import {
+  MAP_STYLE_DARK_URL,
+  MAP_STYLE_URL,
+  MAP_WORKER_URL,
+  routeLineColor,
+} from "@/lib/geo/map-style";
 import type { MapData, PointFeature } from "@/lib/geo/map-data";
 import { MODES } from "@/lib/tracking/status";
 
@@ -151,6 +164,11 @@ beforeAll(() => {
   HTMLImageElement.prototype.decode = vi.fn(async () => {});
 });
 
+afterEach(() => {
+  document.documentElement.removeAttribute("data-theme");
+  vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
   h.FakeMap.instances = [];
   h.FakeMap.failOnCreate = false;
@@ -175,6 +193,33 @@ describe("ShipmentMap: the map", () => {
     expect(
       screen.getByRole("region", { name: "Map of your packages" }),
     ).toBeInTheDocument();
+  });
+
+  it("uses the dark style, and a lighter route line, when the dark theme is pinned", async () => {
+    document.documentElement.setAttribute("data-theme", "dark");
+    const { map } = await renderLoaded();
+    expect(map.options.style).toBe(MAP_STYLE_DARK_URL);
+    expect(MAP_STYLE_DARK_URL).toContain("tiles.openfreemap.org");
+    const line = map.layers.find((layer) => layer.id === "routes-line") as {
+      paint: Record<string, unknown>;
+    };
+    expect(line.paint["line-color"]).toBe(routeLineColor("dark"));
+    expect(routeLineColor("dark")).not.toBe(routeLineColor("light"));
+  });
+
+  it("follows the device when no theme is pinned", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-color-scheme: dark)",
+    }));
+    const { map } = await renderLoaded();
+    expect(map.options.style).toBe(MAP_STYLE_DARK_URL);
+  });
+
+  it("keeps the light style when light is pinned, whatever the device says", async () => {
+    document.documentElement.setAttribute("data-theme", "light");
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    const { map } = await renderLoaded();
+    expect(map.options.style).toBe(MAP_STYLE_URL);
   });
 
   it("points MapLibre at the self-hosted worker before creating the first map", async () => {

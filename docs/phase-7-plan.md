@@ -181,6 +181,15 @@ The build hands you the `.env.example` lines, since Claude cannot edit that file
     **You then do the deploy** (Vercel, Supabase, Ship24, Inngest, Cloudflare, Resend, Sentry), working through the checklist, and I help with anything that fails. The **final sweep with Fable** is yours to start: switch the model and run a full review; its High and Medium findings are fixed before the tag.
     Tag `mvp-launch` only after the production checks in the checklist pass.
 
+## Addendum (2026-10-26): Setup tab and Appearance
+
+Added at the owner's request before launch. Frontend only: no schema change, no new dependency.
+
+- **Setup tab** at `/setup`, next to Settings in the header. It walks a new user through forwarding order emails, installing the app and turning on alerts. It opens on the instructions for the device in use (iPhone & iPad, Android or Computer) and a switcher shows the others. Forwarding steps cover Gmail, Outlook, iCloud Mail, Yahoo (by hand only) and "any other mail app" (forward one by hand). The private address's Gmail confirmation code is shown on Setup.
+- **Settings keeps the controls only:** push, alert choices, the address with Copy and Regenerate (with a link to Setup), unreadable emails, your data.
+- **Appearance** in Settings: Match device (default), Light or Dark. The choice is saved in the browser on each device, not in the database, so nothing is added to the export. Colours are defined as tokens in `globals.css` so every component follows the theme.
+- **Test gate:** unit tests for the device helper, the theme logic and boot script, the switcher, the Setup page and the moved Settings tests; the launch test is unchanged and must still pass (it fails on a CSP violation).
+
 ## Explicitly not in Phase 7
 
 - Payments and Stripe (the "Upgrade" button stays a "Coming soon" dialog), AfterShip, native apps, Gmail or Outlook sync (all out of scope for the MVP).

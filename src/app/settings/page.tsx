@@ -9,6 +9,7 @@ import { NotificationSettingsForm } from "@/components/notification-settings-for
 import { PushDeviceManager } from "@/components/push-device-manager";
 import { RegenerateAddress } from "@/components/regenerate-address";
 import { SiteHeader } from "@/components/site-header";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
@@ -80,6 +81,9 @@ export default async function SettingsPage() {
         <Link href="/" className="text-sm text-link hover:underline">
           ← Back to packages
         </Link>
+
+        <h2 className="text-lg font-semibold">Appearance</h2>
+        <ThemeSwitcher />
 
         <h2 className="text-lg font-semibold">Notifications</h2>
         <PushDeviceManager

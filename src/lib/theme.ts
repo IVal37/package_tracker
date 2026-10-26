@@ -74,3 +74,12 @@ export const THEME_BOOT_SCRIPT = `try{var t=localStorage.getItem(${JSON.stringif
 )});if(t==="light"||t==="dark")document.documentElement.setAttribute(${JSON.stringify(
   THEME_ATTRIBUTE,
 )},t)}catch(e){}`;
+
+/** The browser's localStorage, or undefined where even reading it throws. */
+export function browserStorage(): StorageLike | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}

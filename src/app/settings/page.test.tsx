@@ -204,13 +204,23 @@ describe("Settings page: your data", () => {
   });
 });
 
+describe("Settings page: appearance", () => {
+  it("offers Match device, Light and Dark, defaulting to Match device", async () => {
+    await renderPage();
+    expect(screen.getByLabelText(/Match device/)).toBeChecked();
+    expect(screen.getByLabelText(/^Light/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Dark/)).toBeInTheDocument();
+  });
+});
+
 describe("Settings page: notifications", () => {
-  it("shows the notifications section above email forwarding", async () => {
+  it("shows the sections in order: appearance, notifications, email forwarding, your data", async () => {
     await renderPage();
     const headings = screen
       .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent);
     expect(headings).toEqual([
+      "Appearance",
       "Notifications",
       "Email forwarding",
       "Your data",

@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   THEME_BOOT_SCRIPT,
+  browserStorage,
   THEME_STORAGE_KEY,
   applyThemeChoice,
   parseThemeChoice,
@@ -111,5 +112,15 @@ describe("THEME_BOOT_SCRIPT", () => {
     });
     expect(run).not.toThrow();
     expect(pinned()).toBeNull();
+  });
+});
+
+describe("browserStorage", () => {
+  it("returns localStorage, or undefined when reaching it throws", () => {
+    expect(browserStorage()).toBe(localStorage);
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    expect(browserStorage()).toBeUndefined();
   });
 });

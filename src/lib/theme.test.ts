@@ -12,9 +12,9 @@ import {
 } from "./theme";
 
 afterEach(() => {
+  vi.restoreAllMocks();
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
-  vi.restoreAllMocks();
 });
 
 describe("parseThemeChoice", () => {

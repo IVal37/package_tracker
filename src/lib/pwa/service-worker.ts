@@ -61,18 +61,43 @@ export function pushSupport(env: PushEnvironment): PushSupport {
   return "available";
 }
 
+export type DeviceKind = "ios" | "android" | "computer";
+
+/**
+ * Which kind of device a browser is on. Pure, so the server can use it with
+ * just the User-Agent header; `platform` and `maxTouchPoints` (browser only)
+ * catch iPadOS, which reports itself as a Mac with a touch screen.
+ */
+export function deviceKind(info: {
+  userAgent: string;
+  platform?: string;
+  maxTouchPoints?: number;
+}): DeviceKind {
+  if (/iPad|iPhone|iPod/.test(info.userAgent)) return "ios";
+  if (info.platform === "MacIntel" && (info.maxTouchPoints ?? 0) > 1) {
+    return "ios";
+  }
+  if (/Android/.test(info.userAgent)) return "android";
+  return "computer";
+}
+
+/** Reads the real browser. Only call in an effect or event handler. */
+export function currentDeviceKind(): DeviceKind {
+  return deviceKind({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+  });
+}
+
 /** Reads the real browser. Only call in an effect or event handler. */
 export function currentPushEnvironment(): PushEnvironment {
-  const userAgent = navigator.userAgent;
   return {
     hasServiceWorker: "serviceWorker" in navigator,
     hasPushManager: "PushManager" in window,
     hasNotification: "Notification" in window,
     permission: "Notification" in window ? Notification.permission : null,
-    // iPadOS reports itself as a Mac with a touch screen.
-    isIos:
-      /iPad|iPhone|iPod/.test(userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
+    isIos: currentDeviceKind() === "ios",
     isStandalone:
       (typeof window.matchMedia === "function" &&
         window.matchMedia("(display-mode: standalone)").matches) ||

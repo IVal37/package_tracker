@@ -139,12 +139,13 @@ export async function receiveInboundEmail(args: {
   });
   if (!emailId) return result(200, "duplicate");
 
-  // Gmail's code needs no reading by the model, only a regex, so it is kept
-  // here instead of waiting for the background job: the person is watching the
-  // Setup page for it, and it must not depend on the job queue being up.
+  // Gmail's code or link needs no reading by the model, only a regex, so it is
+  // kept here instead of waiting for the background job: the person is watching
+  // the Setup page for it, and it must not depend on the job queue being up.
+  // The link may sit only in the HTML part, so both parts are searched.
   const gmail = parseGmailConfirmation({
     from: email.from,
-    text: email.text || htmlToText(email.html),
+    text: `${email.text}\n${email.html ? htmlToText(email.html) : ""}`,
   });
   if (gmail) {
     await finishEmail(
@@ -152,7 +153,7 @@ export async function receiveInboundEmail(args: {
       userId,
       emailId,
       "ignored",
-      gmailConfirmationRecord(gmail.code),
+      gmailConfirmationRecord(gmail),
     );
     return result(200, "gmail_confirmation");
   }

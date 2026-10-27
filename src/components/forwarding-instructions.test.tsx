@@ -23,7 +23,7 @@ describe("ForwardingInstructions on a computer", () => {
     }
   });
 
-  it("mentions the confirmation code only for Gmail", () => {
+  it("mentions the confirmation link or code only for Gmail", () => {
     render(<ForwardingInstructions address="a@b.test" device="computer" />);
     const gmail = screen
       .getByRole("heading", { name: "Gmail" })
@@ -31,7 +31,8 @@ describe("ForwardingInstructions on a computer", () => {
     const outlook = screen
       .getByRole("heading", { name: "Outlook" })
       .closest("section")!;
-    expect(gmail).toHaveTextContent(/confirmation code/);
+    expect(gmail).toHaveTextContent(/confirmation link/);
+    expect(gmail).toHaveTextContent(/code/);
     expect(outlook).toHaveTextContent(/does not ask for a confirmation code/);
   });
 

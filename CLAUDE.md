@@ -165,7 +165,7 @@ docs/
 - Forwarded email content is untrusted. The extraction model gets no tools and sees only that one email; its output must pass schema validation before anything is created.
   - The user is fixed by the envelope recipient's alias when the webhook stores the email. Nothing in the email or in the model's output can select, change or name a user; the model has no field for one.
   - A tracking number from the model is accepted only if it passes the Add form's format rule and literally appears in the email (`groundTrackingNumbers`). Shipments are created only through `addShipment` and `TrackingProvider`.
-  - Strings that came from an email (retailer, item, order number) are rendered as React text only: never as HTML, a URL or a link target.
+  - Strings that came from an email (retailer, item, order number) are rendered as React text only: never as HTML, a URL or a link target. The one exception is Gmail's forwarding confirmation link on Setup: it is kept and shown only if `safeGmailConfirmationLink` accepts it (https, one of Google's three confirmation hosts, the `/mail/vf-` path, no credentials or port), it is checked again when read back, and nothing else from an email is ever linked.
   - An unknown alias, a repeated Message-ID and a user over the daily cap all answer 200 and store nothing, so a prober learns nothing. Logs hold outcomes and counts only, never the body, subject, addresses or secret.
   - Orders match on `(user, retailer key, order number)`; an order number alone is never enough (Shopify stores all start at `#1001`).
 - Raw inbound emails are deleted after 30 days; "Ordered" placeholders that never shipped are deleted after 90 days (daily cleanup job).

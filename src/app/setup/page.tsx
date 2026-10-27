@@ -75,13 +75,31 @@ export default async function SetupPage() {
           className="space-y-2 rounded-lg border border-brand-600 bg-brand-50 p-4"
         >
           <h3 id="confirmation-heading" className="font-semibold">
-            Gmail confirmation code
+            Gmail confirmation
           </h3>
-          <p className="font-mono text-2xl tracking-widest">
-            {confirmation.code}
-          </p>
+          {confirmation.link && (
+            <p>
+              <a
+                href={confirmation.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+              >
+                Confirm in Gmail
+              </a>
+            </p>
+          )}
+          {confirmation.code && (
+            <p className="font-mono text-2xl tracking-widest">
+              {confirmation.code}
+            </p>
+          )}
           <p className="text-sm text-slate-600">
-            Enter this code in Gmail to finish adding the forwarding address.
+            {confirmation.link && confirmation.code
+              ? "Open the link, or enter this code in Gmail, to finish adding the forwarding address."
+              : confirmation.link
+                ? "Open the link to finish adding the forwarding address. It goes to Google."
+                : "Enter this code in Gmail to finish adding the forwarding address."}{" "}
             Received {formatRelativeTime(confirmation.receivedAt, now)}.
           </p>
         </section>

@@ -108,7 +108,7 @@ describe("Settings page", () => {
       20,
     );
     expect(
-      screen.queryByRole("heading", { name: "Gmail confirmation code" }),
+      screen.queryByRole("heading", { name: "Gmail confirmation" }),
     ).not.toBeInTheDocument();
   });
 

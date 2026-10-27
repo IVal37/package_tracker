@@ -139,8 +139,9 @@ export function ForwardingInstructions({
             <Address address={address} />.
           </li>
           <li>
-            Gmail sends a confirmation code to that address. It will appear on
-            this page within a minute; enter it in Gmail to finish.
+            Gmail sends a confirmation link (sometimes a code) to that address.
+            It will appear on this page within a minute; open the link, or enter
+            the code in Gmail, to finish.
           </li>
           <li>
             Open Filters and Blocked Addresses → Create a new filter. Match

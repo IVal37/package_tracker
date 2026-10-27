@@ -46,8 +46,8 @@ export function ConfirmationWatcher() {
     >
       <span>
         {waiting
-          ? "Using Gmail? Its confirmation code appears here by itself."
-          : "No Gmail code yet."}
+          ? "Using Gmail? Its confirmation link or code appears here by itself."
+          : "No Gmail confirmation yet."}
       </span>
       <button
         type="button"

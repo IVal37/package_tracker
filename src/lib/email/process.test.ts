@@ -595,7 +595,7 @@ describe("emails that make nothing", () => {
     expect(await ordersOf(user.id)).toHaveLength(0);
   });
 
-  it("Gmail's forwarding confirmation is kept as a code and never sent to the model", async () => {
+  it("Gmail's forwarding confirmation is kept as a code and a link and never sent to the model", async () => {
     const user = await insertUser(ctx.db);
     const emailId = await store(user.id, {
       from: "Gmail Team <forwarding-noreply@google.com>",
@@ -614,8 +614,27 @@ describe("emails that make nothing", () => {
     expect(row.extracted).toEqual({
       kind: "gmail_forwarding_confirmation",
       code: "99427480",
+      link: "https://mail-settings.google.com/mail/vf-secret-link",
     });
-    expect(JSON.stringify(row.extracted)).not.toContain("vf-secret-link");
+  });
+
+  it("keeps a Gmail confirmation that is only a link in the HTML part", async () => {
+    const user = await insertUser(ctx.db);
+    const emailId = await store(user.id, {
+      from: "Gmail Team <forwarding-noreply@google.com>",
+      subject: "Gmail Forwarding Confirmation",
+      text: "",
+      html: '<p>Click <a href="https://mail-settings.google.com/mail/vf-html-link">here</a> to confirm.</p>',
+    });
+    const extractor = answering(byName("amazon-order").model);
+
+    expect((await run(emailId, extractor)).status).toBe("ignored");
+    expect(extractor.extract).not.toHaveBeenCalled();
+    expect((await emailRow(emailId)).extracted).toEqual({
+      kind: "gmail_forwarding_confirmation",
+      code: null,
+      link: "https://mail-settings.google.com/mail/vf-html-link",
+    });
   });
 
   it("an unreadable stored email is marked failed", async () => {

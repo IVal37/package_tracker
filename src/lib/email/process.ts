@@ -128,7 +128,7 @@ export async function processInboundEmail(args: {
 
   const gmail = parseGmailConfirmation({
     from: email.from,
-    text: email.text || readable,
+    text: `${email.text}\n${fromHtml}`,
   });
   if (gmail) {
     await finishEmail(
@@ -136,7 +136,7 @@ export async function processInboundEmail(args: {
       userId,
       emailId,
       "ignored",
-      gmailConfirmationRecord(gmail.code),
+      gmailConfirmationRecord(gmail),
     );
     return result("ignored");
   }

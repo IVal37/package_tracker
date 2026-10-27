@@ -170,10 +170,42 @@ describe("receiveInboundEmail: Gmail's forwarding code", () => {
     expect(result.emailId).toBeUndefined();
     expect(await latestGmailConfirmation(ctx.db, user.id, since)).toEqual({
       code: "99427480",
+      link: "https://mail-settings.google.com/mail/vf-secret",
       receivedAt: NOW,
     });
     const [row] = await rowsFor(user.id);
     expect(row?.parseStatus).toBe("ignored");
+  });
+
+  it("keeps a confirmation that is only a link, found in the HTML part", async () => {
+    const user = await newUser();
+    const result = await receive(
+      email(user.address, {
+        from: GMAIL,
+        text: "",
+        html: '<p>Click <a href="https://mail-settings.google.com/mail/vf-from-html">to confirm</a>.</p>',
+      }),
+    );
+    expect(result.outcome).toBe("gmail_confirmation");
+    expect(await latestGmailConfirmation(ctx.db, user.id, since)).toEqual({
+      code: null,
+      link: "https://mail-settings.google.com/mail/vf-from-html",
+      receivedAt: NOW,
+    });
+  });
+
+  it("never keeps a link that is not Gmail's confirmation page", async () => {
+    const user = await newUser();
+    const result = await receive(
+      email(user.address, {
+        from: GMAIL,
+        text: "Confirm here: https://evil.test/mail/vf-phish",
+        html: "",
+      }),
+    );
+    // Not a confirmation it can use, so it is left for the job like any email.
+    expect(result.outcome).toBe("stored");
+    expect(await latestGmailConfirmation(ctx.db, user.id, since)).toBeNull();
   });
 
   it("reads the code from the HTML when Gmail sent no plain-text part", async () => {

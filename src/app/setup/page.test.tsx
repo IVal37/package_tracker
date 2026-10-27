@@ -129,7 +129,7 @@ describe("Setup page", () => {
   });
 });
 
-describe("Setup page: the Gmail confirmation code", () => {
+describe("Setup page: the Gmail confirmation", () => {
   it("looks it up for the session user only, over the last 3 days", async () => {
     const before = Date.now();
     await renderPage();
@@ -141,24 +141,58 @@ describe("Setup page: the Gmail confirmation code", () => {
     expect(Math.abs(ageMs - 3 * 86_400_000)).toBeLessThan(5_000);
   });
 
+  const LINK = "https://mail-settings.google.com/mail/vf-abc123";
+
   it("shows a recent code", async () => {
     mocks.latestGmailConfirmation.mockResolvedValue({
       code: "12345678",
+      link: null,
       receivedAt: new Date(Date.now() - 5 * 60_000),
     });
     await renderPage();
 
     expect(
-      screen.getByRole("heading", { name: "Gmail confirmation code" }),
+      screen.getByRole("heading", { name: "Gmail confirmation" }),
     ).toBeInTheDocument();
     expect(screen.getByText("12345678")).toBeInTheDocument();
     expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Confirm in Gmail" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows no confirmation section when there is no recent code", async () => {
+  it("shows a link when Gmail sent a link and no code", async () => {
+    mocks.latestGmailConfirmation.mockResolvedValue({
+      code: null,
+      link: LINK,
+      receivedAt: new Date(),
+    });
+    await renderPage();
+
+    const link = screen.getByRole("link", { name: "Confirm in Gmail" });
+    expect(link).toHaveAttribute("href", LINK);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.queryByText(/^\d{6,10}$/)).not.toBeInTheDocument();
+  });
+
+  it("shows both when Gmail sent both", async () => {
+    mocks.latestGmailConfirmation.mockResolvedValue({
+      code: "12345678",
+      link: LINK,
+      receivedAt: new Date(),
+    });
     await renderPage();
     expect(
-      screen.queryByRole("heading", { name: "Gmail confirmation code" }),
+      screen.getByRole("link", { name: "Confirm in Gmail" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12345678")).toBeInTheDocument();
+  });
+
+  it("shows no confirmation section when there is no recent one", async () => {
+    await renderPage();
+    expect(
+      screen.queryByRole("heading", { name: "Gmail confirmation" }),
     ).not.toBeInTheDocument();
   });
 
@@ -172,6 +206,7 @@ describe("Setup page: the Gmail confirmation code", () => {
   it("stops checking once the code is shown", async () => {
     mocks.latestGmailConfirmation.mockResolvedValue({
       code: "12345678",
+      link: null,
       receivedAt: new Date(),
     });
     await renderPage();

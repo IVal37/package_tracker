@@ -2,6 +2,7 @@
 // (found from its address by the webhook) and filters by it.
 import { and, count, desc, eq, gt } from "drizzle-orm";
 import { z } from "zod";
+import { safeGmailConfirmationLink } from "@/lib/email/gmail-confirmation";
 import type { Db } from "./client";
 import { inboundEmails } from "./schema";
 import { isUniqueViolation, isUuid } from "./shipments";
@@ -15,20 +16,36 @@ export interface NewInboundEmail {
   receivedAt: Date;
 }
 
-const gmailConfirmationSchema = z.object({
-  kind: z.literal("gmail_forwarding_confirmation"),
-  code: z.string().regex(/^\d{6,10}$/),
-});
+// The link is checked again on the way out, so a stored value that is not a
+// Gmail confirmation link (however it got there) is never handed to the page.
+const gmailConfirmationSchema = z
+  .object({
+    kind: z.literal("gmail_forwarding_confirmation"),
+    code: z
+      .string()
+      .regex(/^\d{6,10}$/)
+      .nullish(),
+    link: z
+      .string()
+      .refine((link) => safeGmailConfirmationLink(link) === link)
+      .nullish(),
+  })
+  .refine((value) => value.code || value.link);
 
 /**
- * The newest Gmail forwarding confirmation code this user received since the
- * given moment, for the Setup page. Only the digits are ever stored.
+ * The newest Gmail forwarding confirmation (a code, a link, or both) this user
+ * received since the given moment, for the Setup page. Only the digits and a
+ * link to Google's own confirmation page are ever stored.
  */
 export async function latestGmailConfirmation(
   db: Db,
   userId: string,
   since: Date,
-): Promise<{ code: string; receivedAt: Date } | null> {
+): Promise<{
+  code: string | null;
+  link: string | null;
+  receivedAt: Date;
+} | null> {
   const rows = await db
     .select({
       extracted: inboundEmails.extracted,
@@ -48,7 +65,11 @@ export async function latestGmailConfirmation(
   for (const row of rows) {
     const parsed = gmailConfirmationSchema.safeParse(row.extracted);
     if (parsed.success) {
-      return { code: parsed.data.code, receivedAt: row.receivedAt };
+      return {
+        code: parsed.data.code ?? null,
+        link: parsed.data.link ?? null,
+        receivedAt: row.receivedAt,
+      };
     }
   }
   return null;

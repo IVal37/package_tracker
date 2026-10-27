@@ -44,7 +44,7 @@ describe("ConfirmationWatcher", () => {
     await tick(POLL_EVERY_MS * 2);
     expect(mocks.refresh).toHaveBeenCalledTimes(3);
     expect(screen.getByRole("status")).toHaveTextContent(
-      /confirmation code appears here by itself/,
+      /confirmation link or code appears here by itself/,
     );
   });
 
@@ -52,7 +52,9 @@ describe("ConfirmationWatcher", () => {
     render(<ConfirmationWatcher />);
     await tick(POLL_FOR_MS + POLL_EVERY_MS);
     const calls = mocks.refresh.mock.calls.length;
-    expect(screen.getByRole("status")).toHaveTextContent("No Gmail code yet.");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No Gmail confirmation yet.",
+    );
 
     await tick(POLL_FOR_MS);
     expect(mocks.refresh).toHaveBeenCalledTimes(calls);
@@ -75,7 +77,9 @@ describe("ConfirmationWatcher", () => {
   it("Check now looks straight away and starts waiting again", async () => {
     render(<ConfirmationWatcher />);
     await tick(POLL_FOR_MS + POLL_EVERY_MS);
-    expect(screen.getByRole("status")).toHaveTextContent("No Gmail code yet.");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No Gmail confirmation yet.",
+    );
     mocks.refresh.mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: "Check now" }));

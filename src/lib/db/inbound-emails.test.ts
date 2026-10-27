@@ -122,6 +122,7 @@ describe("latestGmailConfirmation", () => {
     kind: "gmail_forwarding_confirmation",
     code,
   });
+  const LINK = "https://mail-settings.google.com/mail/vf-abc123";
 
   it("returns the newest code inside the window", async () => {
     const user = await insertUser(ctx.db);
@@ -130,6 +131,30 @@ describe("latestGmailConfirmation", () => {
 
     expect(await latestGmailConfirmation(ctx.db, user.id, daysAgo(3))).toEqual({
       code: "22222222",
+      link: null,
+      receivedAt: daysAgo(1),
+    });
+  });
+
+  it("returns a link, a code, or both", async () => {
+    const user = await insertUser(ctx.db);
+    const kind = "gmail_forwarding_confirmation";
+
+    await addIgnored(user.id, { kind, code: null, link: LINK }, daysAgo(2));
+    expect(await latestGmailConfirmation(ctx.db, user.id, daysAgo(3))).toEqual({
+      code: null,
+      link: LINK,
+      receivedAt: daysAgo(2),
+    });
+
+    await addIgnored(
+      user.id,
+      { kind, code: "12345678", link: LINK },
+      daysAgo(1),
+    );
+    expect(await latestGmailConfirmation(ctx.db, user.id, daysAgo(3))).toEqual({
+      code: "12345678",
+      link: LINK,
       receivedAt: daysAgo(1),
     });
   });
@@ -163,6 +188,32 @@ describe("latestGmailConfirmation", () => {
       "a link instead of a code",
       { kind: "gmail_forwarding_confirmation", code: "https://evil.test" },
     ],
+    [
+      "a link to another site",
+      {
+        kind: "gmail_forwarding_confirmation",
+        link: "https://evil.test/mail/vf-x",
+      },
+    ],
+    [
+      "a link that is not https",
+      {
+        kind: "gmail_forwarding_confirmation",
+        link: "http://mail-settings.google.com/mail/vf-x",
+      },
+    ],
+    [
+      "a script link",
+      { kind: "gmail_forwarding_confirmation", link: "javascript:alert(1)" },
+    ],
+    [
+      "Gmail's cancel link",
+      {
+        kind: "gmail_forwarding_confirmation",
+        link: "https://mail-settings.google.com/mail/uf-x",
+      },
+    ],
+    ["neither a code nor a link", { kind: "gmail_forwarding_confirmation" }],
     ["no extraction", null],
     ["a non-object", "text"],
   ])("skips %s", async (_name, extracted) => {

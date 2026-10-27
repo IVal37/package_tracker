@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
+import { ConfirmationWatcher } from "@/components/confirmation-watcher";
 import { DeviceSetup } from "@/components/device-setup";
 import { ForwardingAddress } from "@/components/forwarding-address";
 import { LegalLinks } from "@/components/legal-page";
@@ -65,6 +66,8 @@ export default async function SetupPage() {
           .
         </p>
       </section>
+
+      {!confirmation && <ConfirmationWatcher />}
 
       {confirmation && (
         <section

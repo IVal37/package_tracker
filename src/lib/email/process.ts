@@ -19,7 +19,10 @@ import {
   type Extraction,
   type Extractor,
 } from "./extract";
-import { parseGmailConfirmation } from "./gmail-confirmation";
+import {
+  gmailConfirmationRecord,
+  parseGmailConfirmation,
+} from "./gmail-confirmation";
 import { htmlToText } from "./html-to-text";
 import { retailerKey } from "./retailer-key";
 import { findTrackingCandidates } from "./tracking-patterns";
@@ -128,10 +131,13 @@ export async function processInboundEmail(args: {
     text: email.text || readable,
   });
   if (gmail) {
-    await finishEmail(db, userId, emailId, "ignored", {
-      kind: "gmail_forwarding_confirmation",
-      code: gmail.code,
-    });
+    await finishEmail(
+      db,
+      userId,
+      emailId,
+      "ignored",
+      gmailConfirmationRecord(gmail.code),
+    );
     return result("ignored");
   }
 

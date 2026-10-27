@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/headers", () => ({ headers: mocks.headers }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/auth/account", () => ({
@@ -158,6 +159,24 @@ describe("Setup page: the Gmail confirmation code", () => {
     await renderPage();
     expect(
       screen.queryByRole("heading", { name: "Gmail confirmation code" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps checking for the code until there is one", async () => {
+    await renderPage();
+    expect(
+      screen.getByRole("button", { name: "Check now" }),
+    ).toBeInTheDocument();
+  });
+
+  it("stops checking once the code is shown", async () => {
+    mocks.latestGmailConfirmation.mockResolvedValue({
+      code: "12345678",
+      receivedAt: new Date(),
+    });
+    await renderPage();
+    expect(
+      screen.queryByRole("button", { name: "Check now" }),
     ).not.toBeInTheDocument();
   });
 });

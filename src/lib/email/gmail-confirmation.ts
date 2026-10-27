@@ -12,6 +12,11 @@ export interface GmailConfirmationInput {
   text: string;
 }
 
+/** What is kept on the stored email; `latestGmailConfirmation` reads it back. */
+export function gmailConfirmationRecord(code: string) {
+  return { kind: "gmail_forwarding_confirmation", code } as const;
+}
+
 /** The confirmation code if this is Gmail's forwarding confirmation, else null. */
 export function parseGmailConfirmation({
   from,

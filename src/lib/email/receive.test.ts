@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb, insertUser } from "../../../tests/db/pglite";
 import { getOrCreateAlias } from "@/lib/db/forwarding";
+import { latestGmailConfirmation } from "@/lib/db/inbound-emails";
 import { inboundEmails } from "@/lib/db/schema";
 import {
   MAX_BODY_CHARS,
@@ -149,6 +150,71 @@ describe("receiveInboundEmail: storing", () => {
         )
       ).status,
     ).toBe(422);
+  });
+});
+
+describe("receiveInboundEmail: Gmail's forwarding code", () => {
+  const GMAIL = "Gmail Team <forwarding-noreply@google.com>";
+  const BODY =
+    "sam@gmail.com has requested to automatically forward mail to your email address.\n\nConfirmation code: 99427480\n\nhttps://mail-settings.google.com/mail/vf-secret";
+  const since = new Date(NOW.getTime() - 3 * 24 * HOUR);
+
+  it("keeps the code at once, so the Setup page shows it without any job running", async () => {
+    const user = await newUser();
+    const result = await receive(
+      email(user.address, { from: GMAIL, text: BODY, html: "" }),
+    );
+
+    expect(result).toEqual({ status: 200, outcome: "gmail_confirmation" });
+    // No email id, so the webhook queues no processing event.
+    expect(result.emailId).toBeUndefined();
+    expect(await latestGmailConfirmation(ctx.db, user.id, since)).toEqual({
+      code: "99427480",
+      receivedAt: NOW,
+    });
+    const [row] = await rowsFor(user.id);
+    expect(row?.parseStatus).toBe("ignored");
+  });
+
+  it("reads the code from the HTML when Gmail sent no plain-text part", async () => {
+    const user = await newUser();
+    await receive(
+      email(user.address, {
+        from: GMAIL,
+        text: "",
+        html: "<p>Confirmation code: 12345678</p>",
+      }),
+    );
+    expect((await latestGmailConfirmation(ctx.db, user.id, since))?.code).toBe(
+      "12345678",
+    );
+  });
+
+  it("stores the same words from anyone else as an ordinary email", async () => {
+    const user = await newUser();
+    const result = await receive(
+      email(user.address, { from: "friend@example.com", text: BODY }),
+    );
+    expect(result.outcome).toBe("stored");
+    expect(result.emailId).toBeDefined();
+    expect(await latestGmailConfirmation(ctx.db, user.id, since)).toBeNull();
+    const [row] = await rowsFor(user.id);
+    expect(row?.parseStatus).toBe("pending");
+  });
+
+  it("gives the code to the owner of the address only", async () => {
+    const owner = await newUser();
+    const other = await newUser();
+    await receive(email(owner.address, { from: GMAIL, text: BODY }));
+    expect(await latestGmailConfirmation(ctx.db, other.id, since)).toBeNull();
+  });
+
+  it("does not store a repeat of the same message twice", async () => {
+    const user = await newUser();
+    const body = email(user.address, { from: GMAIL, text: BODY });
+    await receive(body);
+    expect((await receive(body)).outcome).toBe("duplicate");
+    expect(await rowsFor(user.id)).toHaveLength(1);
   });
 });
 

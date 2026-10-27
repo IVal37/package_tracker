@@ -57,7 +57,7 @@ Expected: the **Ordered** row is gone and `TBA309876543210` is a tracked package
    - Send either request again with the same `messageId`: still `200`, still one package.
    - Change `recipient` to `nobody-abcd@in.localhost`: `200`, nothing stored.
    - Leave the `Authorization` header off, or change the secret: `401`.
-7. Gmail's confirmation message: send `from = "Gmail Team <forwarding-noreply@google.com>"`, any `subject`, `text = "Your confirmation code: 12345678"`. The code appears on **Setup** for 3 days.
+7. Gmail's confirmation message: send `from = "Gmail Team <forwarding-noreply@google.com>"`, any `subject`, `text = "Your confirmation code: 12345678"`. The code appears on **Setup** for 3 days. The webhook keeps it as soon as the request arrives (no job needed), and an open Setup page checks for it every few seconds for 3 minutes (press **Check now** to start again).
 8. **Regenerate address** on Settings (Setup then shows the new one): the old address now gets `200` and nothing is stored.
 
 The fake extractor reads emails with plain rules, so it needs wording like "Thanks for your order" / "has shipped" / "Tracking number:". The real model reads far more varied emails.
@@ -108,7 +108,7 @@ Menu names move around over time; the idea is "everything sent to `*@in.<domain>
 Setup (in Wayfind) shows the same steps with your address filled in, for the device you are on, plus iCloud Mail, Yahoo and "forward one by hand".
 
 1. Gmail → Settings → See all settings → **Forwarding and POP/IMAP** → **Add a forwarding address** → your Wayfind address.
-2. Gmail sends a confirmation message to that address. Wayfind recognises it (sender `forwarding-noreply@google.com`) and shows the 8-digit code on **Setup**. Enter it in Gmail. Only the digits are kept, never the link.
+2. Gmail sends a confirmation message to that address. Wayfind recognises it (sender `forwarding-noreply@google.com`) and shows the 8-digit code on **Setup**, usually within seconds: the Setup page checks by itself, and the webhook reads the code on arrival without waiting for the background job. Enter it in Gmail. Only the digits are kept, never the link.
 3. Gmail → **Filters and Blocked Addresses** → **Create a new filter** (for example subject contains `order` or `shipped`, or from your favourite retailers) → **Forward it to** your Wayfind address.
 
 If the code does not show within a couple of minutes, see "Troubleshooting".

@@ -3,12 +3,18 @@ import { verifyBearerSecret } from "@/lib/auth/bearer";
 import type { Db } from "@/lib/db/client";
 import {
   countEmailsSince,
+  finishEmail,
   hasMessageId,
   insertInboundEmail,
 } from "@/lib/db/inbound-emails";
 import { findUserIdByAlias } from "@/lib/db/inbound-sync";
 import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
 import { aliasFromRecipient } from "./alias";
+import {
+  gmailConfirmationRecord,
+  parseGmailConfirmation,
+} from "./gmail-confirmation";
+import { htmlToText } from "./html-to-text";
 
 /** Largest request body we read. The Worker sends far less. */
 export const MAX_BODY_CHARS = 1_000_000;
@@ -33,6 +39,8 @@ export type InboundEmail = z.infer<typeof inboundEmailSchema>;
 
 export type ReceiveOutcome =
   | "stored"
+  /** Gmail's forwarding code: kept as a code right away, nothing to queue. */
+  | "gmail_confirmation"
   | "unknown_alias"
   | "duplicate"
   | "over_limit"
@@ -129,5 +137,24 @@ export async function receiveInboundEmail(args: {
     subject: email.subject.slice(0, 300) || null,
     receivedAt: now,
   });
-  return emailId ? result(200, "stored", emailId) : result(200, "duplicate");
+  if (!emailId) return result(200, "duplicate");
+
+  // Gmail's code needs no reading by the model, only a regex, so it is kept
+  // here instead of waiting for the background job: the person is watching the
+  // Setup page for it, and it must not depend on the job queue being up.
+  const gmail = parseGmailConfirmation({
+    from: email.from,
+    text: email.text || htmlToText(email.html),
+  });
+  if (gmail) {
+    await finishEmail(
+      db,
+      userId,
+      emailId,
+      "ignored",
+      gmailConfirmationRecord(gmail.code),
+    );
+    return result(200, "gmail_confirmation");
+  }
+  return result(200, "stored", emailId);
 }

@@ -56,6 +56,18 @@ export type HandlerOutcome =
   /** The app answered 4xx: retrying would not help. */
   | "dropped";
 
+/**
+ * Answers that mean the Worker is pointed at the wrong place or holds the wrong
+ * secret (a redirect, 401, 403, 404), not that this email is unacceptable.
+ * Dropping the email would lose it for good; throwing makes the sending server
+ * try again, so mail sent before the fix is delivered after it.
+ */
+const isSetupProblem = (status: number) =>
+  (status >= 300 && status < 400) ||
+  status === 401 ||
+  status === 403 ||
+  status === 404;
+
 function displayFrom(parsed: ParsedMail, envelopeFrom: string): string {
   const address = parsed.from?.address?.trim();
   if (!address) return envelopeFrom;
@@ -67,9 +79,10 @@ function displayFrom(parsed: ParsedMail, envelopeFrom: string): string {
  * Parses one message and posts it to the app.
  *
  * Throws when the app answers 5xx or 429 (too many emails to this address just
- * now) or cannot be reached, so Cloudflare tells the sending server to try
- * again later. Any other 4xx is dropped without a retry (the app says the email
- * is not acceptable, and sending it again would not change that).
+ * now), cannot be reached, or answers like a wrong setup (a redirect, 401, 403
+ * or 404), so Cloudflare tells the sending server to try again later. Any
+ * other 4xx is dropped without a retry (the app says the email is not
+ * acceptable, and sending it again would not change that).
  * Never logs anything from the message.
  */
 export async function handleInboundMessage(
@@ -111,8 +124,17 @@ export async function handleInboundMessage(
       authorization: `Bearer ${config.secret}`,
     },
     body,
+    // A redirect to another origin (apex to www, say) is followed without the
+    // Authorization header, so the app answers 401 and the email would be lost
+    // for a mistake in APP_URL. Not followed: it fails loudly instead.
+    redirect: "manual",
   });
 
+  if (isSetupProblem(response.status)) {
+    throw new Error(
+      `Inbound webhook is not set up right (status ${response.status}): check APP_URL and the secret`,
+    );
+  }
   if (response.status >= 500 || response.status === 429) {
     throw new Error(`Inbound webhook failed with status ${response.status}`);
   }

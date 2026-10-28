@@ -121,7 +121,7 @@ Check: `https://<domain>/sign-in` loads; `https://<domain>/privacy` loads signed
 
 ## 7. Cloudflare email forwarding
 
-Follow `docs/email-forwarding-setup.md`, "Real forwarding": Email Routing on `in.<domain>` with a catch-all to the Worker, `wrangler deploy` (allow the `esbuild` and `workerd` install scripts first), and the Worker's `INBOUND_WEBHOOK_SECRET` and endpoint `https://<domain>/api/webhooks/inbound-email`.
+Follow `docs/email-forwarding-setup.md`, "Real forwarding": Email Routing on `in.<domain>` with a catch-all to the Worker, `wrangler deploy` (allow the `esbuild` and `workerd` install scripts first), and the Worker's `INBOUND_WEBHOOK_SECRET` and endpoint `https://<domain>/api/webhooks/inbound-email`. Use the host the app answers on directly: if the bare domain redirects to `www`, set the Worker's `APP_URL` to the `www` one, because a redirect drops the secret. `curl -i -X POST https://<host>/api/webhooks/inbound-email` must answer `401`, not a `3xx`.
 
 ## 8. Production checks
 

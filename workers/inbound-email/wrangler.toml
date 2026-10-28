@@ -6,8 +6,11 @@ compatibility_date = "2025-01-01"
 # rule on in.<your domain>. See docs/email-forwarding-setup.md.
 
 [vars]
-# The app's public origin, no trailing path. Change it to your own.
-APP_URL = "https://wayfindtracking.com"
+# The app's public origin, no trailing path. Change it to your own, and use the
+# address the app really answers on: wayfindtracking.com redirects to www, and a
+# redirect drops the secret, so the Worker would be refused. Check with:
+#   curl -i -X POST <APP_URL>/api/webhooks/inbound-email   (expect 401, not 3xx)
+APP_URL = "https://www.wayfindtracking.com"
 
 # The shared secret is not stored here. Set it with:
 #   npx wrangler secret put INBOUND_WEBHOOK_SECRET

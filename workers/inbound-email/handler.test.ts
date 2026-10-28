@@ -169,7 +169,7 @@ describe("handleInboundMessage", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it.each([401, 413, 422])(
+  it.each([400, 413, 422])(
     "drops quietly when the app answers %i",
     async (status) => {
       const { config } = setup(
@@ -181,6 +181,25 @@ describe("handleInboundMessage", () => {
       );
     },
   );
+
+  it.each([301, 307, 308, 401, 403, 404])(
+    "throws when the app answers %i, because the setup is wrong and the email must not be lost",
+    async (status) => {
+      const { config } = setup(
+        { text: "x" },
+        () => new Response(null, { status }),
+      );
+      await expect(handleInboundMessage(message(), config)).rejects.toThrow(
+        `status ${status}`,
+      );
+    },
+  );
+
+  it("does not follow a redirect, which would drop the secret on another origin", async () => {
+    const { config, fetchMock } = setup({ text: "x" });
+    await handleInboundMessage(message(), config);
+    expect(fetchMock.mock.calls[0]![1]).toMatchObject({ redirect: "manual" });
+  });
 
   it.each([429, 500, 502, 503])(
     "throws when the app answers %i, so the sender retries",

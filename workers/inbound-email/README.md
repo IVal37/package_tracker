@@ -11,6 +11,6 @@ It forwards and nothing else. Which user an email belongs to, repeats, daily lim
 
 What it sends: the **envelope** recipient (the alias it was really delivered to, not the `To:` header), the From header, subject, Message-ID, date, and the text and HTML parts, each cut at 200,000 characters. Messages over 25 MiB are skipped.
 
-What it does with the app's answer: 2xx is done; 4xx is dropped without a retry; 5xx or no answer throws, so the sending server tries again later. It never logs anything from the email.
+What it does with the app's answer: 2xx is done; most 4xx (the app says this email is not acceptable) are dropped without a retry; 5xx, 429, no answer, and answers that mean the Worker is set up wrong (a redirect, 401, 403, 404) throw, so the sending server tries again later and nothing is lost. It does not follow redirects: they drop the secret on another origin. It never logs anything from the email.
 
 Setup and deployment: [`docs/email-forwarding-setup.md`](../../docs/email-forwarding-setup.md). This folder has its own `package.json` so none of its packages reach the Next.js app.

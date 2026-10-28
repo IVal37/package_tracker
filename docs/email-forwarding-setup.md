@@ -80,7 +80,8 @@ Menu names move around over time; the idea is "everything sent to `*@in.<domain>
 
 1. Make a secret for the app and the Worker to share:
    `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-2. In `workers/inbound-email/wrangler.toml` set `APP_URL` to your deployed app's origin.
+2. In `workers/inbound-email/wrangler.toml` set `APP_URL` to your deployed app's origin, **exactly as the app answers on it, with no redirect**. If `example.com` redirects to `www.example.com`, use the `www` one: a redirect to another origin drops the `Authorization` header, so the app refuses the Worker with `401`. Check before deploying:
+   `curl -i -X POST https://<APP_URL host>/api/webhooks/inbound-email` must print `401 Unauthorized` (the app is there and wants its secret), not `301`, `307` or `308`.
 3. From that folder:
    ```
    npm install
@@ -121,7 +122,7 @@ Settings → Mail → **Rules** → **Add new rule**: condition "Subject include
 
 - **Nothing arrives.** Email Routing → Activity log shows whether Cloudflare received the message and which rule handled it. `npx wrangler tail` (in `workers/inbound-email`) shows the Worker running; it logs nothing from the email itself.
 - **Everything is dropped silently.** An unknown address answers `200` on purpose. Check that the address on Setup or Settings is the one used, that `INBOUND_EMAIL_DOMAIN` matches the subdomain exactly, and that you did not regenerate the address after setting up the forward.
-- **`401` in the Worker's logs.** The secret differs between `wrangler secret put` and the app's `INBOUND_WEBHOOK_SECRET`. The Worker drops a rejected email without retrying.
+- **Error `Inbound webhook is not set up right (status 401 / 3xx / 403 / 404)` in `npx wrangler tail`.** Either the secret differs between `wrangler secret put` and the app's `INBOUND_WEBHOOK_SECRET`, or `APP_URL` is wrong or redirects (see step 2 of "Deploy the Worker"). The Worker throws instead of dropping the email, so the sending server tries again later and mail sent before the fix still arrives. Redeploy the Worker (`npx wrangler deploy`) after fixing `wrangler.toml`.
 - **The email is stored but no package appears.** Open the Inngest dashboard and look at `process-inbound-email`. Settings shows how many emails could not be read; add those packages by hand.
 - **The Worker retries.** It throws on a `5xx` or an unreachable app on purpose, so the sending server tries again later.
 - **Cost.** One email is roughly half a cent with Claude Haiku 4.5. `INBOUND_DAILY_LIMIT` caps what one address can cost per day.

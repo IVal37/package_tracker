@@ -28,7 +28,9 @@ export default {
     await handleInboundMessage(message, {
       endpoint: new URL("/api/webhooks/inbound-email", env.APP_URL).toString(),
       secret: env.INBOUND_WEBHOOK_SECRET,
-      fetch,
+      // Wrapped, not passed bare: the runtime's fetch must be called as a
+      // plain function or it throws "Illegal invocation".
+      fetch: (input, init) => fetch(input, init),
       parse,
     });
   },

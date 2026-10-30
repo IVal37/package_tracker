@@ -117,7 +117,10 @@ export async function handleInboundMessage(
     }
   }
 
-  const response = await config.fetch(config.endpoint, {
+  // Called as a bare function: Cloudflare's fetch throws "Illegal invocation"
+  // when it runs with the config object as `this`.
+  const { fetch: send } = config;
+  const response = await send(config.endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/json",

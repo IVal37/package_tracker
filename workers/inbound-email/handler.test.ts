@@ -195,6 +195,13 @@ describe("handleInboundMessage", () => {
     },
   );
 
+  it("calls fetch as a plain function, not as a method of the config", async () => {
+    // Cloudflare's fetch throws "Illegal invocation" if `this` is the config.
+    const { config, fetchMock } = setup({ text: "x" });
+    await handleInboundMessage(message(), config);
+    expect(fetchMock.mock.contexts[0]).not.toBe(config);
+  });
+
   it("does not follow a redirect, which would drop the secret on another origin", async () => {
     const { config, fetchMock } = setup({ text: "x" });
     await handleInboundMessage(message(), config);

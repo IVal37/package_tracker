@@ -190,6 +190,63 @@ Added at the owner's request before launch. Frontend only: no schema change, no 
 - **Appearance** in Settings: Match device (default), Light or Dark. The choice is saved in the browser on each device, not in the database, so nothing is added to the export. Colours are defined as tokens in `globals.css` so every component follows the theme.
 - **Test gate:** unit tests for the device helper, the theme logic and boot script, the switcher, the Setup page and the moved Settings tests; the launch test is unchanged and must still pass (it fails on a CSP violation).
 
+## Addendum (2026-10-30): first-run setup prompt
+
+Added at the owner's request. Plan only: nothing here is built yet. Needs one migration and no new dependency.
+
+**Why.** Forwarding is what makes Wayfind more than a tracking-number box, and it cannot be finished in the app: Gmail and Outlook rules have to be set up once, on a computer. A new user who never opens the Setup tab never gets it. The prompt makes sure each user sees it once and lets them say where they stand.
+
+### What we are building
+
+1. **A welcome dialog on the list page, shown until the user answers once.** It is short: what Wayfind needs from them (forward order emails, install the app, turn on alerts), and three actions: **Open the setup guide** (a link to `/setup`), **I've finished setup**, **Skip, I'll do it later**. No close button, no Escape and no click-outside, so the user has to choose; Skip is one click, so nobody is trapped. It uses the existing `components/modal.tsx` with those dismissals switched off.
+2. **The answer is stored and shown.** `/setup` gets a status line at the top: *Not started*, *Skipped on 30 Oct* or *Completed on 30 Oct*. While it is not completed, the page has **Mark setup as done**; once it is done or skipped, it has the opposite action (**Mark as not done**), so the user can change their mind. Setup stays reachable from the header at all times.
+3. **Real signals next to the self-report.** "Completed" is whatever the user clicked, and people tick things they didn't do. So `/setup` also shows three facts the app can know: *Emails are arriving* (at least one stored inbound email for this user), *Alerts on a device* (at least one push subscription) and *Email alerts on*. They are display only and never change the stored answer. Installed-as-an-app is per device and cannot be known server-side, so it is not shown.
+
+### Where this plan disagrees with the request
+
+- **The dialog is not the whole Setup page.** The Setup page is long (three steps, a device switcher, per-service forwarding steps) and has the live Gmail confirmation, which polls the server. Squeezed into a dialog it would be cramped on a phone and awkward to keep open next to Gmail. The dialog is a gate that points at the page.
+- **It shows once, not on every login.** A user who skipped has said no for now. Showing it again at every sign-in teaches people to dismiss it unread and makes the app feel naggy. Skipped users see the status on `/setup` and can finish any time. (If you later want a reminder, a small "Finish setup" note on the list is the gentler tool; not in this addendum.)
+- **"Completed" proves little, and that is fine.** We keep it because the owner wants a log, but the signals in item 3 are the truth.
+- **Not a redirect to `/setup` on first sign-in.** A dialog over the list leaves the sign-in flow, the callback and the launch test's URL checks untouched; a redirect changes all three.
+
+### Data
+
+- Two nullable columns on `users`: `setup_completed_at` and `setup_skipped_at` (`timestamptz`). State is derived: both null = not answered (show the dialog); completed set = done; only skipped set = skipped. Answering one clears the other, in one statement.
+- No backfill: existing accounts are pre-launch test accounts and see the dialog once.
+- The columns are part of the user's data, so `buildUserExport` includes them (the export test uses `seed-user.ts`). Account deletion needs no change (the row goes).
+- Migration in its own commit, before feature code.
+
+### Behaviour and safety
+
+- Three Server Actions in `app/actions.ts` (thin, as there): `completeSetupAction`, `skipSetupAction`, `reopenSetupAction`. Each calls `requireUser()` then `requireLiveAccount()`, takes the user only from the session, and updates only that user's row through one function in `src/lib/db/users.ts`. They revalidate `/` and `/setup`. They take no form fields. A new action gets a rate limit in `@/lib/ratelimit`, a generous one (for example 30 an hour per user).
+- The list page reads the two columns with the rest of its data and passes a boolean to the dialog; the dialog never decides on its own. It shows on `/` only, never on Settings, Setup, Privacy or Terms.
+- If the user opens the setup guide and returns to the list without answering, the dialog shows again. That is the intended "locked" behaviour; to avoid it, `/setup` carries the same two buttons while the answer is missing, so they can answer there.
+- The service worker keeps a saved copy of `/`. A copy saved before the user answered could show the dialog again offline. Online loads replace it, and the answer is saved server-side first, so this is cosmetic; note it in `docs/unresolved-issues.md` rather than fixing it.
+- Dialog text is static. No data from emails appears in it.
+
+### Steps (one commit each)
+
+1. docs: this addendum.
+2. fix(setup): detailed Gmail filter steps (**done 2026-10-30**: the Subject box wording, the two Create filter clicks, "Also apply filter" unticked, why Forward it to can be missing, new mail only).
+3. feat(db): the two `users` columns and migration; `src/lib/db/users.ts` functions; export; tests on PGlite (answering one clears the other; another user's row is untouched; the export contains both).
+4. feat(setup): the three actions with limits, and the signals queries (userId-scoped counts, tests).
+5. feat(setup): status line, Mark as done / Mark as not done and the signal list on `/setup`; page tests.
+6. feat(onboarding): the dialog, wired to the list page; component and page tests (shows when unanswered, hidden once answered, cannot be dismissed by Escape or outside click, not rendered on other pages).
+7. test(e2e): the launch test answers the dialog first (skip) and checks that it does not return after a reload.
+8. docs: CLAUDE.md folder layout and the Security rules (the actions), `docs/email-forwarding-setup.md`, the unresolved-issues note above.
+
+### Test gate
+
+- A new user sees the dialog once; after Skip or Done it never returns on its own; Mark as not done brings back the status line but not the dialog (the dialog is only for "never answered").
+- Another user's answer can never be read or changed; a deleted account's session cannot answer (it is signed out at `/auth/ended`).
+- The export contains the two timestamps; the rate limit holds.
+- `lint`, `typecheck`, `test:coverage` (85% overall), `build` and `npm run e2e` pass in CI.
+
+### Open questions for the owner
+
+- Should "Mark as not done" show the dialog again on next sign-in? The plan says no (it only shows when never answered). Say if you want the opposite.
+- Is the plan to build this before `mvp-launch`? It is about a day of work and touches the launch test. The alternative is to ship, watch how many real users skip, and then build it.
+
 ## Explicitly not in Phase 7
 
 - Payments and Stripe (the "Upgrade" button stays a "Coming soon" dialog), AfterShip, native apps, Gmail or Outlook sync (all out of scope for the MVP).

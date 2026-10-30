@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb, insertUser } from "../../../tests/db/pglite";
+import { saveSetupAnswer } from "@/lib/db/setup";
 import { seedFullUser } from "../../../tests/db/seed-user";
 import { buildUserExport } from "./export";
 
@@ -36,6 +37,8 @@ describe("buildUserExport", () => {
       email: "alice@example.test",
       forwardingAddress: "alice-alias@in.example.test",
       createdAt: expect.any(String),
+      setupCompletedAt: null,
+      setupSkippedAt: null,
     });
   });
 
@@ -99,6 +102,16 @@ describe("buildUserExport", () => {
     expect(text).not.toContain("fcm.googleapis.com");
     expect(text).not.toContain("p256dh");
     expect(text).not.toContain("alice-auth");
+  });
+
+  it("holds when the user answered the setup prompt", async () => {
+    const user = await insertUser(ctx.db);
+    await saveSetupAnswer(ctx.db, user.id, "skipped", NOW);
+    const data = await exportFor(user.id);
+    expect(data.account).toMatchObject({
+      setupCompletedAt: null,
+      setupSkippedAt: NOW.toISOString(),
+    });
   });
 
   it("is empty but well formed for a user with nothing", async () => {

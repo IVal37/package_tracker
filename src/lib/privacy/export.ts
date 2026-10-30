@@ -40,6 +40,8 @@ export async function buildUserExport(args: {
         ? formatAddress(data.account.forwardingAlias, inboundDomain)
         : null,
       createdAt: iso(data.account.createdAt),
+      setupCompletedAt: iso(data.account.setupCompletedAt),
+      setupSkippedAt: iso(data.account.setupSkippedAt),
     },
     packages: data.shipments.map((shipment) => ({
       id: shipment.id,

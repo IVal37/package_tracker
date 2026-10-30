@@ -19,6 +19,8 @@ export interface UserDataRows {
     email: string;
     forwardingAlias: string | null;
     createdAt: Date;
+    setupCompletedAt: Date | null;
+    setupSkippedAt: Date | null;
   } | null;
   shipments: (typeof shipments.$inferSelect)[];
   checkpoints: (typeof checkpoints.$inferSelect)[];
@@ -39,6 +41,8 @@ export async function loadUserData(
       email: users.email,
       forwardingAlias: users.forwardingAlias,
       createdAt: users.createdAt,
+      setupCompletedAt: users.setupCompletedAt,
+      setupSkippedAt: users.setupSkippedAt,
     })
     .from(users)
     .where(eq(users.id, userId));

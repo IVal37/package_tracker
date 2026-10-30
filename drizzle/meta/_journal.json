@@ -57,6 +57,13 @@
       "when": 1791600777901,
       "tag": "0007_launch_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793328880276,
+      "tag": "0008_common_molten_man",
+      "breakpoints": true
     }
   ]
 }

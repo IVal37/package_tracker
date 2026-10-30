@@ -65,11 +65,19 @@ export const users = pgTable(
     // Private forwarding address local part, e.g. "izaak-7f3k". Lower-case.
     forwardingAlias: text("forwarding_alias").unique(),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
+    // The first-run setup prompt: both null means never answered; otherwise
+    // at most one is set (answering one clears the other).
+    setupCompletedAt: timestamptz("setup_completed_at"),
+    setupSkippedAt: timestamptz("setup_skipped_at"),
   },
   (t) => [
     check(
       "users_forwarding_alias_lowercase",
       sql`${t.forwardingAlias} = lower(${t.forwardingAlias})`,
+    ),
+    check(
+      "users_setup_one_answer",
+      sql`${t.setupCompletedAt} is null or ${t.setupSkippedAt} is null`,
     ),
   ],
 ).enableRLS();

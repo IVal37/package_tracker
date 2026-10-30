@@ -58,7 +58,8 @@ Expected: the **Ordered** row is gone and `TBA309876543210` is a tracked package
    - Change `recipient` to `nobody-abcd@in.localhost`: `200`, nothing stored.
    - Leave the `Authorization` header off, or change the secret: `401`.
 7. Gmail's confirmation message: send `from = "Gmail Team <forwarding-noreply@google.com>"`, any `subject`, `text = "Your confirmation code: 12345678"` (and/or a line `https://mail-settings.google.com/mail/vf-test`, which shows as a "Confirm in Gmail" button). It appears on **Setup** for 3 days. The webhook keeps it as soon as the request arrives (no job needed), and an open Setup page checks for it every few seconds for 3 minutes (press **Check now** to start again).
-8. **Regenerate address** on Settings (Setup then shows the new one): the old address now gets `200` and nothing is stored.
+8. **The welcome dialog.** The first time a new account opens the list, a dialog asks them to open the setup guide, say they have finished, or skip. It never returns once answered. **Setup** shows "Not started", "Skipped on …" or "Completed on …" with buttons to change it, plus whether an email has reached the address and whether a device has push on. To see the dialog again while testing, sign in with a new email, or clear both columns: `update users set setup_completed_at = null, setup_skipped_at = null where email = '…'`.
+9. **Regenerate address** on Settings (Setup then shows the new one): the old address now gets `200` and nothing is stored.
 
 The fake extractor reads emails with plain rules, so it needs wording like "Thanks for your order" / "has shipped" / "Tracking number:". The real model reads far more varied emails.
 

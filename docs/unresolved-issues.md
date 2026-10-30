@@ -83,4 +83,6 @@ Known and deliberate. None loses data or exposes it. Items marked "backlog" are 
 | `/admin` counts trackers from the packages still stored | Phase 7 | Deleted packages drop out, so it can undercount what Ship24 bills. Ship24's own dashboard is the source of truth; the page says so. |
 | Unsubscribing a tracker can race with someone adding the same number | Phase 7 | Needs the last follower to delete at the same moment someone adds the number. Adding a known number now always subscribes it again (`df3dfbf`, `0863179`), and the hourly re-fetch covers the gap. |
 | Rate limits use fixed windows | Phase 7 | A burst across a window boundary can reach twice the limit. Fine for these numbers. |
+| A saved copy of the list page (the service worker keeps one) can show the welcome dialog again offline if it was saved before the user answered | First-run setup | The answer is stored on the server first and the next online load replaces the copy. Cosmetic. |
+| The setup answer is self-reported | First-run setup | Deliberate: `/setup` shows two things the app can really see next to it. Install state is per device and cannot be known server-side. |
 | The launch test stubs OpenFreeMap | Phase 7 | It checks the map draws its own marker under the real CSP; the deployed "Map" check confirms real tiles. Locally it needs a throwaway Postgres (`E2E_DATABASE_URL`). |

@@ -144,12 +144,35 @@ export function ForwardingInstructions({
             the code in Gmail, to finish.
           </li>
           <li>
-            Open Filters and Blocked Addresses → Create a new filter. Match
-            order and shipping mail, for example a subject containing
-            &ldquo;order&rdquo; or &ldquo;shipped&rdquo;, and choose Forward it
-            to this address.
+            Once the address is confirmed, open the Filters and Blocked
+            Addresses tab in the same Settings page and choose Create a new
+            filter. (Or click the Show search options icon at the right end of
+            Gmail&rsquo;s search bar.)
+          </li>
+          <li>
+            Fill in one box only. The easiest is Subject. Type{" "}
+            <span className="font-mono">
+              order OR shipped OR shipping OR delivered OR tracking
+            </span>
+            , with OR in capitals. Create filter stays grey until a box has
+            something in it.
+          </li>
+          <li>
+            Click Create filter. In the next box, tick Forward it to and pick{" "}
+            <Address address={address} /> from the list. Leave Also apply filter
+            to matching conversations unticked, or Gmail forwards your old mail
+            too. Then click Create filter again.
           </li>
         </Steps>
+        <p className="text-slate-600">
+          If Forward it to is missing or greyed out, Gmail hasn&rsquo;t
+          confirmed the address yet: finish the confirmation step above first. A
+          filter only catches new mail, so it starts working with your next
+          order. To check it now, forward one old shipping email by hand. A
+          filter that is too broad forwards newsletters too; that does no harm,
+          but narrow it if you get a lot. To change or remove it later, go back
+          to Filters and Blocked Addresses.
+        </p>
       </Method>
       <Method
         id="outlook-steps"

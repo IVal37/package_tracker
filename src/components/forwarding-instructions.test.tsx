@@ -11,7 +11,7 @@ describe("ForwardingInstructions on a computer", () => {
 
     for (const name of ["Gmail", "Outlook"]) {
       const section = screen.getByRole("heading", { name }).closest("section")!;
-      expect(within(section).getByText(ADDRESS)).toBeInTheDocument();
+      expect(within(section).getAllByText(ADDRESS).length).toBeGreaterThan(0);
     }
   });
 
@@ -34,6 +34,21 @@ describe("ForwardingInstructions on a computer", () => {
     expect(gmail).toHaveTextContent(/confirmation link/);
     expect(gmail).toHaveTextContent(/code/);
     expect(outlook).toHaveTextContent(/does not ask for a confirmation code/);
+  });
+
+  it("walks through the Gmail filter, including the pitfalls", () => {
+    render(<ForwardingInstructions address={ADDRESS} device="computer" />);
+    const gmail = screen
+      .getByRole("heading", { name: "Gmail" })
+      .closest("section")!;
+    expect(gmail).toHaveTextContent(/Filters and Blocked Addresses/);
+    expect(gmail).toHaveTextContent(
+      /Subject. Type order OR shipped OR shipping OR delivered OR tracking/,
+    );
+    expect(gmail).toHaveTextContent(/Create filter stays grey/);
+    expect(gmail).toHaveTextContent(/tick Forward it to/);
+    expect(gmail).toHaveTextContent(/Also apply filter to matching/);
+    expect(gmail).toHaveTextContent(/only catches new mail/);
   });
 
   it("tells iCloud readers not to forward everything, and Yahoo readers to forward by hand", () => {

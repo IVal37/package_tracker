@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   requestGeocoding: vi.fn(),
   hitAddPackage: vi.fn(),
+  answerSetup: vi.fn(),
+  logLimited: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT ${path}`);
   }),
@@ -23,8 +25,9 @@ vi.mock("@/jobs/events", () => ({
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/ratelimit", () => ({
   hitAddPackage: mocks.hitAddPackage,
-  logLimited: () => {},
+  logLimited: mocks.logLimited,
 }));
+vi.mock("@/lib/setup/answer", () => ({ answerSetup: mocks.answerSetup }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => mocks.db }));
 vi.mock("@/lib/db/orders", () => ({ dismissOrder: mocks.dismissOrder }));
 vi.mock("@/lib/auth/account", () => ({
@@ -45,8 +48,10 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 import {
   addPackageAction,
+  completeSetupAction,
   deletePackageAction,
   dismissOrderAction,
+  skipSetupAction,
 } from "./actions";
 
 const USER = { id: "session-user", email: "a@example.test" };
@@ -265,5 +270,46 @@ describe("dismissOrderAction", () => {
       "session-user",
       "",
     );
+  });
+});
+
+describe.each([
+  ["completeSetupAction", completeSetupAction, "completed"],
+  ["skipSetupAction", skipSetupAction, "skipped"],
+] as const)("%s", (_name, action, answer) => {
+  beforeEach(() => {
+    mocks.answerSetup.mockResolvedValue("saved");
+  });
+
+  it("redirects an unauthenticated caller and saves nothing", async () => {
+    mocks.requireUser.mockRejectedValue(new Error("NEXT_REDIRECT /sign-in"));
+    await expect(action()).rejects.toThrow("NEXT_REDIRECT /sign-in");
+    expect(mocks.answerSetup).not.toHaveBeenCalled();
+  });
+
+  it("signs out a deleted account's session instead of saving", async () => {
+    mocks.requireLiveAccount.mockRejectedValueOnce(
+      new Error("NEXT_REDIRECT /auth/ended"),
+    );
+    await expect(action()).rejects.toThrow("NEXT_REDIRECT /auth/ended");
+    expect(mocks.answerSetup).not.toHaveBeenCalled();
+  });
+
+  it("saves the answer for the session user and refreshes the pages", async () => {
+    await action();
+    expect(mocks.answerSetup).toHaveBeenCalledExactlyOnceWith({
+      db: mocks.db,
+      userId: "session-user",
+      answer,
+      now: expect.any(Date),
+    });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/setup");
+  });
+
+  it("logs the action name only when the limit refuses", async () => {
+    mocks.answerSetup.mockResolvedValue("rate_limited");
+    await action();
+    expect(mocks.logLimited).toHaveBeenCalledExactlyOnceWith("setup-answer");
   });
 });

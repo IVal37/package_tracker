@@ -11,6 +11,7 @@ import { getEnv } from "@/lib/env";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import { removeShipment } from "@/lib/shipments/delete-shipment";
 import { hitAddPackage, logLimited } from "@/lib/ratelimit";
+import { answerSetup } from "@/lib/setup/answer";
 import {
   rateLimitedState,
   toAddPackageState,
@@ -77,4 +78,37 @@ export async function dismissOrderAction(formData: FormData): Promise<void> {
   await dismissOrder(getDb(), user.id, String(formData.get("orderId") ?? ""));
 
   revalidatePath("/");
+}
+
+/** The user says they have finished the first-run setup. */
+export async function completeSetupAction(): Promise<void> {
+  await answerSetupFor("completed");
+}
+
+/**
+ * The user skips the first-run setup for now, or marks it as not done. Either
+ * way the welcome dialog stays away: it shows only to someone who has never
+ * answered.
+ */
+export async function skipSetupAction(): Promise<void> {
+  await answerSetupFor("skipped");
+}
+
+async function answerSetupFor(answer: "completed" | "skipped"): Promise<void> {
+  const user = await requireUser();
+  const db = getDb();
+  // The answer lives on the user row; a session whose row is gone belongs to a
+  // deleted account and is signed out instead.
+  await requireLiveAccount(db, user);
+
+  const result = await answerSetup({
+    db,
+    userId: user.id,
+    answer,
+    now: new Date(),
+  });
+  if (result === "rate_limited") logLimited("setup-answer");
+
+  revalidatePath("/");
+  revalidatePath("/setup");
 }

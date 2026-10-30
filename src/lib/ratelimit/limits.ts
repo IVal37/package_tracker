@@ -29,6 +29,8 @@ export const LIMITS = {
   deleteAccount: { action: "delete-account", limit: 3, windowMs: HOUR_MS },
   /** Asking for a failed email to be read again (each try costs a model call). */
   retryEmail: { action: "retry-email", limit: 10, windowMs: HOUR_MS },
+  /** Answering the first-run setup prompt (done, skipped, not done). */
+  setupAnswer: { action: "setup-answer", limit: 30, windowMs: HOUR_MS },
   /** Browser-only error reports from one client IP. */
   clientError: { action: "client-error", limit: 10, windowMs: HOUR_MS },
   /** Emails to one forwarding alias (the daily cap applies as well). */

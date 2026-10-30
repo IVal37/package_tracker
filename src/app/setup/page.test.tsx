@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   requireLiveAccount: vi.fn(),
   getOrCreateAlias: vi.fn(),
   latestGmailConfirmation: vi.fn(),
+  getSetupAnswer: vi.fn(),
+  loadSetupSignals: vi.fn(),
   getEnv: vi.fn(),
   headers: vi.fn(),
   db: { marker: "db" },
@@ -23,6 +25,14 @@ vi.mock("@/lib/db/forwarding", () => ({
 }));
 vi.mock("@/lib/db/inbound-emails", () => ({
   latestGmailConfirmation: mocks.latestGmailConfirmation,
+}));
+vi.mock("@/lib/db/setup", () => ({
+  getSetupAnswer: mocks.getSetupAnswer,
+  loadSetupSignals: mocks.loadSetupSignals,
+}));
+vi.mock("../actions", () => ({
+  completeSetupAction: vi.fn(),
+  skipSetupAction: vi.fn(),
 }));
 vi.mock("@/lib/env", () => ({ getEnv: mocks.getEnv }));
 vi.mock("../sign-in/actions", () => ({ signOut: vi.fn() }));
@@ -62,6 +72,14 @@ beforeEach(() => {
   mocks.requireUser.mockResolvedValue(USER);
   mocks.getOrCreateAlias.mockResolvedValue("izaak-7f3k");
   mocks.latestGmailConfirmation.mockResolvedValue(null);
+  mocks.getSetupAnswer.mockResolvedValue({
+    completedAt: null,
+    skippedAt: null,
+  });
+  mocks.loadSetupSignals.mockResolvedValue({
+    emailsArriving: false,
+    pushDevices: 0,
+  });
   mocks.getEnv.mockReturnValue({ INBOUND_EMAIL_DOMAIN: "in.wayfind.test" });
   withUserAgent(DESKTOP_UA);
 });
@@ -72,6 +90,8 @@ describe("Setup page", () => {
     await expect(SetupPage()).rejects.toThrow("NEXT_REDIRECT /sign-in");
     expect(mocks.getOrCreateAlias).not.toHaveBeenCalled();
     expect(mocks.latestGmailConfirmation).not.toHaveBeenCalled();
+    expect(mocks.getSetupAnswer).not.toHaveBeenCalled();
+    expect(mocks.loadSetupSignals).not.toHaveBeenCalled();
   });
 
   it("shows the session user's own address, asking for it once", async () => {
@@ -122,6 +142,7 @@ describe("Setup page", () => {
     expect(
       screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent),
     ).toEqual([
+      "Your setup",
       "1. Forward your order emails",
       "2. Install Wayfind",
       "3. Turn on alerts",
@@ -251,5 +272,57 @@ describe("Setup page: no address", () => {
     expect(
       screen.getByRole("heading", { name: "2. Install Wayfind" }),
     ).toBeInTheDocument();
+  });
+
+  it("reads the setup answer and signals for the session user only", async () => {
+    await renderPage();
+    expect(mocks.getSetupAnswer).toHaveBeenCalledExactlyOnceWith(
+      mocks.db,
+      "session-user",
+    );
+    expect(mocks.loadSetupSignals).toHaveBeenCalledExactlyOnceWith(
+      mocks.db,
+      "session-user",
+    );
+  });
+
+  it("shows 'Not started' with done and skip for a new user", async () => {
+    await renderPage();
+    const status = screen
+      .getByRole("heading", { name: "Your setup" })
+      .closest("section")!;
+    expect(within(status).getByText("Not started")).toBeInTheDocument();
+    expect(
+      within(status).getByRole("button", { name: "Skip for now" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows when setup was completed, and what the app can see", async () => {
+    mocks.getSetupAnswer.mockResolvedValue({
+      completedAt: new Date("2026-10-30T12:00:00Z"),
+      skippedAt: null,
+    });
+    mocks.loadSetupSignals.mockResolvedValue({
+      emailsArriving: true,
+      pushDevices: 1,
+    });
+    await renderPage();
+    expect(screen.getByText("Completed on 30 Oct 2026")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark as not done" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Emails are reaching your private address."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alerts are on for 1 device.")).toBeInTheDocument();
+  });
+
+  it("shows when setup was skipped", async () => {
+    mocks.getSetupAnswer.mockResolvedValue({
+      completedAt: null,
+      skippedAt: new Date("2026-10-30T12:00:00Z"),
+    });
+    await renderPage();
+    expect(screen.getByText("Skipped on 30 Oct 2026")).toBeInTheDocument();
   });
 });

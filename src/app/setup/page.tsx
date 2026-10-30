@@ -4,16 +4,19 @@ import { ConfirmationWatcher } from "@/components/confirmation-watcher";
 import { DeviceSetup } from "@/components/device-setup";
 import { ForwardingAddress } from "@/components/forwarding-address";
 import { LegalLinks } from "@/components/legal-page";
+import { SetupStatus } from "@/components/setup-status";
 import { SiteHeader } from "@/components/site-header";
 import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { getOrCreateAlias } from "@/lib/db/forwarding";
 import { latestGmailConfirmation } from "@/lib/db/inbound-emails";
+import { getSetupAnswer, loadSetupSignals } from "@/lib/db/setup";
 import { formatAddress } from "@/lib/email/alias";
 import { getEnv } from "@/lib/env";
 import { deviceKind } from "@/lib/pwa/service-worker";
 import { formatRelativeTime } from "@/lib/shipments/format";
+import { completeSetupAction, skipSetupAction } from "../actions";
 import { signOut } from "../sign-in/actions";
 import { removePushSubscriptionAction } from "../settings/actions";
 
@@ -38,6 +41,11 @@ export default async function SetupPage() {
     user.id,
     new Date(now.getTime() - CONFIRMATION_WINDOW_MS),
   );
+
+  const [answer, signals] = await Promise.all([
+    getSetupAnswer(db, user.id),
+    loadSetupSignals(db, user.id),
+  ]);
 
   // The first paint already shows the steps for this device. The browser
   // checks again after load (it can tell an iPad posing as a Mac).
@@ -131,6 +139,14 @@ export default async function SetupPage() {
             device, and choose how you hear about changes.
           </p>
         </div>
+
+        <SetupStatus
+          answer={answer ?? { completedAt: null, skippedAt: null }}
+          emailsArriving={signals.emailsArriving}
+          pushDevices={signals.pushDevices}
+          completeAction={completeSetupAction}
+          skipAction={skipSetupAction}
+        />
 
         <DeviceSetup
           address={address}

@@ -4,12 +4,16 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 
 interface ModalProps {
   title: string;
-  onClose: () => void;
+  /** Leave out for a dialog that must be answered: no Escape, backdrop or ×. */
+  onClose?: () => void;
   children: ReactNode;
   variant?: "center" | "drawer";
 }
 
-/** Accessible modal dialog: Escape and backdrop click close it. */
+/**
+ * Accessible modal dialog: Escape, backdrop click and × close it, unless it has
+ * no onClose, in which case only its own buttons can.
+ */
 export function Modal({
   title,
   onClose,
@@ -27,7 +31,7 @@ export function Modal({
   useEffect(() => {
     panelRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCloseRef.current();
+      if (event.key === "Escape") onCloseRef.current?.();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -58,14 +62,16 @@ export function Modal({
           <h2 id={titleId} className="text-lg font-semibold">
             {title}
           </h2>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100"
-          >
-            ×
-          </button>
+          {onClose && (
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="rounded p-1 text-slate-500 hover:bg-slate-100"
+            >
+              ×
+            </button>
+          )}
         </div>
         {children}
       </div>

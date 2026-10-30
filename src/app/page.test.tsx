@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   getShipmentDetail: vi.fn(),
   listOrderPlaceholders: vi.fn(),
   getOrderForShipment: vi.fn(),
+  getSetupAnswer: vi.fn(),
   push: vi.fn(),
   db: { marker: "db" },
 }));
@@ -30,6 +31,7 @@ vi.mock("@/lib/db/orders", () => ({
   listOrderPlaceholders: mocks.listOrderPlaceholders,
   getOrderForShipment: mocks.getOrderForShipment,
 }));
+vi.mock("@/lib/db/setup", () => ({ getSetupAnswer: mocks.getSetupAnswer }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 // The real map needs WebGL; it has its own tests. This stub shows what it got.
 vi.mock("@/components/shipment-map", () => ({
@@ -45,6 +47,8 @@ vi.mock("./actions", () => ({
   addPackageAction: vi.fn(),
   deletePackageAction: vi.fn(),
   dismissOrderAction: vi.fn(),
+  completeSetupAction: vi.fn(),
+  skipSetupAction: vi.fn(),
 }));
 vi.mock("./settings/actions", () => ({
   removePushSubscriptionAction: vi.fn(),
@@ -125,9 +129,61 @@ beforeEach(() => {
   mocks.getShipmentDetail.mockResolvedValue(null);
   mocks.listOrderPlaceholders.mockResolvedValue([]);
   mocks.getOrderForShipment.mockResolvedValue(null);
+  // Most tests are about the list: this user has already answered the prompt.
+  mocks.getSetupAnswer.mockResolvedValue({
+    completedAt: null,
+    skippedAt: NOW,
+  });
 });
 
 describe("Home page", () => {
+  describe("welcome dialog", () => {
+    const prompt = () =>
+      screen.queryByRole("dialog", { name: "Welcome to Wayfind" });
+
+    it("shows to someone who has never answered, from their own row", async () => {
+      mocks.getSetupAnswer.mockResolvedValue({
+        completedAt: null,
+        skippedAt: null,
+      });
+      await renderHome();
+      expect(prompt()).toBeInTheDocument();
+      expect(mocks.getSetupAnswer).toHaveBeenCalledWith(
+        mocks.db,
+        "session-user",
+      );
+    });
+
+    it("shows on the map view too", async () => {
+      mocks.getSetupAnswer.mockResolvedValue({
+        completedAt: null,
+        skippedAt: null,
+      });
+      await renderHome({ view: "map" });
+      expect(prompt()).toBeInTheDocument();
+    });
+
+    it("stays away once the user has skipped", async () => {
+      await renderHome();
+      expect(prompt()).not.toBeInTheDocument();
+    });
+
+    it("stays away once the user has finished", async () => {
+      mocks.getSetupAnswer.mockResolvedValue({
+        completedAt: NOW,
+        skippedAt: null,
+      });
+      await renderHome();
+      expect(prompt()).not.toBeInTheDocument();
+    });
+
+    it("stays away when the account has no row", async () => {
+      mocks.getSetupAnswer.mockResolvedValue(null);
+      await renderHome();
+      expect(prompt()).not.toBeInTheDocument();
+    });
+  });
+
   it("requires sign-in before reading anything", async () => {
     mocks.requireUser.mockRejectedValue(new Error("NEXT_REDIRECT /sign-in"));
     await expect(Home({ searchParams: Promise.resolve({}) })).rejects.toThrow(

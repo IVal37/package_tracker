@@ -64,6 +64,16 @@ test("sign up, add a package, see it in the list and on the map", async ({
   await expect(page).toHaveURL(/localhost:\d+\/$/);
   await expect(page.getByText(email)).toBeVisible();
 
+  // A new user has to answer the welcome dialog. Skip it, and check it does
+  // not come back after a reload.
+  const welcome = page.getByRole("dialog", { name: "Welcome to Wayfind" });
+  await expect(welcome).toBeVisible();
+  await welcome.getByRole("button", { name: "Skip, I’ll do it later" }).click();
+  await expect(welcome).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel("Tracking number")).toBeVisible();
+  await expect(welcome).toHaveCount(0);
+
   // Add a package and see it in the list.
   await page.getByLabel("Tracking number").fill("FAKE-TRANSIT-LAUNCH1");
   await page.getByLabel("Nickname (optional)").fill("Launch boots");
@@ -82,6 +92,10 @@ test("sign up, add a package, see it in the list and on the map", async ({
   await expect(
     page.getByRole("region", { name: "On the map" }).getByText("Launch boots"),
   ).toBeVisible();
+
+  // The answer is logged where the user can see it.
+  await page.goto("/setup");
+  await expect(page.getByText(/^Skipped on /)).toBeVisible();
 
   expect(policyViolations).toEqual([]);
 });

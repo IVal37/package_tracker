@@ -135,9 +135,9 @@ Every Test gate means: Vitest unit tests for each new module, external services 
 
 ## 5. Backlog (do not build during the MVP)
 
-- **Monetization:** Free and Plus tiers, entitlement checks on every tracking-creation path, Stripe Checkout + Customer Portal, subscriptions synced from signature-verified Stripe webhooks; replaces the "Coming soon" dialog.
+- **Monetization:** Free and Plus tiers, entitlement checks on every tracking-creation path, Stripe Checkout + Customer Portal, subscriptions synced from signature-verified Stripe webhooks; replaces the "Coming soon" dialog. Before taking money: a refund policy, renewal terms shown next to the subscribe button, cancelling as easy as subscribing, a reminder before a trial charges, and no prices that depend on user data without saying so (checklist review, 2026-10-31).
 - **AfterShip upgrade:** `AfterShipProvider` passing the same contract tests, selectable per user tier.
-- **Native apps:** Capacitor or React Native wrappers.
+- **Native apps:** Capacitor or React Native wrappers. App Store review will also want Sign in with Apple (Google sign-in is offered), no "Coming soon" screens (the Upgrade dialog), a working iPad layout, a demo account for reviewers, current screenshots, and in-app purchase rather than Stripe for digital features (checklist review, 2026-10-31).
 - **Gmail/Outlook inbox sync:** only once revenue covers Google's restricted-scope security assessment.
 - **Post-launch polish** (accepted for launch in the final sweep; each is in `docs/unresolved-issues.md` under "Accepted for launch"): live refresh of the list when a webhook arrives; a nonce-based CSP without `'unsafe-inline'`; Sentry source maps; biasing geocoding by the destination country and labelling country-only pins; updating the map without a full rebuild; one-click email unsubscribe; checking webhook secrets before reading the body.
 

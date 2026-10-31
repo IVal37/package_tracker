@@ -28,7 +28,8 @@ The final-sweep commits are on your local `main` only.
 4. **Authentication → Emails → SMTP**: switch to custom SMTP before anyone signs up. Supabase's built-in mailer sends only a handful of emails an hour (launch audit M13). Use Resend's SMTP (`smtp.resend.com`, port 465, user `resend`, password a Resend API key) with a sender on your verified domain (step 6 below; do that first if needed).
 5. **Authentication → Providers → Google**: the production OAuth client (Google Cloud Console) with Supabase's callback URL as an authorized redirect URI.
 6. **Project Settings → API**: copy the Project URL, the publishable key and the **secret key**. The secret key is used by exactly one module (`src/lib/auth/admin.ts`, account deletion). It goes into Vercel only, never anywhere else.
-7. Backups: on the Pro plan, daily backups are on by default; point-in-time recovery is an add-on. Know which you have before launch (it is your rollback for data).
+7. **Authentication → Providers → Email**: keep email confirmation on. Wayfind has no password form, but set the password rules anyway as a backstop: minimum length 12 with letters and digits, and leaked-password protection if your plan offers it. **Authentication → Rate limits**: leave the email and verification limits at their defaults or lower. Anonymous sign-ins: off.
+8. Backups: on the Pro plan, daily backups are on by default; point-in-time recovery is an add-on. Know which you have before launch (it is your rollback for data).
 
 ## 2. Accounts for the other services
 

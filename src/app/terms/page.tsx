@@ -12,7 +12,7 @@ export default async function TermsPage() {
   const { SUPPORT_EMAIL, ACTIVE_PACKAGE_CAP } = getEnv();
 
   return (
-    <LegalPage title="Terms of use" updated="October 9, 2026">
+    <LegalPage title="Terms of use" updated="October 31, 2026">
       <p>
         By using Wayfind you agree to these terms. If you don&apos;t, please
         don&apos;t use it. Questions:{" "}
@@ -33,6 +33,10 @@ export default async function TermsPage() {
 
       <h2>Your account</h2>
       <ul>
+        <li>
+          You must be at least 13, or older if the law where you live requires
+          it.
+        </li>
         <li>Keep your sign-in and your forwarding address to yourself.</li>
         <li>
           Only add packages and forward emails that are yours to track, and only

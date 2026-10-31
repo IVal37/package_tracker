@@ -199,6 +199,13 @@ describe("ShipmentDrawer: order", () => {
     expect(screen.getByText(text)).toBeInTheDocument();
   });
 
+  it("says the order was read automatically from an email", () => {
+    renderWithOrder({ retailer: "Target", orderNumber: "1001" });
+    expect(
+      screen.getByText("Read automatically from a forwarded email"),
+    ).toBeInTheDocument();
+  });
+
   it("shows nothing for an order with neither retailer nor number", () => {
     renderWithOrder({ retailer: null, orderNumber: null });
     expect(screen.queryByText("Order")).not.toBeInTheDocument();
@@ -207,6 +214,7 @@ describe("ShipmentDrawer: order", () => {
   it("shows no order line for a package added by hand", () => {
     renderWithOrder(null);
     expect(screen.queryByText(/Ordered/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Read automatically/)).not.toBeInTheDocument();
   });
 
   it("renders the retailer as text, not HTML", () => {

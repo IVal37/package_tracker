@@ -17,6 +17,15 @@ describe("Terms", () => {
     expect(isPublicPath("/terms")).toBe(true);
   });
 
+  it("states the minimum age", async () => {
+    render(await TermsPage());
+    expect(
+      screen.getByText(
+        /at least 13, or older if the law where you live requires it/,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("states the package cap, links the privacy policy and gives a contact", async () => {
     render(await TermsPage());
     expect(

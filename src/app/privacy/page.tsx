@@ -15,7 +15,7 @@ export default async function PrivacyPage() {
   const { SUPPORT_EMAIL, EXPIRE_AFTER_DAYS } = getEnv();
 
   return (
-    <LegalPage title="Privacy policy" updated="October 9, 2026">
+    <LegalPage title="Privacy policy" updated="October 31, 2026">
       <p>
         Wayfind tracks your packages. This page says what we keep about you,
         why, who else sees it, how long we keep it, and how to take it with you
@@ -78,11 +78,29 @@ export default async function PrivacyPage() {
         <li>Your account: until you delete it.</li>
       </ul>
 
-      <h2>On your device</h2>
+      <h2>Cookies and your device</h2>
       <p>
-        If you install Wayfind or turn on push, your browser keeps a copy of
-        your package list so it opens offline, and a push subscription. Signing
-        out removes both from that device.
+        The only cookies Wayfind sets keep you signed in. They are needed for
+        Wayfind to work, scripts on the page can&apos;t read them, and they
+        aren&apos;t used to track you. There are no analytics, advertising or
+        third-party cookies, so there is nothing to ask your consent for.
+      </p>
+      <p>
+        Your browser also remembers your light or dark choice. If you install
+        Wayfind or turn on push, it keeps a copy of your package list so it
+        opens offline, and a push subscription. Signing out removes both from
+        that device.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        Wayfind isn&apos;t meant for children under 13, and we don&apos;t
+        knowingly keep data about them. If you think a child has an account,
+        write to{" "}
+        <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          {SUPPORT_EMAIL}
+        </a>{" "}
+        and we will delete it.
       </p>
 
       <h2>Your choices</h2>

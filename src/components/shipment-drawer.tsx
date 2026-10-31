@@ -59,7 +59,13 @@ export function ShipmentDrawer({
         {orderLine && (
           <>
             <dt className="text-slate-500">Order</dt>
-            <dd>{orderLine}</dd>
+            <dd>
+              <span>{orderLine}</span>
+              {/* Orders only ever come from forwarded email, read by a model. */}
+              <span className="block text-xs text-slate-500">
+                Read automatically from a forwarded email
+              </span>
+            </dd>
           </>
         )}
         <dt className="text-slate-500">Courier</dt>

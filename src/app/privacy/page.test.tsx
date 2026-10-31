@@ -68,13 +68,36 @@ describe("Privacy policy", () => {
     ).toBeInTheDocument();
   });
 
+  it("says which cookies and browser storage it uses, and that there is nothing to consent to", async () => {
+    render(await PrivacyPage());
+    expect(
+      screen.getByRole("heading", { name: "Cookies and your device" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/only cookies Wayfind sets keep you signed in/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no analytics, advertising or third-party cookies/),
+    ).toBeInTheDocument();
+  });
+
+  it("says it is not meant for children under 13", async () => {
+    render(await PrivacyPage());
+    expect(
+      screen.getByRole("heading", { name: "Children" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/children under 13/)).toBeInTheDocument();
+  });
+
   it("says how to export and delete, and whom to ask", async () => {
     render(await PrivacyPage());
     expect(screen.getByText("Download your data")).toBeInTheDocument();
     expect(screen.getByText("Delete your account")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "help@wayfind.test" }),
-    ).toHaveAttribute("href", "mailto:help@wayfind.test");
+    const support = screen.getAllByRole("link", { name: "help@wayfind.test" });
+    expect(support.length).toBeGreaterThan(0);
+    for (const link of support) {
+      expect(link).toHaveAttribute("href", "mailto:help@wayfind.test");
+    }
     expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
       "href",
       "/terms",

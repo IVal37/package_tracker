@@ -19,7 +19,8 @@ export default async function PrivacyPage() {
       <p>
         Wayfind tracks your packages. This page says what we keep about you,
         why, who else sees it, how long we keep it, and how to take it with you
-        or delete it. Questions:{" "}
+        or delete it. Wayfind is run by Izaak Valadez, United States, who is
+        responsible for your data here. Questions:{" "}
         <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
           {SUPPORT_EMAIL}
         </a>

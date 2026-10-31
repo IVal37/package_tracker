@@ -81,6 +81,13 @@ describe("Privacy policy", () => {
     ).toBeInTheDocument();
   });
 
+  it("names who runs Wayfind", async () => {
+    render(await PrivacyPage());
+    expect(
+      screen.getByText(/Wayfind is run by Izaak Valadez, United States/),
+    ).toBeInTheDocument();
+  });
+
   it("says it is not meant for children under 13", async () => {
     render(await PrivacyPage());
     expect(

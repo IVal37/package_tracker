@@ -63,3 +63,37 @@ Checks after the sweep, run locally on Windows (Node 24):
 | `npm run lint`, `npm run typecheck`, `npm run build` | pass |
 | `npm run test:coverage` | 157 files, 2387 tests, all pass; statements 99.3%, branches 95.19%, functions 98.76%, lines 99.63% |
 | `npm run e2e` | pass (Postgres 18, throwaway database) |
+
+## Checklist review, 2026-10-31
+
+Checked against the code after the owner collected security and legal checklists from short videos. Status before the fixes in the Phase 7 addendum of the same date.
+
+| Item | Status | Evidence or fix |
+| --- | --- | --- |
+| Keys in code, `.env` or git history; keys in the browser bundle | Pass | `.env*` ignored; `git log -p` holds only test placeholders; env is server-only, no `NEXT_PUBLIC_*` |
+| Routes or actions without a session check | Pass | `proxy.ts` plus `requireUser()` in every action and the export route; webhooks and Inngest authenticate |
+| Admin checks only in the browser | Pass | `/admin` checks on the server and answers 404 |
+| User ids taken from the request | Pass | Only from the verified session; tests send forged ids |
+| Session token readable by page scripts | **Fail (high)** | Supabase cookies were `httpOnly: false` (library default). Fix: `sessionCookieOptions` |
+| Email verification | Pass | Magic link and Google prove the address |
+| Password strength / leaked-password check | N/A | No passwords. Supabase dashboard settings as a backstop (`docs/launch-checklist.md`) |
+| 2FA | Not offered | Logged with reasons |
+| RLS off, one user reading another's rows | Pass | RLS on every table (tested); every query user-scoped |
+| Updates that save the whole request body | Pass | Fields are set one by one after zod |
+| SQL from strings | Pass | Drizzle parameters; one `sql.raw` with fixed column names |
+| XSS | Pass | React escaping, one constant inline script, email strings as text only, allow-listed Gmail link, `escapeHtml` in emails. The inline-script CSP stays a logged backlog item |
+| File uploads | N/A | None |
+| Rate limits on sign-in and AI | Pass | Per IP and per email; per alias, per day and `retryEmail` |
+| Rate limits on every endpoint | **Partial (medium)** | Nine actions and the auth callback had none; no cap on push devices. Fix: new limits and a 10-device cap |
+| Unsigned webhooks, CORS `*`, debug routes, stack traces, open redirect | Pass | Secrets and signatures checked; no CORS headers; no debug routes; Next hides traces; fixed redirect targets |
+| Outdated dependencies | **Fail (critical)** | next 16.3.8 (critical RCE x2, high DoS), zod 4.6.5 (high). Fix: 16.4.3, 4.6.7, `npm audit fix`, an audit step in CI. Accepted: Inngest's internal zod 3, Sentry's build-time glob/minimatch |
+| Privacy policy names data, AI and third parties | Pass | `/privacy` renders `src/lib/legal/services.ts` |
+| Trackers before consent, cookie banner, session replay, Google Fonts | Pass | None used; the sign-in cookie is strictly necessary |
+| Cookies and storage explained | **Gap (low)** | Fix: a paragraph in `/privacy` |
+| Minimum age, children | **Gap (low)** | Fix: terms clause (13, or older where required) and a privacy line |
+| Who runs the service | **Gap (low)** | Fix: owner's name and country in `/privacy` |
+| Account deletion, export, minimal data | Pass | Settings → Your data; cleanup jobs |
+| Unsubscribe in emails | Pass | Only transactional alerts, each linking to settings |
+| AI output labelled | **Gap (low)** | Fix: "Read automatically from a forwarded email" in the drawer |
+| Keyboard use of dialogs | **Gap (low)** | Fix: focus trap in `Modal` |
+| Payments, refunds, renewals, DMCA, report button, Apple's App Store list | N/A | No payments, no public user content, no App Store app |

@@ -247,6 +247,23 @@ Added at the owner's request. Plan only: nothing here is built yet. Needs one mi
 - Should "Mark as not done" show the dialog again on next sign-in? The plan says no (it only shows when never answered). Say if you want the opposite.
 - Is the plan to build this before `mvp-launch`? It is about a day of work and touches the launch test. The alternative is to ship, watch how many real users skip, and then build it.
 
+## Addendum (2026-10-31): security review of social-media checklists
+
+The owner collected checklists from short videos (Apple rejection reasons, legal traps, "audit like a hacker / like someone suing you", tokens in localStorage, client-side admin checks, 2FA) and asked for rate limits on every endpoint, XSS protection and password checks. Every item was checked against the code; the scorecard is in `docs/launch-audit.md` ("Checklist review, 2026-10-31"). No schema change, no new dependency (version bumps only).
+
+Fixes, one commit each:
+
+1. **Dependencies (critical):** `next` and `eslint-config-next` to 16.4.3 (two critical RCE advisories and a Server Actions DoS in 16.3.8), `zod` to ^4.6.7, `npm audit fix` without `--force`. CI runs `npm audit --omit=dev --audit-level=critical`.
+2. **Session cookies (high):** `httpOnly`, and `secure` when `APP_URL` is https, through one `sessionCookieOptions` used by both Supabase clients. Nothing in the browser reads them.
+3. **Rate limits (medium):** a shared per-user limit on every Server Action without its own, stricter ones on Regenerate address and saving a push device, per-IP limits on Google sign-in and the auth callback, and at most 10 push devices per user.
+4. **Dialog focus (low):** `Modal` keeps Tab inside and gives focus back on close.
+5. **Legal text and AI label (low):** minimum age (13, or older where the law requires) in the terms; cookies and storage, children, and who runs Wayfind in the privacy policy; orders read from an email say so in the drawer.
+6. **Docs:** CLAUDE.md rules, unresolved issues.
+
+Not done, with reasons (in `docs/unresolved-issues.md`): app-level 2FA, password rules (no passwords; Supabase dashboard settings as a backstop), Apple's list (no App Store app), payments, DMCA and report items (no payments, no public user content).
+
+**Test gate:** the audit step passes at critical; session cookies are `httpOnly` (unit and e2e); every action and both auth entry points refuse past their limit; the device cap holds; the dialog keeps focus; lint, typecheck, `test:coverage` (85%), build and e2e pass locally and in CI.
+
 ## Explicitly not in Phase 7
 
 - Payments and Stripe (the "Upgrade" button stays a "Coming soon" dialog), AfterShip, native apps, Gmail or Outlook sync (all out of scope for the MVP).

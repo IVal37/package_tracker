@@ -2,6 +2,32 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
+const FOCUSABLE =
+  'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+
+/** Tab and Shift+Tab cycle through the dialog's own controls only. */
+function keepFocusInside(event: KeyboardEvent, panel: HTMLElement) {
+  const focusable = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (element) => !element.hasAttribute("disabled"),
+  );
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!first || !last) {
+    event.preventDefault();
+    panel.focus();
+    return;
+  }
+  const active = document.activeElement;
+  const outside = !panel.contains(active);
+  if (event.shiftKey && (active === first || active === panel || outside)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || outside)) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 interface ModalProps {
   title: string;
   /** Leave out for a dialog that must be answered: no Escape, backdrop or ×. */
@@ -12,7 +38,8 @@ interface ModalProps {
 
 /**
  * Accessible modal dialog: Escape, backdrop click and × close it, unless it has
- * no onClose, in which case only its own buttons can.
+ * no onClose, in which case only its own buttons can. Tab stays inside, and
+ * focus returns to where it was on close.
  */
 export function Modal({
   title,
@@ -29,12 +56,23 @@ export function Modal({
   });
 
   useEffect(() => {
+    // Focus goes back where it was when the dialog closes.
+    const opener =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     panelRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onCloseRef.current?.();
+      if (event.key === "Tab" && panelRef.current) {
+        keepFocusInside(event, panelRef.current);
+      }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (opener?.isConnected) opener.focus();
+    };
   }, []);
 
   const layout =

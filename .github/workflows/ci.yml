@@ -14,6 +14,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # A critical advisory in a production dependency fails the build. Accepted
+      # lower ones are listed in docs/unresolved-issues.md.
+      - run: npm audit --omit=dev --audit-level=critical
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:coverage

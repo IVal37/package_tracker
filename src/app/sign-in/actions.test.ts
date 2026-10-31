@@ -9,6 +9,7 @@ const {
   signOutMock,
   redirect,
   hitSignIn,
+  hit,
   requestHeaders,
 } = vi.hoisted(() => ({
   signInWithOtp: vi.fn(),
@@ -18,6 +19,7 @@ const {
     throw new Error(`NEXT_REDIRECT ${path}`);
   }),
   hitSignIn: vi.fn(),
+  hit: vi.fn(),
   requestHeaders: { value: new Headers() },
 }));
 
@@ -32,6 +34,7 @@ vi.mock("@/lib/db/client", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/ratelimit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ratelimit")>()),
   hitSignIn,
+  hit,
 }));
 
 import { signInWithEmail, signInWithGoogle, signOut } from "./actions";
@@ -45,6 +48,7 @@ const form = (email: string) => {
 beforeEach(() => {
   vi.clearAllMocks();
   hitSignIn.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+  hit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
   requestHeaders.value = new Headers({ "x-real-ip": "203.0.113.9" });
   vi.spyOn(console, "warn").mockImplementation(() => {});
   stubRequiredEnv({ APP_URL: "https://wayfind.example.test" });
@@ -132,6 +136,20 @@ describe("signInWithGoogle", () => {
     await expect(signInWithGoogle()).rejects.toThrow(
       "NEXT_REDIRECT https://accounts.google.test/x",
     );
+  });
+
+  it("refuses past the per-IP limit without asking Supabase", async () => {
+    hit.mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
+    await expect(signInWithGoogle()).rejects.toThrow(
+      "NEXT_REDIRECT /sign-in?error=busy",
+    );
+    expect(hit).toHaveBeenCalledWith(
+      "db",
+      expect.objectContaining({ action: "google-sign-in" }),
+      "203.0.113.9",
+      expect.any(Date),
+    );
+    expect(signInWithOAuth).not.toHaveBeenCalled();
   });
 
   it("redirects back to sign-in with an error when it fails", async () => {

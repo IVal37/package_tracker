@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   db: { marker: "db" },
   sender: { marker: "push-sender" },
+  hit: vi.fn(),
+  allowUserAction: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
@@ -60,6 +62,12 @@ vi.mock("@/lib/auth/supabase-server", () => ({
 vi.mock("@/lib/tracking", () => ({
   getTrackingProvider: () => mocks.provider,
 }));
+vi.mock("@/lib/ratelimit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ratelimit")>()),
+  hit: mocks.hit,
+  allowUserAction: mocks.allowUserAction,
+  logLimited: () => {},
+}));
 vi.mock("@/jobs/events", () => ({
   requestEmailRetry: mocks.requestEmailRetry,
 }));
@@ -82,6 +90,8 @@ const SIGNED_OUT = new Error("NEXT_REDIRECT /sign-in");
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireUser.mockResolvedValue(USER);
+  mocks.hit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+  mocks.allowUserAction.mockResolvedValue(true);
 });
 
 describe("regenerateAddressAction", () => {
@@ -128,6 +138,19 @@ describe("saveNotificationSettingsAction", () => {
     await expect(
       saveNotificationSettingsAction({ status: "idle" }, form()),
     ).rejects.toThrow("NEXT_REDIRECT /sign-in");
+    expect(mocks.saveNotificationPrefs).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing past the shared per-user limit, and says so", async () => {
+    mocks.allowUserAction.mockResolvedValue(false);
+    const state = await saveNotificationSettingsAction(
+      { status: "idle" },
+      form(),
+    );
+    expect(state).toEqual({
+      status: "error",
+      message: "Too many changes at once. Wait a minute and try again.",
+    });
     expect(mocks.saveNotificationPrefs).not.toHaveBeenCalled();
   });
 
@@ -403,5 +426,51 @@ describe("deleteAccountAction", () => {
       deleteAccountAction({ status: "idle" }, confirm("DELETE")),
     ).rejects.toThrow();
     expect(mocks.deleteAccount).not.toHaveBeenCalled();
+  });
+});
+
+describe("rate limits on the remaining settings actions", () => {
+  it("makes no new address past the regenerate limit", async () => {
+    mocks.hit.mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
+    await regenerateAddressAction();
+    expect(mocks.hit).toHaveBeenCalledWith(
+      mocks.db,
+      expect.objectContaining({ action: "regenerate-address" }),
+      "session-user",
+      expect.any(Date),
+    );
+    expect(mocks.rotateAlias).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("stores no device past the push-device limit", async () => {
+    mocks.hit.mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
+    const result = await savePushSubscriptionAction({
+      endpoint: "https://fcm.googleapis.com/fcm/send/abc",
+      keys: { p256dh: "p", auth: "a" },
+    });
+    expect(result).toEqual({ ok: false });
+    expect(mocks.savePushSubscription).not.toHaveBeenCalled();
+  });
+
+  it("removes no device past the shared limit", async () => {
+    mocks.allowUserAction.mockResolvedValue(false);
+    await removePushSubscriptionAction("https://fcm.googleapis.com/x");
+    expect(mocks.allowUserAction).toHaveBeenCalledWith(
+      mocks.db,
+      "session-user",
+      expect.any(Date),
+    );
+    expect(mocks.removePushSubscription).not.toHaveBeenCalled();
+  });
+
+  it("dismisses no email past the shared limit", async () => {
+    mocks.allowUserAction.mockResolvedValue(false);
+    const data = new FormData();
+    data.set("emailId", "e1");
+    expect(await dismissEmailAction({ status: "idle" }, data)).toEqual({
+      status: "rate_limited",
+    });
+    expect(mocks.deleteFailedEmail).not.toHaveBeenCalled();
   });
 });

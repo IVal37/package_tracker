@@ -45,6 +45,7 @@ describe("SignInPage", () => {
   it.each([
     ["auth", /sign-in link didn't work/],
     ["google", /couldn't start Google sign-in/],
+    ["busy", /Too many sign-in attempts/],
   ])("shows a message for ?error=%s", async (error, message) => {
     await renderPage({ error });
     expect(screen.getByRole("alert")).toHaveTextContent(message);

@@ -171,3 +171,17 @@ export function hitAddPackage(
     now,
   );
 }
+
+/**
+ * A signed-in action with no limit of its own: counted per user against one
+ * shared limit. Logs a refusal (the action name only).
+ */
+export async function allowUserAction(
+  db: Db,
+  userId: string,
+  now: Date,
+): Promise<boolean> {
+  const verdict = await hit(db, LIMITS.userAction, userId, now);
+  if (!verdict.allowed) logLimited(LIMITS.userAction.action);
+  return verdict.allowed;
+}

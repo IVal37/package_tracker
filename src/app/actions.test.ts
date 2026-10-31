@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   requestGeocoding: vi.fn(),
   hitAddPackage: vi.fn(),
   answerSetup: vi.fn(),
+  allowUserAction: vi.fn(),
   logLimited: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT ${path}`);
@@ -25,6 +26,7 @@ vi.mock("@/jobs/events", () => ({
 vi.mock("@/lib/auth/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/lib/ratelimit", () => ({
   hitAddPackage: mocks.hitAddPackage,
+  allowUserAction: mocks.allowUserAction,
   logLimited: mocks.logLimited,
 }));
 vi.mock("@/lib/setup/answer", () => ({ answerSetup: mocks.answerSetup }));
@@ -65,6 +67,7 @@ const form = (fields: Record<string, string>) => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireUser.mockResolvedValue(USER);
+  mocks.allowUserAction.mockResolvedValue(true);
   mocks.hitAddPackage.mockResolvedValue({
     allowed: true,
     retryAfterSeconds: 0,
@@ -311,5 +314,25 @@ describe.each([
     mocks.answerSetup.mockResolvedValue("rate_limited");
     await action();
     expect(mocks.logLimited).toHaveBeenCalledExactlyOnceWith("setup-answer");
+  });
+});
+
+describe("the shared per-user limit", () => {
+  it("deletes nothing past the limit, counted for the session user", async () => {
+    mocks.allowUserAction.mockResolvedValue(false);
+    await deletePackageAction(form({ shipmentId: "s1" }));
+    expect(mocks.allowUserAction).toHaveBeenCalledWith(
+      mocks.db,
+      "session-user",
+      expect.any(Date),
+    );
+    expect(mocks.removeShipment).not.toHaveBeenCalled();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it("dismisses no order past the limit", async () => {
+    mocks.allowUserAction.mockResolvedValue(false);
+    await dismissOrderAction(form({ orderId: "o1" }));
+    expect(mocks.dismissOrder).not.toHaveBeenCalled();
   });
 });

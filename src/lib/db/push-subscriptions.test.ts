@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb, insertUser } from "../../../tests/db/pglite";
+import { eq } from "drizzle-orm";
+import { pushSubscriptions } from "./schema";
 import {
+  MAX_PUSH_DEVICES,
   listPushSubscriptions,
   markPushSuccess,
   removePushSubscription,
@@ -153,5 +156,88 @@ describe("removePushSubscriptionById / markPushSuccess", () => {
     ).toEqual(when);
 
     await markPushSuccess(ctx.db, owner.id, "not-a-uuid", when);
+  });
+});
+
+describe("the device cap", () => {
+  const endpoints = async (userId: string) =>
+    (await listPushSubscriptions(ctx.db, userId))
+      .map((row) => row.endpoint)
+      .sort();
+
+  const setReached = (endpoint: string, at: Date) =>
+    ctx.db
+      .update(pushSubscriptions)
+      .set({ lastSuccessAt: at })
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+
+  it("keeps at most MAX_PUSH_DEVICES, dropping the one not reached for longest", async () => {
+    const user = await insertUser(ctx.db);
+    const names = Array.from(
+      { length: MAX_PUSH_DEVICES },
+      (_, i) => `https://fcm.googleapis.com/cap-${i}`,
+    );
+    for (const [i, name] of names.entries()) {
+      await savePushSubscription(ctx.db, user.id, device(name));
+      // cap-0 was reached longest ago; the rest more recently.
+      await setReached(name, new Date(Date.UTC(2026, 9, 1 + i)));
+    }
+    expect(await endpoints(user.id)).toHaveLength(MAX_PUSH_DEVICES);
+
+    await savePushSubscription(
+      ctx.db,
+      user.id,
+      device("https://fcm.googleapis.com/cap-new"),
+    );
+
+    const kept = await endpoints(user.id);
+    expect(kept).toHaveLength(MAX_PUSH_DEVICES);
+    expect(kept).toContain("https://fcm.googleapis.com/cap-new");
+    expect(kept).not.toContain("https://fcm.googleapis.com/cap-0");
+  });
+
+  it("never drops the device being saved, even if it was reached longest ago", async () => {
+    const user = await insertUser(ctx.db);
+    for (let i = 0; i < MAX_PUSH_DEVICES; i++) {
+      const name = `https://fcm.googleapis.com/old-${i}`;
+      await savePushSubscription(ctx.db, user.id, device(name));
+      await setReached(name, new Date(Date.UTC(2026, 9, 10 + i)));
+    }
+    await setReached(
+      "https://fcm.googleapis.com/old-0",
+      new Date(Date.UTC(2020, 0, 1)),
+    );
+
+    // The oldest device is saved again (the user opened Settings on it).
+    await savePushSubscription(
+      ctx.db,
+      user.id,
+      device("https://fcm.googleapis.com/old-0"),
+    );
+
+    const kept = await endpoints(user.id);
+    expect(kept).toHaveLength(MAX_PUSH_DEVICES);
+    expect(kept).toContain("https://fcm.googleapis.com/old-0");
+  });
+
+  it("only ever trims the saving user's devices", async () => {
+    const busy = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    await savePushSubscription(
+      ctx.db,
+      other.id,
+      device("https://fcm.googleapis.com/other-1"),
+    );
+    for (let i = 0; i <= MAX_PUSH_DEVICES + 2; i++) {
+      await savePushSubscription(
+        ctx.db,
+        busy.id,
+        device(`https://fcm.googleapis.com/busy-${i}`),
+      );
+    }
+    expect(await endpoints(busy.id)).toHaveLength(MAX_PUSH_DEVICES);
+    expect(await endpoints(other.id)).toEqual([
+      "https://fcm.googleapis.com/other-1",
+    ]);
   });
 });

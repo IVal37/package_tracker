@@ -4,13 +4,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvCache } from "@/lib/env";
 import { stubRequiredEnv } from "../../../../tests/env";
 
-const { completeSignIn } = vi.hoisted(() => ({ completeSignIn: vi.fn() }));
+const { completeSignIn, hit } = vi.hoisted(() => ({
+  completeSignIn: vi.fn(),
+  hit: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/callback", () => ({ completeSignIn }));
 vi.mock("@/lib/auth/supabase-server", () => ({
   createSupabaseServerClient: async () => ({ auth: {} }),
 }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => ({}) }));
+vi.mock("@/lib/ratelimit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ratelimit")>()),
+  hit,
+  logLimited: () => {},
+}));
 
 import { GET } from "./route";
 
@@ -19,6 +27,8 @@ const call = (query: string) =>
 
 beforeEach(() => {
   completeSignIn.mockReset();
+  hit.mockReset();
+  hit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
   stubRequiredEnv({ APP_URL: "https://wayfind.example.test" });
   resetEnvCache();
 });
@@ -29,6 +39,25 @@ afterEach(() => {
 });
 
 describe("GET /auth/callback", () => {
+  it("refuses past the per-IP limit before any code is exchanged", async () => {
+    hit.mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
+    const response = await GET(
+      new NextRequest("http://localhost:3000/auth/callback?code=abc", {
+        headers: { "x-real-ip": "198.51.100.7" },
+      }),
+    );
+    expect(response.headers.get("location")).toBe(
+      "https://wayfind.example.test/sign-in?error=busy",
+    );
+    expect(hit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: "auth-callback" }),
+      "198.51.100.7",
+      expect.any(Date),
+    );
+    expect(completeSignIn).not.toHaveBeenCalled();
+  });
+
   it("passes the code through and redirects home on success", async () => {
     completeSignIn.mockResolvedValue(true);
     const response = await call("?code=abc");

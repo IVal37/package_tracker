@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/push-subscriptions";
 import { retryFailedEmail } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
+import { LIMITS, allowUserAction, hit, logLimited } from "@/lib/ratelimit";
 import { DELETE_CONFIRMATION } from "@/lib/privacy/confirm";
 import { deleteAccount } from "@/lib/privacy/delete-account";
 import { getTrackingProvider } from "@/lib/tracking";
@@ -34,7 +35,12 @@ import {
 
 export async function regenerateAddressAction(): Promise<void> {
   const user = await requireUser();
-  await rotateAlias(getDb(), user.id);
+  const db = getDb();
+  if (!(await hit(db, LIMITS.regenerateAddress, user.id, new Date())).allowed) {
+    logLimited(LIMITS.regenerateAddress.action);
+    return;
+  }
+  await rotateAlias(db, user.id);
   revalidatePath("/settings");
   // Setup shows the same address.
   revalidatePath("/setup");
@@ -49,6 +55,12 @@ export async function saveNotificationSettingsAction(
   if (!parsed.ok) return { status: "error", message: parsed.message };
 
   const db = getDb();
+  if (!(await allowUserAction(db, user.id, new Date()))) {
+    return {
+      status: "error",
+      message: "Too many changes at once. Wait a minute and try again.",
+    };
+  }
   // The settings row references the user row (gone if the account was deleted).
   await requireLiveAccount(db, user);
   await saveNotificationPrefs(db, user.id, parsed.prefs);
@@ -65,6 +77,10 @@ export async function savePushSubscriptionAction(
   if (!parsed.success) return { ok: false };
 
   const db = getDb();
+  if (!(await hit(db, LIMITS.savePushDevice, user.id, new Date())).allowed) {
+    logLimited(LIMITS.savePushDevice.action);
+    return { ok: false };
+  }
   await requireLiveAccount(db, user);
   await savePushSubscription(db, user.id, {
     endpoint: parsed.data.endpoint,
@@ -81,7 +97,9 @@ export async function removePushSubscriptionAction(
 ): Promise<void> {
   const user = await requireUser();
   if (typeof endpoint !== "string" || endpoint.length > 2048) return;
-  await removePushSubscription(getDb(), user.id, endpoint);
+  const db = getDb();
+  if (!(await allowUserAction(db, user.id, new Date()))) return;
+  await removePushSubscription(db, user.id, endpoint);
   revalidatePath("/settings");
 }
 
@@ -117,8 +135,12 @@ export async function dismissEmailAction(
   formData: FormData,
 ): Promise<FailedEmailState> {
   const user = await requireUser();
+  const db = getDb();
+  if (!(await allowUserAction(db, user.id, new Date()))) {
+    return { status: "rate_limited" };
+  }
   const deleted = await deleteFailedEmail(
-    getDb(),
+    db,
     user.id,
     String(formData.get("emailId") ?? ""),
   );

@@ -29,6 +29,31 @@ export const LIMITS = {
   deleteAccount: { action: "delete-account", limit: 3, windowMs: HOUR_MS },
   /** Asking for a failed email to be read again (each try costs a model call). */
   retryEmail: { action: "retry-email", limit: 10, windowMs: HOUR_MS },
+  /** Starting Google sign-in from one client IP. */
+  googleSignIn: {
+    action: "google-sign-in",
+    limit: 20,
+    windowMs: 10 * MINUTE_MS,
+  },
+  /** Sign-in completions (each makes Supabase exchange a code) from one IP. */
+  authCallback: {
+    action: "auth-callback",
+    limit: 30,
+    windowMs: 10 * MINUTE_MS,
+  },
+  /**
+   * Shared by every signed-in action with no limit of its own (delete a
+   * package, dismiss an order or email, save alert settings, remove a device).
+   */
+  userAction: { action: "user-action", limit: 60, windowMs: MINUTE_MS },
+  /** Making a new forwarding address. */
+  regenerateAddress: {
+    action: "regenerate-address",
+    limit: 10,
+    windowMs: HOUR_MS,
+  },
+  /** Registering a browser for push (the server later POSTs to each one). */
+  savePushDevice: { action: "save-push-device", limit: 20, windowMs: HOUR_MS },
   /** Answering the first-run setup prompt (done, skipped, not done). */
   setupAnswer: { action: "setup-answer", limit: 30, windowMs: HOUR_MS },
   /** Browser-only error reports from one client IP. */

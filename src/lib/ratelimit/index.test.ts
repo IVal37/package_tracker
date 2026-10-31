@@ -6,6 +6,7 @@ import { rateLimits } from "@/lib/db/schema";
 import {
   BREAKERS,
   LIMITS,
+  allowUserAction,
   cleanupRateLimits,
   clientIp,
   hit,
@@ -262,5 +263,21 @@ describe("circuit breakers", () => {
     expect(
       await isBreakerTripped(ctx.db, breaker, "prov-a", at(60 * 60 * 1000)),
     ).toBe(false);
+  });
+});
+
+describe("allowUserAction", () => {
+  it("allows up to the shared limit per user, then refuses only that user", async () => {
+    const ctx = await createTestDb();
+    try {
+      const now = new Date("2026-10-31T12:00:30Z");
+      for (let i = 0; i < LIMITS.userAction.limit; i++) {
+        expect(await allowUserAction(ctx.db, "busy-user", now)).toBe(true);
+      }
+      expect(await allowUserAction(ctx.db, "busy-user", now)).toBe(false);
+      expect(await allowUserAction(ctx.db, "calm-user", now)).toBe(true);
+    } finally {
+      await ctx.client.close();
+    }
   });
 });

@@ -1,10 +1,17 @@
 // Browsers and devices that agreed to receive push. Every function takes the
 // userId and filters by it, so another user's device looks exactly like a
 // missing one.
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, ne, notInArray, sql } from "drizzle-orm";
 import type { Db } from "./client";
 import { pushSubscriptions } from "./schema";
 import { isUuid } from "./shipments";
+
+/**
+ * Devices kept per user. The server POSTs to every one on each alert, so a
+ * scripted account must not be able to pile them up; a real person rarely has
+ * more than three or four.
+ */
+export const MAX_PUSH_DEVICES = 10;
 
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 
@@ -35,17 +42,40 @@ export async function savePushSubscription(
   userId: string,
   subscription: NewPushSubscription,
 ): Promise<void> {
-  await db
-    .insert(pushSubscriptions)
-    .values({ userId, ...subscription })
-    .onConflictDoUpdate({
-      target: pushSubscriptions.endpoint,
-      set: {
-        userId,
-        p256dh: subscription.p256dh,
-        auth: subscription.auth,
-      },
-    });
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(pushSubscriptions)
+      .values({ userId, ...subscription })
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: {
+          userId,
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+        },
+      });
+
+    // Over the cap, the devices not reached for longest go. The one just
+    // saved always stays: it is the browser the user is holding.
+    const others = and(
+      eq(pushSubscriptions.userId, userId),
+      ne(pushSubscriptions.endpoint, subscription.endpoint),
+    );
+    const keep = tx
+      .select({ id: pushSubscriptions.id })
+      .from(pushSubscriptions)
+      .where(others)
+      .orderBy(
+        desc(
+          sql`coalesce(${pushSubscriptions.lastSuccessAt}, ${pushSubscriptions.createdAt})`,
+        ),
+        desc(pushSubscriptions.createdAt),
+      )
+      .limit(MAX_PUSH_DEVICES - 1);
+    await tx
+      .delete(pushSubscriptions)
+      .where(and(others, notInArray(pushSubscriptions.id, keep)));
+  });
 }
 
 /** Removes the user's own device by endpoint. True if there was one. */

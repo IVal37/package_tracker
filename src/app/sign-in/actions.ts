@@ -6,7 +6,7 @@ import { requestMagicLink, startGoogleSignIn } from "@/lib/auth/sign-in";
 import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { getDb } from "@/lib/db/client";
 import { getEnv } from "@/lib/env";
-import { clientIp, hitSignIn, logLimited } from "@/lib/ratelimit";
+import { LIMITS, clientIp, hit, hitSignIn, logLimited } from "@/lib/ratelimit";
 
 export type SignInState =
   | { status: "idle" }
@@ -42,6 +42,11 @@ export async function signInWithEmail(
 }
 
 export async function signInWithGoogle(): Promise<void> {
+  const ip = clientIp(await headers());
+  if (!(await hit(getDb(), LIMITS.googleSignIn, ip, new Date())).allowed) {
+    logLimited(LIMITS.googleSignIn.action);
+    redirect("/sign-in?error=busy");
+  }
   const result = await startGoogleSignIn(
     await createSupabaseServerClient(),
     getEnv().APP_URL,

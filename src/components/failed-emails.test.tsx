@@ -80,7 +80,7 @@ describe("FailedEmails", () => {
     setup([ITEM], 1, { status: "rate_limited" } as never);
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Try again in an hour",
+      "Too many tries",
     );
   });
 

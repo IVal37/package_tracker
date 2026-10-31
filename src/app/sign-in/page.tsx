@@ -9,6 +9,7 @@ import { signInWithEmail, signInWithGoogle } from "./actions";
 const ERRORS: Record<string, string> = {
   auth: "That sign-in link didn't work. Please request a new one.",
   google: "We couldn't start Google sign-in. Please try again.",
+  busy: "Too many sign-in attempts from here. Wait a few minutes and try again.",
 };
 
 export default async function SignInPage({

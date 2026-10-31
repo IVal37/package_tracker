@@ -10,7 +10,7 @@ import { dismissOrder } from "@/lib/db/orders";
 import { getEnv } from "@/lib/env";
 import { addShipment } from "@/lib/shipments/add-shipment";
 import { removeShipment } from "@/lib/shipments/delete-shipment";
-import { hitAddPackage, logLimited } from "@/lib/ratelimit";
+import { allowUserAction, hitAddPackage, logLimited } from "@/lib/ratelimit";
 import { answerSetup } from "@/lib/setup/answer";
 import {
   rateLimitedState,
@@ -59,9 +59,11 @@ export async function addPackageAction(
 
 export async function deletePackageAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  const db = getDb();
+  if (!(await allowUserAction(db, user.id, new Date()))) return;
 
   await removeShipment({
-    db: getDb(),
+    db,
     provider: getTrackingProvider(),
     userId: user.id,
     shipmentId: String(formData.get("shipmentId") ?? ""),
@@ -73,9 +75,11 @@ export async function deletePackageAction(formData: FormData): Promise<void> {
 
 export async function dismissOrderAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  const db = getDb();
+  if (!(await allowUserAction(db, user.id, new Date()))) return;
 
   // Only the user's own unshipped orders can be dismissed; anything else is a no-op.
-  await dismissOrder(getDb(), user.id, String(formData.get("orderId") ?? ""));
+  await dismissOrder(db, user.id, String(formData.get("orderId") ?? ""));
 
   revalidatePath("/");
 }

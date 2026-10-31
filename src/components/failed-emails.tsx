@@ -23,7 +23,7 @@ const IDLE: FailedEmailState = { status: "idle" };
 const MESSAGES: Record<Exclude<FailedEmailState["status"], "idle">, string> = {
   retried: "Reading it again. It will leave this list if it works.",
   dismissed: "Removed.",
-  rate_limited: "That is a lot of retries. Try again in an hour.",
+  rate_limited: "Too many tries. Wait a while and try again.",
   not_found: "That email is no longer here.",
 };
 

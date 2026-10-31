@@ -4,6 +4,7 @@ import { resetEnvCache } from "@/lib/env";
 import { stubRequiredEnv } from "../../../tests/env";
 
 type CookieOptions = {
+  cookieOptions?: object;
   cookies: {
     getAll: () => unknown;
     setAll: (
@@ -49,6 +50,17 @@ describe("createSupabaseServerClient", () => {
       "sb_publishable_test_key",
       expect.any(Object),
     );
+  });
+
+  it("sets the session cookies httpOnly, and secure on an https app", async () => {
+    vi.stubEnv("APP_URL", "https://www.wayfind.test");
+    resetEnvCache();
+    await createSupabaseServerClient();
+    const options = createServerClient.mock.calls[0]?.[2] as CookieOptions;
+    expect(options.cookieOptions).toMatchObject({
+      httpOnly: true,
+      secure: true,
+    });
   });
 
   it("reads cookies from the request cookie store", async () => {

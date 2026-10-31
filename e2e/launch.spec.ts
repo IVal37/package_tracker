@@ -64,6 +64,16 @@ test("sign up, add a package, see it in the list and on the map", async ({
   await expect(page).toHaveURL(/localhost:\d+\/$/);
   await expect(page.getByText(email)).toBeVisible();
 
+  // The session lives in cookies that page scripts cannot read.
+  const session = (await page.context().cookies()).filter((cookie) =>
+    cookie.name.startsWith("sb-"),
+  );
+  expect(session.length).toBeGreaterThan(0);
+  expect(session.every((cookie) => cookie.httpOnly)).toBe(true);
+  expect(await page.evaluate(() => document.cookie.includes("sb-"))).toBe(
+    false,
+  );
+
   // A new user has to answer the welcome dialog. Skip it, and check it does
   // not come back after a reload.
   const welcome = page.getByRole("dialog", { name: "Welcome to Wayfind" });

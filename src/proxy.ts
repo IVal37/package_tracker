@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { sessionCookieOptions } from "@/lib/auth/cookies";
 import { isPublicPath } from "@/lib/auth/paths";
 import { getEnv } from "@/lib/env";
 
@@ -15,6 +16,8 @@ export async function proxy(request: NextRequest) {
     env.SUPABASE_URL,
     env.SUPABASE_PUBLISHABLE_KEY,
     {
+      // httpOnly, and secure on https: only the server reads the session.
+      cookieOptions: sessionCookieOptions(env.APP_URL),
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {

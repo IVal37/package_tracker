@@ -12,7 +12,11 @@ const { getClaims, clientOptions } = vi.hoisted(() => ({
   getClaims: vi.fn(),
   clientOptions: {
     current: undefined as
-      { cookies: { getAll: () => unknown; setAll: CookieSetter } } | undefined,
+      | {
+          cookieOptions?: object;
+          cookies: { getAll: () => unknown; setAll: CookieSetter };
+        }
+      | undefined,
   },
 }));
 
@@ -112,6 +116,17 @@ describe("proxy", () => {
       expect(response.status).toBe(200);
     },
   );
+
+  it("sets the session cookies httpOnly, and secure on an https app", async () => {
+    vi.stubEnv("APP_URL", "https://www.wayfind.test");
+    resetEnvCache();
+    getClaims.mockResolvedValue({ data: { claims: { sub: "u1" } } });
+    await proxy(request("/"));
+    expect(clientOptions.current?.cookieOptions).toMatchObject({
+      httpOnly: true,
+      secure: true,
+    });
+  });
 
   it("reads cookies from the request", async () => {
     getClaims.mockResolvedValue({

@@ -4,6 +4,7 @@ import {
   deleteStaleOrdersBefore,
   findStalePendingEmailIds,
 } from "@/lib/db/inbound-sync";
+import { DAY_MS, MINUTE_MS, msBefore } from "@/lib/time";
 
 /** Raw inbound emails are deleted after this long (CLAUDE.md privacy rule). */
 export const RAW_EMAIL_DAYS = 30;
@@ -11,9 +12,6 @@ export const RAW_EMAIL_DAYS = 30;
 export const STALE_ORDER_DAYS = 90;
 /** A pending email older than this has lost its event; the sweep re-queues it. */
 export const PENDING_GRACE_MINUTES = 5;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const MINUTE_MS = 60 * 1000;
 
 /** Deletes old raw emails and placeholders nobody shipped. Returns how many of each. */
 export async function cleanupInboundData(args: {
@@ -24,11 +22,11 @@ export async function cleanupInboundData(args: {
   return {
     emails: await deleteEmailsBefore(
       db,
-      new Date(now.getTime() - RAW_EMAIL_DAYS * DAY_MS),
+      msBefore(now, RAW_EMAIL_DAYS * DAY_MS),
     ),
     orders: await deleteStaleOrdersBefore(
       db,
-      new Date(now.getTime() - STALE_ORDER_DAYS * DAY_MS),
+      msBefore(now, STALE_ORDER_DAYS * DAY_MS),
     ),
   };
 }
@@ -42,7 +40,7 @@ export function findStuckEmailIds(args: {
   const { db, now, limit } = args;
   return findStalePendingEmailIds(
     db,
-    new Date(now.getTime() - PENDING_GRACE_MINUTES * MINUTE_MS),
+    msBefore(now, PENDING_GRACE_MINUTES * MINUTE_MS),
     limit,
   );
 }

@@ -4,8 +4,9 @@ import { getAuthAdmin, type AuthAdmin } from "@/lib/auth/admin";
 import type { Db } from "@/lib/db/client";
 import { listTrackerIds } from "@/lib/db/shipments";
 import { deleteUserRow } from "@/lib/db/users";
+import { errorName } from "@/lib/errors";
 import { reportIssue } from "@/lib/monitoring";
-import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
+import { LIMITS, allow } from "@/lib/ratelimit";
 import { releaseTracker } from "@/lib/shipments/sync/release-tracker";
 import type { TrackingProvider } from "@/lib/tracking";
 
@@ -42,8 +43,7 @@ export async function deleteAccount(args: {
 
   // Refuse before touching anything if the sign-in cannot be removed.
   if (!authAdmin) return { status: "unavailable" };
-  if (!(await hit(db, LIMITS.deleteAccount, userId, now)).allowed) {
-    logLimited(LIMITS.deleteAccount.action);
+  if (!(await allow(db, LIMITS.deleteAccount, userId, now))) {
     return { status: "rate_limited" };
   }
 
@@ -59,7 +59,7 @@ export async function deleteAccount(args: {
   } catch (error) {
     reportIssue("account_deletion_incomplete", {
       user_id: userId,
-      error: error instanceof Error ? error.name.toLowerCase() : "unknown",
+      error: errorName(error).toLowerCase(),
     });
     return { status: "deleted", signInRemoved: false };
   }

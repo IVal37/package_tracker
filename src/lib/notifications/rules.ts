@@ -2,6 +2,7 @@
 // Pure, so the rules are tested without a database. The dedupe key is what
 // makes "once per event" true: the same event always yields the same key, and
 // the database refuses a second row with it.
+import { DAY_MS, msBefore, utcDay } from "@/lib/time";
 import type { Status } from "@/lib/tracking/status";
 
 export const NOTIFICATION_KINDS = [
@@ -26,13 +27,13 @@ export interface AlertCandidate {
 }
 
 /** An ETA this long past with no delivery counts as late. */
-export const OVERDUE_AFTER_MS = 24 * 60 * 60 * 1000;
+export const OVERDUE_AFTER_MS = DAY_MS;
 /**
  * ...but only for a while. A parcel whose ETA is weeks old is stuck or
  * forgotten, not "running late"; the Expired job (Phase 7) deals with those.
  * It also keeps the first scan after a deploy from alerting on old data.
  */
-export const OVERDUE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+export const OVERDUE_MAX_AGE_MS = 14 * DAY_MS;
 
 /** The alert a shipment entering this status deserves, if any. */
 export function kindForStatus(status: Status): NotificationKind | null {
@@ -48,11 +49,6 @@ export function kindForStatus(status: Status): NotificationKind | null {
     default:
       return null;
   }
-}
-
-/** The UTC calendar day of a moment, as YYYY-MM-DD. */
-export function utcDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 /** Statuses after which a later ETA or an overdue ETA means nothing. */
@@ -119,7 +115,7 @@ export function overdueDedupeKey(eta: Date): string {
 /** ETAs in (from, to] are overdue at `now`: the scan's window. */
 export function overdueWindow(now: Date): { from: Date; to: Date } {
   return {
-    from: new Date(now.getTime() - OVERDUE_MAX_AGE_MS),
-    to: new Date(now.getTime() - OVERDUE_AFTER_MS),
+    from: msBefore(now, OVERDUE_MAX_AGE_MS),
+    to: msBefore(now, OVERDUE_AFTER_MS),
   };
 }

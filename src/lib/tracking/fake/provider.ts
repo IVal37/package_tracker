@@ -15,6 +15,7 @@ import {
   type TrackingProvider,
 } from "../types";
 import { verifyBearerSecret } from "@/lib/auth/bearer";
+import { HOUR_MS } from "@/lib/time";
 import { z } from "zod";
 
 export interface FakeProviderConfig {
@@ -25,7 +26,6 @@ export interface FakeProviderConfig {
 
 const COURIER = "fake-courier";
 const TRACKER_PREFIX = "fake:";
-const HOUR_MS = 3_600_000;
 
 interface EventSpec {
   hoursAgo: number;

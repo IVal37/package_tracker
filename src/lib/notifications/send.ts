@@ -23,15 +23,16 @@ import {
 } from "@/lib/db/push-subscriptions";
 import { getLastCheckpoint, getShipment } from "@/lib/db/shipments";
 import { getUserEmail } from "@/lib/db/users";
+import { DAY_MS, MINUTE_MS } from "@/lib/time";
 import { buildMessage, type BuiltMessage } from "./message";
 import { channelsFor, type Channel } from "./prefs";
 import { quietHoursEnd } from "./quiet-hours";
 import { SendError, type EmailSender, type PushSender } from "./senders";
 
 /** An alert older than this is no longer news. */
-export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+export const STALE_AFTER_MS = DAY_MS;
 /** The sweep re-queues alerts still pending after this long. */
-export const SWEEP_AFTER_MS = 10 * 60 * 1000;
+export const SWEEP_AFTER_MS = 10 * MINUTE_MS;
 
 type SkipReason =
   | "missing"

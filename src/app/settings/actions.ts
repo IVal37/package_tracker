@@ -15,7 +15,8 @@ import {
 } from "@/lib/db/push-subscriptions";
 import { retryFailedEmail } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
-import { LIMITS, allowUserAction, hit, logLimited } from "@/lib/ratelimit";
+import { formText } from "@/lib/form";
+import { LIMITS, allow, allowUserAction } from "@/lib/ratelimit";
 import { DELETE_CONFIRMATION } from "@/lib/privacy/confirm";
 import { deleteAccount } from "@/lib/privacy/delete-account";
 import { getTrackingProvider } from "@/lib/tracking";
@@ -36,10 +37,7 @@ import {
 export async function regenerateAddressAction(): Promise<void> {
   const user = await requireUser();
   const db = getDb();
-  if (!(await hit(db, LIMITS.regenerateAddress, user.id, new Date())).allowed) {
-    logLimited(LIMITS.regenerateAddress.action);
-    return;
-  }
+  if (!(await allow(db, LIMITS.regenerateAddress, user.id, new Date()))) return;
   await rotateAlias(db, user.id);
   revalidatePath("/settings");
   // Setup shows the same address.
@@ -77,8 +75,7 @@ export async function savePushSubscriptionAction(
   if (!parsed.success) return { ok: false };
 
   const db = getDb();
-  if (!(await hit(db, LIMITS.savePushDevice, user.id, new Date())).allowed) {
-    logLimited(LIMITS.savePushDevice.action);
+  if (!(await allow(db, LIMITS.savePushDevice, user.id, new Date()))) {
     return { ok: false };
   }
   await requireLiveAccount(db, user);
@@ -113,7 +110,7 @@ export async function retryEmailAction(
   formData: FormData,
 ): Promise<FailedEmailState> {
   const user = await requireUser();
-  const emailId = String(formData.get("emailId") ?? "");
+  const emailId = formText(formData, "emailId");
   const now = new Date();
   const result = await retryFailedEmail({
     db: getDb(),
@@ -142,7 +139,7 @@ export async function dismissEmailAction(
   const deleted = await deleteFailedEmail(
     db,
     user.id,
-    String(formData.get("emailId") ?? ""),
+    formText(formData, "emailId"),
   );
   if (deleted) revalidatePath("/settings");
   return { status: deleted ? "dismissed" : "not_found" };
@@ -162,7 +159,7 @@ export async function deleteAccountAction(
   formData: FormData,
 ): Promise<DeleteAccountState> {
   const user = await requireUser();
-  if (String(formData.get("confirm") ?? "").trim() !== DELETE_CONFIRMATION) {
+  if (formText(formData, "confirm").trim() !== DELETE_CONFIRMATION) {
     return { status: "unconfirmed" };
   }
 

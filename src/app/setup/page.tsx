@@ -16,12 +16,13 @@ import { formatAddress } from "@/lib/email/alias";
 import { getEnv } from "@/lib/env";
 import { deviceKind } from "@/lib/pwa/service-worker";
 import { formatRelativeTime } from "@/lib/shipments/format";
+import { DAY_MS, msBefore } from "@/lib/time";
 import { completeSetupAction, skipSetupAction } from "../actions";
 import { signOut } from "../sign-in/actions";
 import { removePushSubscriptionAction } from "../settings/actions";
 
 /** A Gmail code is only useful for a short while after it is sent. */
-const CONFIRMATION_WINDOW_MS = 3 * 86_400_000;
+const CONFIRMATION_WINDOW_MS = 3 * DAY_MS;
 
 export default async function SetupPage() {
   const user = await requireUser();
@@ -39,7 +40,7 @@ export default async function SetupPage() {
   const confirmation = await latestGmailConfirmation(
     db,
     user.id,
-    new Date(now.getTime() - CONFIRMATION_WINDOW_MS),
+    msBefore(now, CONFIRMATION_WINDOW_MS),
   );
 
   const [answer, signals] = await Promise.all([

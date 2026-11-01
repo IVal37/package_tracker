@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db/client";
 import { getEnv } from "@/lib/env";
 import { buildUserExport } from "@/lib/privacy/export";
 import { LIMITS, hit, logLimited, tooManyRequests } from "@/lib/ratelimit";
+import { utcDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export async function GET(): Promise<Response> {
     inboundDomain: getEnv().INBOUND_EMAIL_DOMAIN,
     now,
   });
-  const day = now.toISOString().slice(0, 10);
+  const day = utcDay(now);
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",

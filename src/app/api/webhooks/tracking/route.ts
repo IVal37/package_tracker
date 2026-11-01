@@ -1,5 +1,6 @@
 import { requestGeocoding, requestNotifications } from "@/jobs/events";
 import { getDb } from "@/lib/db/client";
+import { errorName } from "@/lib/errors";
 import { handleTrackingWebhook } from "@/lib/shipments/sync/handle-webhook";
 import { getTrackingProvider } from "@/lib/tracking";
 
@@ -34,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     // Name only: never the body, headers or secret.
     console.error("tracking webhook failed", {
-      error: error instanceof Error ? error.name : "unknown",
+      error: errorName(error),
     });
     return new Response(null, { status: 500 });
   }

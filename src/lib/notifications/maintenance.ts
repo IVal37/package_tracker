@@ -6,11 +6,11 @@ import {
   findPendingNotificationIds,
   insertOverdueAlerts,
 } from "@/lib/db/notify-sync";
+import { DAY_MS, msBefore } from "@/lib/time";
 import { SWEEP_AFTER_MS } from "./send";
 
 /** Alerts are kept this long for debugging, then deleted. */
 export const KEEP_NOTIFICATIONS_DAYS = 90;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface SweepResult {
   /** Overdue alerts recorded just now; they have never been sent for. */
@@ -33,7 +33,7 @@ export async function sweepNotifications(args: {
   const fresh = await insertOverdueAlerts(db, now, limit);
   const retry = await findPendingNotificationIds(
     db,
-    new Date(now.getTime() - SWEEP_AFTER_MS),
+    msBefore(now, SWEEP_AFTER_MS),
     limit,
   );
   return { fresh, retry };
@@ -44,8 +44,6 @@ export async function cleanupNotifications(args: {
   db: Db;
   now: Date;
 }): Promise<{ deleted: number }> {
-  const cutoff = new Date(
-    args.now.getTime() - KEEP_NOTIFICATIONS_DAYS * DAY_MS,
-  );
+  const cutoff = msBefore(args.now, KEEP_NOTIFICATIONS_DAYS * DAY_MS);
   return { deleted: await deleteNotificationsBefore(args.db, cutoff) };
 }

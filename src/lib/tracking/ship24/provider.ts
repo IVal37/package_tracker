@@ -11,6 +11,7 @@ import type {
   TrackingProvider,
 } from "../types";
 import { verifyBearerSecret } from "@/lib/auth/bearer";
+import { errorName } from "@/lib/errors";
 import { ship24Request, type Ship24ClientConfig } from "./client";
 import { ship24Destination } from "./destination";
 import {
@@ -135,8 +136,9 @@ export class Ship24Provider implements TrackingProvider {
         body: { isSubscribed: true },
       });
     } catch (error) {
-      const name = error instanceof Error ? error.name : "unknown error";
-      console.warn(`[ship24] could not resubscribe a tracker: ${name}`);
+      console.warn(
+        `[ship24] could not resubscribe a tracker: ${errorName(error, "unknown error")}`,
+      );
     }
   }
 

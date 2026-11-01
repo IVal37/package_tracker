@@ -6,6 +6,7 @@ import { rateLimits } from "@/lib/db/schema";
 import {
   BREAKERS,
   LIMITS,
+  allow,
   allowUserAction,
   cleanupRateLimits,
   clientIp,
@@ -263,6 +264,24 @@ describe("circuit breakers", () => {
     expect(
       await isBreakerTripped(ctx.db, breaker, "prov-a", at(60 * 60 * 1000)),
     ).toBe(false);
+  });
+});
+
+describe("allow", () => {
+  it("answers like hit and logs only a refusal, by action name", async () => {
+    const ctx = await createTestDb();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const now = new Date("2026-10-31T12:00:30Z");
+      const once: Limit = { action: "once", limit: 1, windowMs: 60_000 };
+      expect(await allow(ctx.db, once, "subject", now)).toBe(true);
+      expect(warn).not.toHaveBeenCalled();
+      expect(await allow(ctx.db, once, "subject", now)).toBe(false);
+      expect(warn).toHaveBeenCalledWith("rate limited", { action: "once" });
+    } finally {
+      warn.mockRestore();
+      await ctx.client.close();
+    }
   });
 });
 

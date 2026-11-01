@@ -1,6 +1,7 @@
 // Web Push through the `web-push` package: VAPID signing and the payload
 // encryption are its job (RFC 8030, 8291, 8292).
 import webpush from "web-push";
+import { errorName } from "@/lib/errors";
 import {
   SendError,
   type PushPayload,
@@ -70,10 +71,9 @@ export class WebPushSender implements PushSender {
         });
       }
       // Not an HTTP answer: DNS, connection, timeout. Worth trying again.
-      throw new SendError(
-        `Push could not be sent (${error instanceof Error ? error.name : "unknown"})`,
-        { retryable: true },
-      );
+      throw new SendError(`Push could not be sent (${errorName(error)})`, {
+        retryable: true,
+      });
     }
   }
 }

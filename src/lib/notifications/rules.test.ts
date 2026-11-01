@@ -9,7 +9,6 @@ import {
   kindForStatus,
   overdueDedupeKey,
   overdueWindow,
-  utcDay,
   type ShipmentSnapshot,
 } from "./rules";
 
@@ -263,9 +262,5 @@ describe("overdue helpers", () => {
     const window = overdueWindow(now);
     expect(window.to.toISOString()).toBe("2026-06-19T12:00:00.000Z");
     expect(window.from.toISOString()).toBe("2026-06-06T12:00:00.000Z");
-  });
-
-  it("formats the UTC day", () => {
-    expect(utcDay(new Date("2026-06-10T23:30:00-05:00"))).toBe("2026-06-11");
   });
 });

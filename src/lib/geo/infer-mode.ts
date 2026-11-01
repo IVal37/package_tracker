@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/time";
 import type { Mode, Status } from "@/lib/tracking";
 import { haversineKm, type LatLng } from "./distance";
 
@@ -12,7 +13,7 @@ export interface ModeCheckpoint {
 
 /** Two located hops further apart than this, within a day, mean a flight. */
 export const AIR_HOP_KM = 800;
-const AIR_HOP_WINDOW_MS = 24 * 60 * 60 * 1000;
+const AIR_HOP_WINDOW_MS = DAY_MS;
 
 const AIR =
   /\b(?:airport|airline|airlines|aircraft|airfreight|flight|by\s+air|air\s+(?:gateway|hub|freight|cargo|terminal|transport))\b/;

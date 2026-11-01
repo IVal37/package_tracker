@@ -2,9 +2,7 @@
 // database, and good enough to stop abuse (a burst across a window boundary can
 // reach twice the limit, which is fine for these numbers).
 
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
+import { DAY_MS, HOUR_MS, MINUTE_MS } from "@/lib/time";
 
 export interface Limit {
   /** Names the action in keys and logs. */

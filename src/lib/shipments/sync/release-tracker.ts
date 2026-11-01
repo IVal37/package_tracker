@@ -1,5 +1,6 @@
 import type { Db } from "@/lib/db/client";
 import { isTrackerFollowedByOthers } from "@/lib/db/tracker-sync";
+import { errorName } from "@/lib/errors";
 import { TrackerNotFoundError, type TrackingProvider } from "@/lib/tracking";
 
 export type ReleaseOutcome =
@@ -37,8 +38,9 @@ export async function releaseTracker(args: {
     return "unsubscribed";
   } catch (error) {
     if (error instanceof TrackerNotFoundError) return "gone";
-    const name = error instanceof Error ? error.name : "unknown error";
-    console.error(`[releaseTracker] provider failure: ${name}`);
+    console.error(
+      `[releaseTracker] provider failure: ${errorName(error, "unknown error")}`,
+    );
     return "failed";
   }
 }

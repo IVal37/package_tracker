@@ -1,4 +1,5 @@
 import { EMAIL_RECEIVED } from "@/lib/email/events";
+import { errorName } from "@/lib/errors";
 import { GEOCODE_REQUESTED } from "@/lib/geo/place-events";
 import { buildNotificationEvents } from "@/lib/notifications/events";
 import { inngest } from "./client";
@@ -23,9 +24,7 @@ async function sendBestEffort(what: string, event: Event): Promise<void> {
     ]);
   } catch (error) {
     // Name only; never the payload or any key.
-    console.warn(`${what} not sent`, {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    console.warn(`${what} not sent`, { error: errorName(error) });
   }
 }
 

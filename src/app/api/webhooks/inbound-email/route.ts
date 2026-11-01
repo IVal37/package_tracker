@@ -2,6 +2,7 @@ import { requestEmailProcessing } from "@/jobs/events";
 import { getDb } from "@/lib/db/client";
 import { receiveInboundEmail } from "@/lib/email/receive";
 import { getEnv } from "@/lib/env";
+import { errorName } from "@/lib/errors";
 import { tooManyRequests } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: outcome.status });
   } catch (error) {
     console.error("inbound email failed", {
-      error: error instanceof Error ? error.name : "unknown",
+      error: errorName(error),
     });
     return new Response(null, { status: 500 });
   }

@@ -2,7 +2,7 @@
 // trying one again.
 import type { Db } from "@/lib/db/client";
 import { resetFailedEmail } from "@/lib/db/inbound-emails";
-import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
+import { LIMITS, allow } from "@/lib/ratelimit";
 
 /**
  * A plain reason for the Settings page. The stored error is our own message
@@ -39,10 +39,7 @@ export async function retryFailedEmail(args: {
   now: Date;
 }): Promise<RetryEmailResult> {
   const { db, userId, emailId, now } = args;
-  if (!(await hit(db, LIMITS.retryEmail, userId, now)).allowed) {
-    logLimited(LIMITS.retryEmail.action);
-    return "rate_limited";
-  }
+  if (!(await allow(db, LIMITS.retryEmail, userId, now))) return "rate_limited";
   return (await resetFailedEmail(db, userId, emailId))
     ? "retried"
     : "not_found";

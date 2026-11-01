@@ -6,7 +6,14 @@ import { requestMagicLink, startGoogleSignIn } from "@/lib/auth/sign-in";
 import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { getDb } from "@/lib/db/client";
 import { getEnv } from "@/lib/env";
-import { LIMITS, clientIp, hit, hitSignIn, logLimited } from "@/lib/ratelimit";
+import { formText } from "@/lib/form";
+import {
+  LIMITS,
+  allow,
+  clientIp,
+  hitSignIn,
+  logLimited,
+} from "@/lib/ratelimit";
 
 export type SignInState =
   | { status: "idle" }
@@ -28,7 +35,7 @@ export async function signInWithEmail(
   const ip = clientIp(await headers());
   const result = await requestMagicLink(
     await createSupabaseServerClient(),
-    String(formData.get("email") ?? ""),
+    formText(formData, "email"),
     getEnv().APP_URL,
     async (email) => {
       const verdict = await hitSignIn(getDb(), { ip, email, now: new Date() });
@@ -43,8 +50,7 @@ export async function signInWithEmail(
 
 export async function signInWithGoogle(): Promise<void> {
   const ip = clientIp(await headers());
-  if (!(await hit(getDb(), LIMITS.googleSignIn, ip, new Date())).allowed) {
-    logLimited(LIMITS.googleSignIn.action);
+  if (!(await allow(getDb(), LIMITS.googleSignIn, ip, new Date()))) {
     redirect("/sign-in?error=busy");
   }
   const result = await startGoogleSignIn(

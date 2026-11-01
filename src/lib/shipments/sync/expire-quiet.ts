@@ -1,7 +1,6 @@
 import type { Db } from "@/lib/db/client";
 import { expireQuietBefore } from "@/lib/db/tracker-sync";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS, msBefore } from "@/lib/time";
 
 /**
  * Marks shipments Expired after EXPIRE_AFTER_DAYS with no tracker event (or,
@@ -15,6 +14,6 @@ export async function expireQuietShipments(args: {
   expireAfterDays: number;
 }): Promise<{ expired: number }> {
   const { db, now, expireAfterDays } = args;
-  const cutoff = new Date(now.getTime() - expireAfterDays * DAY_MS);
+  const cutoff = msBefore(now, expireAfterDays * DAY_MS);
   return { expired: await expireQuietBefore(db, cutoff, now) };
 }

@@ -1,6 +1,5 @@
+import { DAY_MS, HOUR_MS, MINUTE_MS } from "@/lib/time";
 import type { Status } from "@/lib/tracking/status";
-
-const DAY_MS = 86_400_000;
 
 /** Midnight at the start of the date's calendar day in the given time zone, as a UTC day number. */
 function dayNumber(date: Date, timeZone: string): number {
@@ -72,8 +71,8 @@ export function formatShipmentEta(
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["day", DAY_MS],
-  ["hour", 3_600_000],
-  ["minute", 60_000],
+  ["hour", HOUR_MS],
+  ["minute", MINUTE_MS],
 ];
 
 /** "5 minutes ago", "yesterday", "2 days ago". */

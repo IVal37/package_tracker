@@ -19,13 +19,14 @@ import {
 } from "drizzle-orm";
 import { alertsForUpdate } from "@/lib/notifications/rules";
 import { decideShipmentUpdate } from "@/lib/shipments/sync/decide-update";
+import { DAY_MS, msBefore } from "@/lib/time";
 import type { NormalizedShipment } from "@/lib/tracking/types";
 import { insertCheckpoints } from "./checkpoints";
 import type { Db } from "./client";
 import { notifications, shipments } from "./schema";
 
 /** A shipment with no provider sync for this long is re-fetched. */
-export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+export const STALE_AFTER_MS = DAY_MS;
 
 /** Statuses that are never re-fetched. */
 const TERMINAL = ["Delivered", "Expired"] as const;
@@ -124,7 +125,7 @@ export async function findStaleTrackers(
   now: Date,
   limit: number,
 ): Promise<string[]> {
-  const cutoff = new Date(now.getTime() - STALE_AFTER_MS);
+  const cutoff = msBefore(now, STALE_AFTER_MS);
   const oldestSync = min(shipments.lastSyncedAt);
 
   const rows = await db

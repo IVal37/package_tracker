@@ -6,7 +6,7 @@ import {
   markPushSuccess,
   removePushSubscriptionById,
 } from "@/lib/db/push-subscriptions";
-import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
+import { LIMITS, allow } from "@/lib/ratelimit";
 import { SendError, type PushSender } from "./senders";
 
 export type TestPushResult =
@@ -29,8 +29,7 @@ export async function sendTestPush(args: {
   now: Date;
 }): Promise<TestPushResult> {
   const { db, sender, userId, appUrl, now } = args;
-  if (!(await hit(db, LIMITS.testPush, userId, now)).allowed) {
-    logLimited(LIMITS.testPush.action);
+  if (!(await allow(db, LIMITS.testPush, userId, now))) {
     return { status: "rate_limited" };
   }
 

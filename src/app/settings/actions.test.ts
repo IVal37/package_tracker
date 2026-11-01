@@ -65,6 +65,7 @@ vi.mock("@/lib/tracking", () => ({
 vi.mock("@/lib/ratelimit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ratelimit")>()),
   hit: mocks.hit,
+  allow: async (...args: unknown[]) => (await mocks.hit(...args)).allowed,
   allowUserAction: mocks.allowUserAction,
   logLimited: () => {},
 }));

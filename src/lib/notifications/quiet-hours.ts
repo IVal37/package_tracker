@@ -2,6 +2,7 @@
 // wait instead of buzzing. The window may wrap midnight (22:00 to 07:00).
 // Pure, with the time zone handled by Intl so daylight saving is the platform's
 // job.
+import { MINUTE_MS } from "@/lib/time";
 
 export interface QuietHours {
   enabled: boolean;
@@ -12,7 +13,6 @@ export interface QuietHours {
   timeZone: string;
 }
 
-const MINUTE_MS = 60_000;
 const DAY_MINUTES = 24 * 60;
 
 /** True if the runtime knows this IANA time zone. */

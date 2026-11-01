@@ -10,11 +10,11 @@ import {
   refetchTracker,
   trackerRefetchSchema,
 } from "@/lib/shipments/sync/refetch-stale";
+import { hourBucket } from "@/lib/time";
 import { getTrackingProvider } from "@/lib/tracking";
 import { inngest } from "./client";
 
 const MAX_TRACKERS_PER_SWEEP = 500;
-const HOUR_MS = 3_600_000;
 
 /**
  * Hourly safety net for webhooks that never arrived: finds stale trackers and
@@ -82,7 +82,7 @@ export const refetchTrackerJob = inngest.createFunction(
     if (result.outcome === "updated") {
       // New checkpoints may mention places that still need coordinates. One
       // request per hour is enough for the whole sweep (the id de-duplicates).
-      const bucket = Math.floor(Date.now() / HOUR_MS);
+      const bucket = hourBucket(new Date());
       await step.sendEvent("request-geocoding", {
         name: GEOCODE_REQUESTED,
         id: `geocode-after-refetch-${bucket}`,

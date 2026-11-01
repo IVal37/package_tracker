@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/inbound-emails";
 import { findUserIdByAlias } from "@/lib/db/inbound-sync";
 import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
+import { DAY_MS, msBefore } from "@/lib/time";
 import { aliasFromRecipient } from "./alias";
 import {
   gmailConfirmationRecord,
@@ -20,8 +21,6 @@ import { htmlToText } from "./html-to-text";
 export const MAX_BODY_CHARS = 1_000_000;
 /** What the Worker is told to cap text and HTML at; larger is refused. */
 export const MAX_PART_CHARS = 200_000;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The provider-neutral body the Cloudflare Worker (or a test) POSTs. */
 const inboundEmailSchema = z.object({
@@ -116,8 +115,7 @@ export async function receiveInboundEmail(args: {
     return result(200, "duplicate");
   }
   if (
-    (await countEmailsSince(db, userId, new Date(now.getTime() - DAY_MS))) >=
-    dailyLimit
+    (await countEmailsSince(db, userId, msBefore(now, DAY_MS))) >= dailyLimit
   ) {
     return result(200, "over_limit");
   }

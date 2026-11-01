@@ -1,5 +1,6 @@
 // Email through Resend's REST API (https://resend.com/docs/api-reference).
 // Plain fetch, no SDK.
+import { errorName } from "@/lib/errors";
 import { SendError, type EmailMessage, type EmailSender } from "./types";
 
 const ENDPOINT = "https://api.resend.com/emails";
@@ -46,10 +47,9 @@ export class ResendEmailSender implements EmailSender {
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (error) {
-      throw new SendError(
-        `Email could not be sent (${error instanceof Error ? error.name : "unknown"})`,
-        { retryable: true },
-      );
+      throw new SendError(`Email could not be sent (${errorName(error)})`, {
+        retryable: true,
+      });
     }
 
     if (!response.ok) {

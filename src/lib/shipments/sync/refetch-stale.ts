@@ -6,6 +6,7 @@ import {
   markTrackerSynced,
 } from "@/lib/db/tracker-sync";
 import { BREAKERS, isBreakerTripped, tripBreaker } from "@/lib/ratelimit";
+import { hourBucket } from "@/lib/time";
 import {
   ProviderAuthError,
   QuotaExceededError,
@@ -20,8 +21,6 @@ export const trackerRefetchSchema = z.object({
   trackerId: z.string().min(1).max(200),
 });
 
-const HOUR_MS = 3_600_000;
-
 export interface TrackerRefetchEvent {
   /** One per tracker per hour: a repeat send in the same hour is dropped. */
   id: string;
@@ -33,7 +32,7 @@ export function buildRefetchEvents(
   trackerIds: readonly string[],
   now: Date,
 ): TrackerRefetchEvent[] {
-  const bucket = Math.floor(now.getTime() / HOUR_MS);
+  const bucket = hourBucket(now);
   return trackerIds.map((trackerId) => ({
     id: `refetch-${trackerId}-${bucket}`,
     name: TRACKER_REFETCH,

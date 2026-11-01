@@ -7,6 +7,7 @@ import {
   deleteRateLimitWindowsBefore,
   peekCount,
 } from "@/lib/db/rate-limits";
+import { msBefore } from "@/lib/time";
 import { KEEP_WINDOWS_MS, LIMITS, type Limit } from "./limits";
 
 export { BREAKERS, LIMITS, type Limit } from "./limits";
@@ -137,7 +138,7 @@ export async function cleanupRateLimits(args: {
   db: Db;
   now: Date;
 }): Promise<{ deleted: number }> {
-  const cutoff = new Date(args.now.getTime() - KEEP_WINDOWS_MS);
+  const cutoff = msBefore(args.now, KEEP_WINDOWS_MS);
   return { deleted: await deleteRateLimitWindowsBefore(args.db, cutoff) };
 }
 
@@ -172,16 +173,23 @@ export function hitAddPackage(
   );
 }
 
-/**
- * A signed-in action with no limit of its own: counted per user against one
- * shared limit. Logs a refusal (the action name only).
- */
-export async function allowUserAction(
+/** Counts one use like hit, and logs a refusal (the action name only). */
+export async function allow(
+  db: Db,
+  limit: Limit,
+  subject: string,
+  now: Date,
+): Promise<boolean> {
+  const verdict = await hit(db, limit, subject, now);
+  if (!verdict.allowed) logLimited(limit.action);
+  return verdict.allowed;
+}
+
+/** A signed-in action with no limit of its own: one shared limit per user. */
+export function allowUserAction(
   db: Db,
   userId: string,
   now: Date,
 ): Promise<boolean> {
-  const verdict = await hit(db, LIMITS.userAction, userId, now);
-  if (!verdict.allowed) logLimited(LIMITS.userAction.action);
-  return verdict.allowed;
+  return allow(db, LIMITS.userAction, userId, now);
 }

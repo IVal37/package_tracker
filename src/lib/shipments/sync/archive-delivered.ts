@@ -3,11 +3,10 @@ import {
   archiveDeliveredBefore,
   archiveExpiredBefore,
 } from "@/lib/db/tracker-sync";
+import { DAY_MS, msBefore } from "@/lib/time";
 
 /** Delivered and Expired shipments leave the list this many days later. */
 export const ARCHIVE_AFTER_DAYS = 14;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Archives shipments delivered 14 or more days ago, and Expired ones 14 or
@@ -20,9 +19,10 @@ export async function archiveDeliveredShipments(args: {
   expireAfterDays: number;
 }): Promise<{ archived: number; archivedExpired: number }> {
   const { db, now, expireAfterDays } = args;
-  const cutoff = new Date(now.getTime() - ARCHIVE_AFTER_DAYS * DAY_MS);
-  const expiredCutoff = new Date(
-    now.getTime() - (expireAfterDays + ARCHIVE_AFTER_DAYS) * DAY_MS,
+  const cutoff = msBefore(now, ARCHIVE_AFTER_DAYS * DAY_MS);
+  const expiredCutoff = msBefore(
+    now,
+    (expireAfterDays + ARCHIVE_AFTER_DAYS) * DAY_MS,
   );
   return {
     archived: await archiveDeliveredBefore(db, cutoff, now),

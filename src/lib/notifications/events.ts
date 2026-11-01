@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hourBucket } from "@/lib/time";
 
 /** Sent when an alert has been recorded and is ready to be delivered. */
 export const NOTIFICATION_CREATED = "wayfind/notification.created";
@@ -8,8 +9,6 @@ export const notificationCreatedSchema = z.object({
 });
 
 type NotificationCreatedData = z.infer<typeof notificationCreatedSchema>;
-
-const HOUR_MS = 3_600_000;
 
 export interface NotificationEvent {
   /** Inngest drops a second event with the same id, so a repeat send is harmless. */
@@ -37,7 +36,7 @@ export function buildSweepEvents(
   notificationIds: readonly string[],
   now: Date,
 ): NotificationEvent[] {
-  const bucket = Math.floor(now.getTime() / HOUR_MS);
+  const bucket = hourBucket(now);
   return notificationIds.map((notificationId) => ({
     id: `notification-${notificationId}-sweep-${bucket}`,
     name: NOTIFICATION_CREATED,

@@ -35,6 +35,7 @@ vi.mock("@/lib/ratelimit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ratelimit")>()),
   hitSignIn,
   hit,
+  allow: async (...args: unknown[]) => (await hit(...args)).allowed,
 }));
 
 import { signInWithEmail, signInWithGoogle, signOut } from "./actions";

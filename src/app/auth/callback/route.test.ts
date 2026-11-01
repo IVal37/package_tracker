@@ -17,6 +17,7 @@ vi.mock("@/lib/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/lib/ratelimit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ratelimit")>()),
   hit,
+  allow: async (...args: unknown[]) => (await hit(...args)).allowed,
   logLimited: () => {},
 }));
 

@@ -1,6 +1,7 @@
 // Reading the settings form. Pure. Browsers send an unchecked checkbox as
 // nothing at all, so a missing field means "off"; the time zone and the two
 // times are checked, never trusted.
+import { formText } from "@/lib/form";
 import { parseTimeOfDay, prefsSchema, type NotificationPrefs } from "./prefs";
 import { NOTIFICATION_KINDS } from "./rules";
 
@@ -30,8 +31,8 @@ export type ParsedSettingsForm =
  * Fields the form does not have (a user id, say) are not read at all.
  */
 export function parseSettingsForm(formData: FormData): ParsedSettingsForm {
-  const start = parseTimeOfDay(String(formData.get(FIELD.quietStart) ?? ""));
-  const end = parseTimeOfDay(String(formData.get(FIELD.quietEnd) ?? ""));
+  const start = parseTimeOfDay(formText(formData, FIELD.quietStart));
+  const end = parseTimeOfDay(formText(formData, FIELD.quietEnd));
   if (start === null || end === null) {
     return { ok: false, message: "Enter quiet hours as times, like 22:00." };
   }
@@ -48,7 +49,7 @@ export function parseSettingsForm(formData: FormData): ParsedSettingsForm {
       enabled: checked(formData, FIELD.quietEnabled),
       start,
       end,
-      timeZone: String(formData.get(FIELD.timeZone) ?? ""),
+      timeZone: formText(formData, FIELD.timeZone),
     },
   });
   if (!parsed.success) {

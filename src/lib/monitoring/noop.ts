@@ -1,3 +1,4 @@
+import { errorName } from "@/lib/errors";
 import { sanitizeDetails, type Details } from "./scrub";
 import type { IssueKind, Monitor } from "./types";
 
@@ -14,7 +15,7 @@ export class NoopMonitor implements Monitor {
 
   reportError(error: unknown, details?: Details): void {
     console.error("[monitor] error", {
-      error: error instanceof Error ? error.name : "unknown",
+      error: errorName(error),
       ...sanitizeDetails(details),
     });
   }

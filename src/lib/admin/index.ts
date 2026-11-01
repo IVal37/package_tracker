@@ -7,8 +7,7 @@ import {
   type AdminCounts,
   type DayCount,
 } from "@/lib/db/admin-stats";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS, msBefore, utcDay } from "@/lib/time";
 
 /** ADMIN_EMAILS is already lower-cased; an empty list means nobody. */
 export function isAdmin(
@@ -27,8 +26,6 @@ export interface AdminStats extends AdminCounts {
   /** SHIP24_MONTHLY_ALLOWANCE, or null when not set. */
   allowance: number | null;
 }
-
-const utcDay = (date: Date) => date.toISOString().slice(0, 10);
 
 /** Everything the admin page shows. Counts and times only. */
 export async function loadAdminStats(args: {
@@ -51,7 +48,7 @@ export async function loadAdminStats(args: {
 
   const [byDay, counts] = await Promise.all([
     trackersCreatedPerDay(db, provider, since),
-    adminCounts(db, new Date(now.getTime() - 7 * DAY_MS)),
+    adminCounts(db, msBefore(now, 7 * DAY_MS)),
   ]);
 
   const found = new Map(byDay.map((row) => [row.day, row.count]));

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { safeGmailConfirmationLink } from "@/lib/email/gmail-confirmation";
 import type { Db } from "./client";
 import { inboundEmails } from "./schema";
-import { isUniqueViolation, isUuid } from "./shipments";
+import { isUuid, onUniqueViolation } from "./shipments";
 
 export interface NewInboundEmail {
   /** The normalized email as JSON text. */
@@ -75,6 +75,12 @@ export async function latestGmailConfirmation(
   return null;
 }
 
+const failedEmailsOf = (userId: string) =>
+  and(
+    eq(inboundEmails.userId, userId),
+    eq(inboundEmails.parseStatus, "failed"),
+  );
+
 /** How many of this user's emails could not be read. */
 export async function countFailedEmails(
   db: Db,
@@ -83,12 +89,7 @@ export async function countFailedEmails(
   const [row] = await db
     .select({ total: count() })
     .from(inboundEmails)
-    .where(
-      and(
-        eq(inboundEmails.userId, userId),
-        eq(inboundEmails.parseStatus, "failed"),
-      ),
-    );
+    .where(failedEmailsOf(userId));
   return row?.total ?? 0;
 }
 
@@ -118,12 +119,7 @@ export async function listFailedEmails(
       extracted: inboundEmails.extracted,
     })
     .from(inboundEmails)
-    .where(
-      and(
-        eq(inboundEmails.userId, userId),
-        eq(inboundEmails.parseStatus, "failed"),
-      ),
-    )
+    .where(failedEmailsOf(userId))
     .orderBy(desc(inboundEmails.receivedAt))
     .limit(limit);
 
@@ -146,13 +142,7 @@ export async function resetFailedEmail(
   const updated = await db
     .update(inboundEmails)
     .set({ parseStatus: "pending", extracted: null })
-    .where(
-      and(
-        eq(inboundEmails.id, emailId),
-        eq(inboundEmails.userId, userId),
-        eq(inboundEmails.parseStatus, "failed"),
-      ),
-    )
+    .where(and(eq(inboundEmails.id, emailId), failedEmailsOf(userId)))
     .returning({ id: inboundEmails.id });
   return updated.length > 0;
 }
@@ -166,13 +156,7 @@ export async function deleteFailedEmail(
   if (!isUuid(emailId)) return false;
   const deleted = await db
     .delete(inboundEmails)
-    .where(
-      and(
-        eq(inboundEmails.id, emailId),
-        eq(inboundEmails.userId, userId),
-        eq(inboundEmails.parseStatus, "failed"),
-      ),
-    )
+    .where(and(eq(inboundEmails.id, emailId), failedEmailsOf(userId)))
     .returning({ id: inboundEmails.id });
   return deleted.length > 0;
 }
@@ -242,19 +226,16 @@ export async function finishEmail(
  * Stores an email for the user and returns its id, or null if the same
  * Message-ID is already stored for them (also when two deliveries race).
  */
-export async function insertInboundEmail(
+export function insertInboundEmail(
   db: Db,
   userId: string,
   email: NewInboundEmail,
 ): Promise<string | null> {
-  try {
+  return onUniqueViolation(null, async () => {
     const [row] = await db
       .insert(inboundEmails)
       .values({ userId, ...email })
       .returning({ id: inboundEmails.id });
     return row?.id ?? null;
-  } catch (error) {
-    if (isUniqueViolation(error)) return null;
-    throw error;
-  }
+  });
 }

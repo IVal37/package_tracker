@@ -4,7 +4,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Db } from "./client";
 import { orders } from "./schema";
-import { isUniqueViolation, isUuid } from "./shipments";
+import { isUuid, onUniqueViolation } from "./shipments";
 
 export type OrderRow = typeof orders.$inferSelect;
 
@@ -15,6 +15,14 @@ export interface NewOrder {
   orderNumber: string | null;
   sourceEmailId: string | null;
 }
+
+/** One of the user's orders that has no shipment yet. */
+const placeholderOf = (userId: string, orderId: string) =>
+  and(
+    eq(orders.id, orderId),
+    eq(orders.userId, userId),
+    isNull(orders.shipmentId),
+  );
 
 /** Orders still waiting for their shipping email (the "Ordered" section), newest first. */
 export async function listOrderPlaceholders(
@@ -51,13 +59,7 @@ export async function dismissOrder(
   if (!isUuid(orderId)) return false;
   const deleted = await db
     .delete(orders)
-    .where(
-      and(
-        eq(orders.id, orderId),
-        eq(orders.userId, userId),
-        isNull(orders.shipmentId),
-      ),
-    )
+    .where(placeholderOf(userId, orderId))
     .returning({ id: orders.id });
   return deleted.length > 0;
 }
@@ -82,65 +84,39 @@ export async function findOrdersByKey(
     .orderBy(orders.createdAt);
 }
 
-/** Creates an "Ordered" placeholder. Null if one already exists for that order. */
-export async function createPlaceholder(
+/**
+ * Records an order: an "Ordered" placeholder, or with `shipmentId` the order
+ * behind a shipment that had no placeholder. Null if that order or that
+ * shipment already has one.
+ */
+export function createOrder(
   db: Db,
   userId: string,
-  order: NewOrder,
+  order: NewOrder & { shipmentId?: string },
 ): Promise<string | null> {
-  try {
+  return onUniqueViolation(null, async () => {
     const [row] = await db
       .insert(orders)
       .values({ userId, ...order })
       .returning({ id: orders.id });
     return row?.id ?? null;
-  } catch (error) {
-    if (isUniqueViolation(error)) return null;
-    throw error;
-  }
+  });
 }
 
 /** Points a placeholder at its shipment. False if it was already attached or is not theirs. */
-export async function attachShipment(
+export function attachShipment(
   db: Db,
   userId: string,
   orderId: string,
   shipmentId: string,
 ): Promise<boolean> {
-  try {
+  // A violation means that shipment already has an order row.
+  return onUniqueViolation(false, async () => {
     const updated = await db
       .update(orders)
       .set({ shipmentId })
-      .where(
-        and(
-          eq(orders.id, orderId),
-          eq(orders.userId, userId),
-          isNull(orders.shipmentId),
-        ),
-      )
+      .where(placeholderOf(userId, orderId))
       .returning({ id: orders.id });
     return updated.length > 0;
-  } catch (error) {
-    // That shipment already has an order row.
-    if (isUniqueViolation(error)) return false;
-    throw error;
-  }
-}
-
-/** Records the order behind a shipment that had no placeholder. Null if it already has one. */
-export async function createShippedOrder(
-  db: Db,
-  userId: string,
-  order: NewOrder & { shipmentId: string },
-): Promise<string | null> {
-  try {
-    const [row] = await db
-      .insert(orders)
-      .values({ userId, ...order })
-      .returning({ id: orders.id });
-    return row?.id ?? null;
-  } catch (error) {
-    if (isUniqueViolation(error)) return null;
-    throw error;
-  }
+  });
 }

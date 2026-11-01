@@ -13,6 +13,7 @@ import {
   notInArray,
   sql,
 } from "drizzle-orm";
+import { FINISHED_STATUSES } from "@/lib/tracking/status";
 import type { NormalizedEvent } from "@/lib/tracking/types";
 import { insertCheckpoints } from "./checkpoints";
 import type { Db } from "./client";
@@ -71,12 +72,34 @@ export function isUniqueViolation(error: unknown): boolean {
   return code(error) === "23505" || code(cause) === "23505";
 }
 
+/** Runs an insert or update; a unique-constraint violation gives `fallback` instead. */
+export async function onUniqueViolation<T>(
+  fallback: T,
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isUniqueViolation(error)) return fallback;
+    throw error;
+  }
+}
+
+/** The user's shipments still on their list. */
+const liveShipmentsOf = (userId: string) =>
+  and(eq(shipments.userId, userId), isNull(shipments.archivedAt));
+
+const NEWEST_CHECKPOINT_FIRST = [
+  desc(checkpoints.occurredAt),
+  sql`${checkpoints.eventOrder} desc nulls last`,
+];
+
 /** The user's non-archived shipments, each with its most recent checkpoint. */
 export async function listShipments(
   db: Db,
   userId: string,
 ): Promise<ShipmentListItem[]> {
-  const owned = and(eq(shipments.userId, userId), isNull(shipments.archivedAt));
+  const owned = liveShipmentsOf(userId);
 
   const rows = await db
     .select()
@@ -94,11 +117,7 @@ export async function listShipments(
     .from(checkpoints)
     .innerJoin(shipments, eq(checkpoints.shipmentId, shipments.id))
     .where(owned)
-    .orderBy(
-      checkpoints.shipmentId,
-      desc(checkpoints.occurredAt),
-      sql`${checkpoints.eventOrder} desc nulls last`,
-    );
+    .orderBy(checkpoints.shipmentId, ...NEWEST_CHECKPOINT_FIRST);
 
   const byShipment = new Map(latest.map((c) => [c.shipmentId, c]));
   return rows.map((row) => {
@@ -148,10 +167,7 @@ export async function getShipmentDetail(
     .from(checkpoints)
     .leftJoin(places, eq(places.queryKey, checkpoints.locationKey))
     .where(eq(checkpoints.shipmentId, shipment.id))
-    .orderBy(
-      desc(checkpoints.occurredAt),
-      sql`${checkpoints.eventOrder} desc nulls last`,
-    );
+    .orderBy(...NEWEST_CHECKPOINT_FIRST);
   return { shipment, checkpoints: timeline };
 }
 
@@ -187,7 +203,7 @@ export async function listMapShipments(
   db: Db,
   userId: string,
 ): Promise<MapShipment[]> {
-  const owned = and(eq(shipments.userId, userId), isNull(shipments.archivedAt));
+  const owned = liveShipmentsOf(userId);
 
   const rows = await db
     .select({
@@ -275,9 +291,8 @@ export async function countActiveShipments(
     .from(shipments)
     .where(
       and(
-        eq(shipments.userId, userId),
-        isNull(shipments.archivedAt),
-        notInArray(shipments.status, ["Delivered", "Expired"]),
+        liveShipmentsOf(userId),
+        notInArray(shipments.status, [...FINISHED_STATUSES]),
       ),
     );
   return row?.total ?? 0;
@@ -366,10 +381,7 @@ export async function getLastCheckpoint(
     .from(checkpoints)
     .innerJoin(shipments, eq(checkpoints.shipmentId, shipments.id))
     .where(and(eq(shipments.id, shipmentId), eq(shipments.userId, userId)))
-    .orderBy(
-      desc(checkpoints.occurredAt),
-      sql`${checkpoints.eventOrder} desc nulls last`,
-    )
+    .orderBy(...NEWEST_CHECKPOINT_FIRST)
     .limit(1);
   return row ?? null;
 }

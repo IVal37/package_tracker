@@ -1,8 +1,4 @@
-﻿import {
-  ProviderResponseError,
-  TrackerConflictError,
-  WebhookAuthError,
-} from "../errors";
+﻿import { ProviderResponseError, TrackerConflictError } from "../errors";
 import { dedupeEvents, parseLogisticsDate } from "../normalize";
 import type {
   CreateTrackingInput,
@@ -10,7 +6,7 @@ import type {
   NormalizedShipment,
   TrackingProvider,
 } from "../types";
-import { verifyBearerSecret } from "@/lib/auth/bearer";
+import { readWebhookBody } from "../webhook";
 import { errorName } from "@/lib/errors";
 import { ship24Request, type Ship24ClientConfig } from "./client";
 import { ship24Destination } from "./destination";
@@ -130,16 +126,23 @@ export class Ship24Provider implements TrackingProvider {
    */
   private async resubscribe(providerTrackerId: string): Promise<void> {
     try {
-      await ship24Request(this.config, {
-        method: "PATCH",
-        path: `/public/v1/trackers/${encodeURIComponent(providerTrackerId)}`,
-        body: { isSubscribed: true },
-      });
+      await this.setSubscribed(providerTrackerId, true);
     } catch (error) {
       console.warn(
         `[ship24] could not resubscribe a tracker: ${errorName(error, "unknown error")}`,
       );
     }
+  }
+
+  private async setSubscribed(
+    providerTrackerId: string,
+    isSubscribed: boolean,
+  ): Promise<void> {
+    await ship24Request(this.config, {
+      method: "PATCH",
+      path: `/public/v1/trackers/${encodeURIComponent(providerTrackerId)}`,
+      body: { isSubscribed },
+    });
   }
 
   async getTracking(providerTrackerId: string): Promise<NormalizedShipment> {
@@ -153,31 +156,19 @@ export class Ship24Provider implements TrackingProvider {
 
   /** Ship24 has no delete endpoint: unsubscribing stops tracking. */
   async deleteTracking(providerTrackerId: string): Promise<void> {
-    await ship24Request(this.config, {
-      method: "PATCH",
-      path: `/public/v1/trackers/${encodeURIComponent(providerTrackerId)}`,
-      body: { isSubscribed: false },
-    });
+    await this.setSubscribed(providerTrackerId, false);
   }
 
   async parseWebhook(
     rawBody: string,
     headers: Headers,
   ): Promise<NormalizedShipment[]> {
-    if (!verifyBearerSecret(headers, this.config.webhookSecret)) {
-      throw new WebhookAuthError("Webhook authentication failed");
-    }
-
-    let json: unknown;
-    try {
-      json = JSON.parse(rawBody);
-    } catch {
-      throw new ProviderResponseError("Webhook body is not valid JSON");
-    }
-    const parsed = ship24WebhookSchema.safeParse(json);
-    if (!parsed.success) {
-      throw new ProviderResponseError("Webhook body failed validation");
-    }
-    return parsed.data.trackings.map(toNormalizedShipment);
+    const body = readWebhookBody(
+      rawBody,
+      headers,
+      this.config.webhookSecret,
+      ship24WebhookSchema,
+    );
+    return body.trackings.map(toNormalizedShipment);
   }
 }

@@ -17,12 +17,10 @@ import {
   sql,
 } from "drizzle-orm";
 import { overdueDedupeKey, overdueWindow } from "@/lib/notifications/rules";
+import { ETA_SETTLED_STATUSES } from "@/lib/tracking/status";
 import type { Db } from "./client";
 import { notifications, shipments } from "./schema";
 import { isUuid } from "./shipments";
-
-/** Statuses for which an old ETA means nothing (see isOverdue). */
-const NEVER_OVERDUE = ["Delivered", "Expired", "AvailableForPickup"] as const;
 
 /**
  * Records a "delay" alert for every live shipment whose ETA passed more than a
@@ -50,7 +48,7 @@ export async function insertOverdueAlerts(
         isNotNull(shipments.eta),
         gt(shipments.eta, from),
         lte(shipments.eta, to),
-        notInArray(shipments.status, [...NEVER_OVERDUE]),
+        notInArray(shipments.status, [...ETA_SETTLED_STATUSES]),
         // Skip the ones already alerted for this promised day, so a large
         // backlog of old alerts cannot crowd out new ones.
         sql`not exists (

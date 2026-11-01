@@ -15,6 +15,15 @@ export const STATUSES = [
 
 export type Status = (typeof STATUSES)[number];
 
+/** Finished shipments: never re-fetched, and a later ETA means nothing. */
+export const FINISHED_STATUSES: readonly Status[] = ["Delivered", "Expired"];
+
+/** Statuses where the ETA is history rather than a promise, so it cannot be overdue. */
+export const ETA_SETTLED_STATUSES: readonly Status[] = [
+  ...FINISHED_STATUSES,
+  "AvailableForPickup",
+];
+
 export const MODES = ["truck", "plane", "ship", "van", "pin"] as const;
 
 export type Mode = (typeof MODES)[number];

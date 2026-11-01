@@ -3,7 +3,11 @@
 // makes "once per event" true: the same event always yields the same key, and
 // the database refuses a second row with it.
 import { DAY_MS, msBefore, utcDay } from "@/lib/time";
-import type { Status } from "@/lib/tracking/status";
+import {
+  ETA_SETTLED_STATUSES,
+  FINISHED_STATUSES,
+  type Status,
+} from "@/lib/tracking/status";
 
 export const NOTIFICATION_KINDS = [
   "out_for_delivery",
@@ -51,9 +55,6 @@ export function kindForStatus(status: Status): NotificationKind | null {
   }
 }
 
-/** Statuses after which a later ETA or an overdue ETA means nothing. */
-const FINISHED: readonly Status[] = ["Delivered", "Expired"];
-
 /**
  * The alerts a stored shipment's change to a new state earns. Fires only when
  * the status or the ETA really changed, so a repeated webhook, a re-fetch that
@@ -82,7 +83,7 @@ export function alertsForUpdate(
   if (
     before.eta &&
     after.eta &&
-    !FINISHED.includes(after.status) &&
+    !FINISHED_STATUSES.includes(after.status) &&
     utcDay(after.eta) > utcDay(before.eta)
   ) {
     alerts.push({ kind: "delay", dedupeKey: `eta:${utcDay(after.eta)}` });
@@ -101,8 +102,7 @@ export function isOverdue(
   now: Date,
 ): boolean {
   if (!shipment.eta || shipment.archived) return false;
-  if (FINISHED.includes(shipment.status)) return false;
-  if (shipment.status === "AvailableForPickup") return false;
+  if (ETA_SETTLED_STATUSES.includes(shipment.status)) return false;
   const age = now.getTime() - shipment.eta.getTime();
   return age > OVERDUE_AFTER_MS && age <= OVERDUE_MAX_AGE_MS;
 }

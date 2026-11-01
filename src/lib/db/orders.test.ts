@@ -8,8 +8,7 @@ import {
 } from "../../../tests/db/pglite";
 import {
   attachShipment,
-  createPlaceholder,
-  createShippedOrder,
+  createOrder,
   dismissOrder,
   findOrdersByKey,
   getOrderForShipment,
@@ -28,9 +27,7 @@ afterAll(async () => {
 });
 
 const NO_SUCH_ID = "99999999-9999-4999-8999-999999999999";
-const order = (
-  extra: Partial<Parameters<typeof createPlaceholder>[2]> = {},
-) => ({
+const order = (extra: Partial<Parameters<typeof createOrder>[2]> = {}) => ({
   retailer: "Amazon",
   retailerKey: "amazon",
   item: "Socks",
@@ -42,13 +39,9 @@ const order = (
 describe("placeholders", () => {
   it("creates one and lists it for its owner, newest first", async () => {
     const user = await insertUser(ctx.db);
-    const first = await createPlaceholder(
-      ctx.db,
-      user.id,
-      order({ item: "First" }),
-    );
+    const first = await createOrder(ctx.db, user.id, order({ item: "First" }));
     await new Promise((resolve) => setTimeout(resolve, 5));
-    const second = await createPlaceholder(
+    const second = await createOrder(
       ctx.db,
       user.id,
       order({ item: "Second" }),
@@ -61,15 +54,15 @@ describe("placeholders", () => {
   it("refuses a second placeholder for the same order and returns null", async () => {
     const user = await insertUser(ctx.db);
     const data = order({ orderNumber: "SAME-1" });
-    expect(await createPlaceholder(ctx.db, user.id, data)).not.toBeNull();
-    expect(await createPlaceholder(ctx.db, user.id, data)).toBeNull();
+    expect(await createOrder(ctx.db, user.id, data)).not.toBeNull();
+    expect(await createOrder(ctx.db, user.id, data)).toBeNull();
     expect(await listOrderPlaceholders(ctx.db, user.id)).toHaveLength(1);
   });
 
   it("does not list shipped orders as placeholders", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    await createShippedOrder(ctx.db, user.id, {
+    await createOrder(ctx.db, user.id, {
       ...order(),
       shipmentId: shipment.id,
     });
@@ -79,7 +72,7 @@ describe("placeholders", () => {
   it("never lists another user's placeholders", async () => {
     const a = await insertUser(ctx.db);
     const b = await insertUser(ctx.db);
-    await createPlaceholder(ctx.db, a.id, order());
+    await createOrder(ctx.db, a.id, order());
     expect(await listOrderPlaceholders(ctx.db, b.id)).toEqual([]);
     expect(await listOrderPlaceholders(ctx.db, a.id)).toHaveLength(1);
   });
@@ -89,8 +82,8 @@ describe("findOrdersByKey", () => {
   it("finds placeholders and shipped orders for the retailer and order number", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    await createPlaceholder(ctx.db, user.id, order({ orderNumber: "K-1" }));
-    await createShippedOrder(ctx.db, user.id, {
+    await createOrder(ctx.db, user.id, order({ orderNumber: "K-1" }));
+    await createOrder(ctx.db, user.id, {
       ...order({ orderNumber: "K-1" }),
       shipmentId: shipment.id,
     });
@@ -102,7 +95,7 @@ describe("findOrdersByKey", () => {
 
   it("matches on both retailer and order number", async () => {
     const user = await insertUser(ctx.db);
-    await createPlaceholder(
+    await createOrder(
       ctx.db,
       user.id,
       order({ retailerKey: "storeone", orderNumber: "#1001" }),
@@ -121,7 +114,7 @@ describe("findOrdersByKey", () => {
   it("never returns another user's order", async () => {
     const a = await insertUser(ctx.db);
     const b = await insertUser(ctx.db);
-    await createPlaceholder(ctx.db, a.id, order({ orderNumber: "PRIV-1" }));
+    await createOrder(ctx.db, a.id, order({ orderNumber: "PRIV-1" }));
     expect(await findOrdersByKey(ctx.db, b.id, "amazon", "PRIV-1")).toEqual([]);
   });
 });
@@ -131,7 +124,7 @@ describe("attachShipment", () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
     const other = await insertShipment(ctx.db, user.id);
-    const id = (await createPlaceholder(ctx.db, user.id, order()))!;
+    const id = (await createOrder(ctx.db, user.id, order()))!;
 
     expect(await attachShipment(ctx.db, user.id, id, shipment.id)).toBe(true);
     expect(await attachShipment(ctx.db, user.id, id, other.id)).toBe(false);
@@ -143,11 +136,11 @@ describe("attachShipment", () => {
   it("refuses a shipment that already has an order row, without throwing", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    await createShippedOrder(ctx.db, user.id, {
+    await createOrder(ctx.db, user.id, {
       ...order(),
       shipmentId: shipment.id,
     });
-    const id = (await createPlaceholder(ctx.db, user.id, order()))!;
+    const id = (await createOrder(ctx.db, user.id, order()))!;
     expect(await attachShipment(ctx.db, user.id, id, shipment.id)).toBe(false);
   });
 
@@ -155,7 +148,7 @@ describe("attachShipment", () => {
     const owner = await insertUser(ctx.db);
     const intruder = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, intruder.id);
-    const id = (await createPlaceholder(ctx.db, owner.id, order()))!;
+    const id = (await createOrder(ctx.db, owner.id, order()))!;
 
     expect(await attachShipment(ctx.db, intruder.id, id, shipment.id)).toBe(
       false,
@@ -165,13 +158,13 @@ describe("attachShipment", () => {
   });
 });
 
-describe("createShippedOrder", () => {
+describe("createOrder with a shipment", () => {
   it("returns null when the shipment already has an order row", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
     const data = { ...order(), shipmentId: shipment.id };
-    expect(await createShippedOrder(ctx.db, user.id, data)).not.toBeNull();
-    expect(await createShippedOrder(ctx.db, user.id, data)).toBeNull();
+    expect(await createOrder(ctx.db, user.id, data)).not.toBeNull();
+    expect(await createOrder(ctx.db, user.id, data)).toBeNull();
   });
 });
 
@@ -180,7 +173,7 @@ describe("getOrderForShipment", () => {
     const a = await insertUser(ctx.db);
     const b = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, a.id);
-    await createShippedOrder(ctx.db, a.id, {
+    await createOrder(ctx.db, a.id, {
       ...order({ retailer: "Target" }),
       shipmentId: shipment.id,
     });
@@ -203,7 +196,7 @@ describe("getOrderForShipment", () => {
 describe("dismissOrder", () => {
   it("removes the user's own placeholder", async () => {
     const user = await insertUser(ctx.db);
-    const id = (await createPlaceholder(ctx.db, user.id, order()))!;
+    const id = (await createOrder(ctx.db, user.id, order()))!;
     expect(await dismissOrder(ctx.db, user.id, id)).toBe(true);
     expect(await listOrderPlaceholders(ctx.db, user.id)).toEqual([]);
   });
@@ -211,7 +204,7 @@ describe("dismissOrder", () => {
   it("cannot remove another user's placeholder, which looks exactly like a missing one", async () => {
     const owner = await insertUser(ctx.db);
     const intruder = await insertUser(ctx.db);
-    const id = (await createPlaceholder(ctx.db, owner.id, order()))!;
+    const id = (await createOrder(ctx.db, owner.id, order()))!;
 
     expect(await dismissOrder(ctx.db, intruder.id, id)).toBe(false);
     expect(await dismissOrder(ctx.db, intruder.id, NO_SUCH_ID)).toBe(false);
@@ -221,7 +214,7 @@ describe("dismissOrder", () => {
   it("does not remove a shipped order", async () => {
     const user = await insertUser(ctx.db);
     const shipment = await insertShipment(ctx.db, user.id);
-    const id = (await createShippedOrder(ctx.db, user.id, {
+    const id = (await createOrder(ctx.db, user.id, {
       ...order(),
       shipmentId: shipment.id,
     }))!;
@@ -241,15 +234,13 @@ describe("dismissOrder", () => {
 describe("database errors that are not duplicates", () => {
   // A foreign-key failure is a real fault, not "already exists": it must reach
   // the caller (the job retries) instead of looking like a skipped duplicate.
-  it("createPlaceholder rethrows for a user that does not exist", async () => {
-    await expect(
-      createPlaceholder(ctx.db, NO_SUCH_ID, order()),
-    ).rejects.toThrow();
+  it("createOrder rethrows for a user that does not exist", async () => {
+    await expect(createOrder(ctx.db, NO_SUCH_ID, order())).rejects.toThrow();
   });
 
   it("attachShipment rethrows for a shipment that does not exist", async () => {
     const user = await insertUser(ctx.db);
-    const id = (await createPlaceholder(ctx.db, user.id, order()))!;
+    const id = (await createOrder(ctx.db, user.id, order()))!;
     await expect(
       attachShipment(ctx.db, user.id, id, NO_SUCH_ID),
     ).rejects.toThrow();
@@ -257,10 +248,10 @@ describe("database errors that are not duplicates", () => {
     expect(await listOrderPlaceholders(ctx.db, user.id)).toHaveLength(1);
   });
 
-  it("createShippedOrder rethrows for a shipment that does not exist", async () => {
+  it("createOrder with a shipment rethrows for a shipment that does not exist", async () => {
     const user = await insertUser(ctx.db);
     await expect(
-      createShippedOrder(ctx.db, user.id, {
+      createOrder(ctx.db, user.id, {
         ...order(),
         shipmentId: NO_SUCH_ID,
       }),

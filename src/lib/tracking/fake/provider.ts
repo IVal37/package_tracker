@@ -1,9 +1,4 @@
-﻿import {
-  InvalidTrackingNumberError,
-  ProviderResponseError,
-  TrackerNotFoundError,
-  WebhookAuthError,
-} from "../errors";
+﻿import { InvalidTrackingNumberError, TrackerNotFoundError } from "../errors";
 import { dedupeEvents, normalizeTrackingNumber } from "../normalize";
 import type { Status } from "../status";
 import {
@@ -14,7 +9,7 @@ import {
   type NormalizedShipment,
   type TrackingProvider,
 } from "../types";
-import { verifyBearerSecret } from "@/lib/auth/bearer";
+import { readWebhookBody } from "../webhook";
 import { HOUR_MS } from "@/lib/time";
 import { z } from "zod";
 
@@ -180,6 +175,13 @@ const SCENARIOS: Record<string, Scenario> = {
   },
 };
 
+function trackingNumberOf(providerTrackerId: string): string {
+  if (!providerTrackerId.startsWith(TRACKER_PREFIX)) {
+    throw new TrackerNotFoundError("Fake provider: unknown tracker");
+  }
+  return providerTrackerId.slice(TRACKER_PREFIX.length);
+}
+
 function scenarioFor(trackingNumber: string): Scenario {
   const match = /^FAKE-([A-Z]+)-/.exec(trackingNumber);
   const key = match?.[1];
@@ -226,37 +228,24 @@ export class FakeProvider implements TrackingProvider {
   }
 
   async getTracking(providerTrackerId: string): Promise<NormalizedShipment> {
-    if (!providerTrackerId.startsWith(TRACKER_PREFIX)) {
-      throw new TrackerNotFoundError("Fake provider: unknown tracker");
-    }
-    return this.build(providerTrackerId.slice(TRACKER_PREFIX.length));
+    return this.build(trackingNumberOf(providerTrackerId));
   }
 
   async deleteTracking(providerTrackerId: string): Promise<void> {
-    if (!providerTrackerId.startsWith(TRACKER_PREFIX)) {
-      throw new TrackerNotFoundError("Fake provider: unknown tracker");
-    }
+    trackingNumberOf(providerTrackerId);
   }
 
   async parseWebhook(
     rawBody: string,
     headers: Headers,
   ): Promise<NormalizedShipment[]> {
-    if (!verifyBearerSecret(headers, this.config.webhookSecret)) {
-      throw new WebhookAuthError("Webhook authentication failed");
-    }
-
-    let json: unknown;
-    try {
-      json = JSON.parse(rawBody);
-    } catch {
-      throw new ProviderResponseError("Webhook body is not valid JSON");
-    }
-    const parsed = fakeWebhookSchema.safeParse(json);
-    if (!parsed.success) {
-      throw new ProviderResponseError("Webhook body failed validation");
-    }
-    return parsed.data.trackings.map((tracking) => ({
+    const body = readWebhookBody(
+      rawBody,
+      headers,
+      this.config.webhookSecret,
+      fakeWebhookSchema,
+    );
+    return body.trackings.map((tracking) => ({
       ...tracking,
       events: dedupeEvents(tracking.events),
     }));

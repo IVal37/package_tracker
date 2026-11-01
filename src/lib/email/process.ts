@@ -2,12 +2,7 @@ import { z } from "zod";
 import type { Db } from "@/lib/db/client";
 import { finishEmail } from "@/lib/db/inbound-emails";
 import { loadInboundEmail } from "@/lib/db/inbound-sync";
-import {
-  attachShipment,
-  createPlaceholder,
-  createShippedOrder,
-  findOrdersByKey,
-} from "@/lib/db/orders";
+import { attachShipment, createOrder, findOrdersByKey } from "@/lib/db/orders";
 import { findShipmentByTrackingNumber } from "@/lib/db/shipments";
 import { reportIssue } from "@/lib/monitoring";
 import { addShipment } from "@/lib/shipments/add-shipment";
@@ -185,7 +180,7 @@ export async function processInboundEmail(args: {
     if (key && orderNumber) {
       const existing = await findOrdersByKey(db, userId, key, orderNumber);
       placeholder =
-        existing.length === 0 && (await createPlaceholder(db, userId, order))
+        existing.length === 0 && (await createOrder(db, userId, order))
           ? "created"
           : "exists";
     }
@@ -308,6 +303,6 @@ async function linkOrder(
       return true;
     }
   }
-  await createShippedOrder(db, userId, { ...order, shipmentId });
+  await createOrder(db, userId, { ...order, shipmentId });
   return false;
 }

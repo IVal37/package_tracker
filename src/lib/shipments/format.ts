@@ -1,5 +1,5 @@
 import { DAY_MS, HOUR_MS, MINUTE_MS } from "@/lib/time";
-import type { Status } from "@/lib/tracking/status";
+import { ETA_SETTLED_STATUSES, type Status } from "@/lib/tracking/status";
 
 /** Midnight at the start of the date's calendar day in the given time zone, as a UTC day number. */
 function dayNumber(date: Date, timeZone: string): number {
@@ -46,13 +46,6 @@ function shortDate(date: Date, timeZone: string): string {
   }).format(date);
 }
 
-/** Statuses where the ETA is history rather than a promise. */
-const ETA_SETTLED: readonly Status[] = [
-  "Delivered",
-  "AvailableForPickup",
-  "Expired",
-];
-
 /**
  * The ETA line for a shipment. Once it is delivered, waiting at a pickup point
  * or expired, the estimate is shown as the plain date it was: never "Overdue",
@@ -63,7 +56,7 @@ export function formatShipmentEta(
   now: Date,
   timeZone = "UTC",
 ): string {
-  if (shipment.eta && ETA_SETTLED.includes(shipment.status)) {
+  if (shipment.eta && ETA_SETTLED_STATUSES.includes(shipment.status)) {
     return shortDate(shipment.eta, timeZone);
   }
   return formatEta(shipment.eta, now, timeZone);

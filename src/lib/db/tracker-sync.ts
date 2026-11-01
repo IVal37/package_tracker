@@ -16,10 +16,12 @@ import {
   ne,
   notInArray,
   sql,
+  type SQL,
 } from "drizzle-orm";
 import { alertsForUpdate } from "@/lib/notifications/rules";
 import { decideShipmentUpdate } from "@/lib/shipments/sync/decide-update";
 import { DAY_MS, msBefore } from "@/lib/time";
+import { FINISHED_STATUSES } from "@/lib/tracking/status";
 import type { NormalizedShipment } from "@/lib/tracking/types";
 import { insertCheckpoints } from "./checkpoints";
 import type { Db } from "./client";
@@ -28,8 +30,12 @@ import { notifications, shipments } from "./schema";
 /** A shipment with no provider sync for this long is re-fetched. */
 export const STALE_AFTER_MS = DAY_MS;
 
-/** Statuses that are never re-fetched. */
-const TERMINAL = ["Delivered", "Expired"] as const;
+/** Every shipment on one provider tracker. */
+const onTracker = (provider: string, trackerId: string) =>
+  and(
+    eq(shipments.provider, provider),
+    eq(shipments.providerTrackerId, trackerId),
+  );
 
 export interface ApplyTrackerResult {
   shipments: number;
@@ -66,12 +72,7 @@ export async function applyTrackerUpdate(
         archivedAt: shipments.archivedAt,
       })
       .from(shipments)
-      .where(
-        and(
-          eq(shipments.provider, provider),
-          eq(shipments.providerTrackerId, incoming.providerTrackerId),
-        ),
-      )
+      .where(onTracker(provider, incoming.providerTrackerId))
       .orderBy(asc(shipments.id)) // same lock order everywhere: no deadlocks
       .for("update");
 
@@ -136,7 +137,7 @@ export async function findStaleTrackers(
         eq(shipments.provider, provider),
         isNotNull(shipments.providerTrackerId),
         isNull(shipments.archivedAt),
-        notInArray(shipments.status, [...TERMINAL]),
+        notInArray(shipments.status, [...FINISHED_STATUSES]),
         lt(shipments.lastSyncedAt, cutoff),
       ),
     )
@@ -157,12 +158,7 @@ export async function markTrackerSynced(
   await db
     .update(shipments)
     .set({ lastSyncedAt: now })
-    .where(
-      and(
-        eq(shipments.provider, provider),
-        eq(shipments.providerTrackerId, trackerId),
-      ),
-    );
+    .where(onTracker(provider, trackerId));
 }
 
 /**
@@ -179,35 +175,36 @@ export async function isTrackerFollowedByOthers(
   const [row] = await db
     .select({ id: shipments.id })
     .from(shipments)
-    .where(
-      and(
-        eq(shipments.provider, provider),
-        eq(shipments.providerTrackerId, trackerId),
-        ne(shipments.userId, userId),
-      ),
-    )
+    .where(and(onTracker(provider, trackerId), ne(shipments.userId, userId)))
     .limit(1);
   return row !== undefined;
 }
 
-/** Archives Delivered shipments whose last event is at or before the cutoff. */
-export async function archiveDeliveredBefore(
+/** Archives the shipments that match and are not archived yet. Returns how many. */
+async function archiveWhere(
   db: Db,
-  cutoff: Date,
+  due: SQL | undefined,
   now: Date,
 ): Promise<number> {
   const archived = await db
     .update(shipments)
     .set({ archivedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(shipments.status, "Delivered"),
-        isNull(shipments.archivedAt),
-        lte(shipments.lastEventAt, cutoff),
-      ),
-    )
+    .where(and(isNull(shipments.archivedAt), due))
     .returning({ id: shipments.id });
   return archived.length;
+}
+
+/** Archives Delivered shipments whose last event is at or before the cutoff. */
+export function archiveDeliveredBefore(
+  db: Db,
+  cutoff: Date,
+  now: Date,
+): Promise<number> {
+  return archiveWhere(
+    db,
+    and(eq(shipments.status, "Delivered"), lte(shipments.lastEventAt, cutoff)),
+    now,
+  );
 }
 
 /** When a shipment last heard anything: its newest event, or when it was added. */
@@ -229,7 +226,7 @@ export async function expireQuietBefore(
     .where(
       and(
         isNull(shipments.archivedAt),
-        notInArray(shipments.status, [...TERMINAL]),
+        notInArray(shipments.status, [...FINISHED_STATUSES]),
         lt(quietSince, cutoff),
       ),
     )
@@ -238,21 +235,14 @@ export async function expireQuietBefore(
 }
 
 /** Archives Expired shipments quiet since at or before the cutoff. */
-export async function archiveExpiredBefore(
+export function archiveExpiredBefore(
   db: Db,
   cutoff: Date,
   now: Date,
 ): Promise<number> {
-  const archived = await db
-    .update(shipments)
-    .set({ archivedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(shipments.status, "Expired"),
-        isNull(shipments.archivedAt),
-        lte(quietSince, cutoff),
-      ),
-    )
-    .returning({ id: shipments.id });
-  return archived.length;
+  return archiveWhere(
+    db,
+    and(eq(shipments.status, "Expired"), lte(quietSince, cutoff)),
+    now,
+  );
 }

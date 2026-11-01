@@ -62,16 +62,18 @@ src/
   lib/auth/            Supabase server client, getCurrentUser()/requireUser(), requireLiveAccount() (account.ts), sign-in and callback logic, sessionCookieOptions (cookies.ts)
   lib/auth/admin.ts    the ONLY user of SUPABASE_SECRET_KEY (deletes a sign-in account); import-restricted to src/lib/privacy
   lib/privacy/         export (buildUserExport), delete-account (trackers, then data, then sign-in), confirm word
-  lib/ratelimit/       hit/hitAll, allowUserAction (the shared per-user limit), limits table (LIMITS), circuit breakers (BREAKERS), clientIp, tooManyRequests, cleanup
+  lib/ratelimit/       hit/hitAll, allow (hit, logging a refusal), allowUserAction (the shared per-user limit), limits table (LIMITS), circuit breakers (BREAKERS), clientIp, tooManyRequests, cleanup
   lib/monitoring/      import only from index.ts: reportIssue, reportError; sentry.ts and noop.ts are never imported from outside lib/monitoring; scrub.ts strips personal data
   lib/admin/           isAdmin, loadAdminStats; the only importer of lib/db/admin-stats.ts
   lib/legal/services.ts  every outside service that sees personal data (the privacy policy renders it; a test checks it)
   lib/security/headers.ts  security headers and the CSP, used by next.config.ts
   lib/shipments/       add / delete logic, validation, grouping, formatting (pure, unit tested)
   lib/tracking/        import only from here: index.ts exposes TrackingProvider, getTrackingProvider(), Status, errors
+  lib/tracking/webhook.ts  readWebhookBody: the secret check and body parsing every provider's parseWebhook starts with
   lib/tracking/ship24/ Ship24Provider (fetch + zod), client, status-map; never imported from outside lib/tracking
   lib/tracking/fake/   FakeProvider (canned scenarios by tracking-number prefix, e.g. FAKE-OFD-1)
   lib/env.ts           typed, server-only env loader (zod); add new env keys here
+  lib/time.ts, errors.ts, form.ts  shared pure helpers: time units, msBefore, hourBucket, utcDay; errorName (the only safe part of an error to log); formText
   lib/db/              Drizzle client, schema and queries
   lib/db/tracker-sync.ts  system-scope queries for webhooks and jobs (no userId); import-restricted by ESLint
   lib/shipments/sync/  webhook handling, update rule (decideShipmentUpdate), per-tracker re-fetch, expiry, archive, releaseTracker (unsubscribe only unshared trackers)
@@ -80,14 +82,14 @@ src/
   lib/geo/             infer-mode (inferMode/shipmentMode), map-data (buildMapData), geocode-place (cache-first), place-events, map-style
   lib/geo/geocoder/    import only from index.ts: Geocoder, getGeocoder(); nominatim.ts and fake.ts are never imported from outside lib/geo
   lib/db/geo-sync.ts   system-scope place queries for the geocoding jobs (import-restricted by ESLint)
-  lib/email/           alias (forwarding addresses), receive (webhook logic), process (email -> orders and shipments), html-to-text, tracking-patterns, gmail-confirmation, retailer-key, cleanup, eval-score
+  lib/email/           alias (forwarding addresses), forwarding-address (a signed-in user's address), receive (webhook logic), process (email -> orders and shipments), email-texts (what the model reads), html-to-text, tracking-patterns, gmail-confirmation, keep-gmail-confirmation, retailer-key, cleanup, eval-score
   lib/email/extract/   import only from index.ts: Extractor, getExtractor(); claude.ts and fake.ts are never imported from outside lib/email. validate.ts grounds and cleans model output
   lib/db/inbound-sync.ts  system-scope alias -> user lookup and email loading for the webhook and jobs (import-restricted by ESLint)
   lib/db/orders.ts, forwarding.ts, inbound-emails.ts  user-scoped queries for orders, the forwarding alias and stored emails
   app/settings/        Settings page, controls only: appearance (match device / light / dark), notifications (push on this device, which alerts, quiet hours), the private forwarding address with Regenerate, unreadable emails, your data
   app/setup/           Setup page (header tab next to Settings): the walkthrough. Opens on the device in use (iPhone & iPad / Android / Computer, switchable): forwarding steps per mail service, the Gmail confirmation code, install and push steps. Also shows the user's setup status (not started / skipped / completed, with the date) and the buttons to change it, plus what the app can see (emails arriving, push devices). components/device-setup.tsx, forwarding-instructions.tsx, setup-status.tsx
   lib/theme.ts         light / dark choice (localStorage, per device), the boot script that applies it before first paint; the dark colour values are in app/globals.css
-  lib/notifications/   rules (alertsForUpdate, isOverdue), prefs and form parsing, quiet-hours, message (push and email text), send (prepare / deliver / finish one alert), maintenance (sweep, cleanup), subscription (endpoint allow-list), test-push, rate-limit, events
+  lib/notifications/   rules (alertsForUpdate, isOverdue), prefs and form parsing, quiet-hours, message (push and email text), send (prepare / deliver / finish one alert), push-device (one push to one device), maintenance (sweep, cleanup), subscription (endpoint allow-list), test-push, rate-limit, events
   lib/notifications/senders/  import only from index.ts: PushSender, EmailSender, getPushSender(), getEmailSender(); webpush.ts, resend.ts and fake.ts are never imported from outside lib/notifications
   lib/db/notify-sync.ts  system-scope alert queries: the overdue scan, loading and finishing an alert, the sweep (import-restricted by ESLint)
   lib/db/notification-settings.ts, push-subscriptions.ts  user-scoped queries for a user's alert settings and devices

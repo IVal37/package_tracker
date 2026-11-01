@@ -9,12 +9,10 @@ import { WebPushSender } from "./webpush";
 
 export {
   SendError,
-  type EmailMessage,
   type EmailSender,
   type PushPayload,
   type PushResult,
   type PushSender,
-  type PushTarget,
 } from "./types";
 
 type PushEnv = Pick<

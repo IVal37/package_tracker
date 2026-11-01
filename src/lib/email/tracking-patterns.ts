@@ -3,7 +3,7 @@
 // "strong" means the format is specific enough to trust without the model
 // (a checksum, a distinctive prefix, or a carrier name right before it).
 
-export type Carrier = "ups" | "usps" | "fedex" | "dhl" | "amazon";
+type Carrier = "ups" | "usps" | "fedex" | "dhl" | "amazon";
 
 export interface TrackingCandidate {
   /** Upper-case, no spaces. */

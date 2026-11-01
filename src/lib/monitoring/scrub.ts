@@ -6,7 +6,7 @@
 import type { ErrorEvent } from "@sentry/nextjs";
 
 /** Values allowed in an issue's details: ids, kinds and counts. */
-export type DetailValue = string | number | boolean | null;
+type DetailValue = string | number | boolean | null;
 export type Details = Record<string, DetailValue>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

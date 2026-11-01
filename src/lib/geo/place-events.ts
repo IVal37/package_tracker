@@ -11,7 +11,7 @@ export const placeEventSchema = z.object({
   text: z.string().min(1),
 });
 
-export type PlaceEventData = z.infer<typeof placeEventSchema>;
+type PlaceEventData = z.infer<typeof placeEventSchema>;
 
 export interface PlaceEvent {
   /** Stable per place, so Inngest de-duplicates a burst of sweeps for 24 hours. */

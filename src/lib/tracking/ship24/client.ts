@@ -14,7 +14,7 @@ import {
 import { withRetry, type RetryOptions } from "../retry";
 import { ship24ErrorBodySchema } from "./schemas";
 
-export const SHIP24_BASE_URL = "https://api.ship24.com";
+const SHIP24_BASE_URL = "https://api.ship24.com";
 
 export interface Ship24ClientConfig {
   apiKey: string;

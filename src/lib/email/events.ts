@@ -5,7 +5,7 @@ export const EMAIL_RECEIVED = "wayfind/email.received";
 
 export const emailReceivedSchema = z.object({ emailId: z.string().min(1) });
 
-export type EmailReceivedData = z.infer<typeof emailReceivedSchema>;
+type EmailReceivedData = z.infer<typeof emailReceivedSchema>;
 
 const HOUR_MS = 3_600_000;
 

@@ -3,7 +3,7 @@ import type { Mode, Status } from "@/lib/tracking";
 import type { LatLng } from "./distance";
 import { shipmentMode } from "./infer-mode";
 
-export interface PointProperties {
+interface PointProperties {
   id: string;
   name: string;
   status: Status;
@@ -19,7 +19,7 @@ export interface PointFeature {
   geometry: { type: "Point"; coordinates: [number, number] };
 }
 
-export interface RouteFeature {
+interface RouteFeature {
   type: "Feature";
   properties: { id: string };
   geometry: { type: "LineString"; coordinates: [number, number][] };

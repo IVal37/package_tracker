@@ -1,4 +1,3 @@
-import { sql as sqlTag } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -13,10 +12,6 @@ export function createDb(url: string, opts: { max?: number } = {}) {
   const sql = postgres(url, { prepare: false, max: opts.max ?? 10 });
   const db: Db = drizzle(sql, { schema });
   return { db, sql };
-}
-
-export async function checkConnection(db: Db): Promise<void> {
-  await db.execute(sqlTag`select 1`);
 }
 
 // Keep one pool per process, even across dev hot reloads.

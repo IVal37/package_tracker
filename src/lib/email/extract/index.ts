@@ -6,13 +6,12 @@ import { ClaudeExtractor } from "./claude";
 import { FakeExtractor } from "./fake";
 import type { Extractor } from "./types";
 
-export { EMAIL_TYPES, type EmailType, type Extraction } from "./schema";
-export { ExtractionError, type ExtractionInput, type Extractor } from "./types";
+export type { EmailType, Extraction } from "./schema";
+export { ExtractionError, type Extractor } from "./types";
 export {
   cleanDisplayText,
   groundTrackingNumbers,
   parseExtraction,
-  type GroundedTrackingNumber,
 } from "./validate";
 
 type ExtractorEnv = Pick<Env, "EMAIL_EXTRACTOR" | "ANTHROPIC_API_KEY">;

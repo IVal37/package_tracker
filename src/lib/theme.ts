@@ -7,7 +7,7 @@ export type ThemeChoice = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "wayfind-theme";
-export const THEME_ATTRIBUTE = "data-theme";
+const THEME_ATTRIBUTE = "data-theme";
 
 /** Anything that is not a known choice means "follow the device". */
 export function parseThemeChoice(raw: unknown): ThemeChoice {

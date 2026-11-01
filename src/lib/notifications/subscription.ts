@@ -6,7 +6,7 @@
 import { z } from "zod";
 
 /** Hostname suffixes of the push services behind Chrome, Firefox, Edge and Safari. */
-export const PUSH_SERVICE_SUFFIXES = [
+const PUSH_SERVICE_SUFFIXES = [
   "googleapis.com", // Chrome, Brave, Opera, Samsung Internet (FCM)
   "mozilla.com", // Firefox (autopush)
   "windows.com", // Edge (WNS)
@@ -54,4 +54,3 @@ export const pushSubscriptionSchema = z.object({
   }),
 });
 
-export type PushSubscriptionInput = z.infer<typeof pushSubscriptionSchema>;

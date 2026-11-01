@@ -25,7 +25,6 @@ export const addShipmentSchema = z.object({
 });
 
 export type AddShipmentInput = z.input<typeof addShipmentSchema>;
-export type ParsedAddShipment = z.output<typeof addShipmentSchema>;
 
 export type FieldErrors = Partial<
   Record<"trackingNumber" | "nickname", string>

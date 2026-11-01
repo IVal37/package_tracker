@@ -33,7 +33,7 @@ export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 /** The sweep re-queues alerts still pending after this long. */
 export const SWEEP_AFTER_MS = 10 * 60 * 1000;
 
-export type SkipReason =
+type SkipReason =
   | "missing"
   | "not_pending"
   | "shipment_gone"

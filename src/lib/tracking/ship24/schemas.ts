@@ -4,13 +4,13 @@ import { z } from "zod";
 
 const nullableString = z.string().nullish();
 
-export const ship24TrackerSchema = z.object({
+const ship24TrackerSchema = z.object({
   trackerId: z.string().min(1),
   trackingNumber: z.string().min(1),
   isSubscribed: z.boolean().optional(),
 });
 
-export const ship24EventSchema = z.object({
+const ship24EventSchema = z.object({
   eventId: z.string().min(1),
   status: nullableString,
   occurrenceDatetime: z.string().min(1),
@@ -36,7 +36,7 @@ const ship24RecipientSchema = z.object({
   postCode: nullableString,
 });
 
-export const ship24ShipmentSchema = z.object({
+const ship24ShipmentSchema = z.object({
   statusCode: nullableString,
   statusMilestone: z.string(),
   destinationCountryCode: nullableString,
@@ -44,7 +44,7 @@ export const ship24ShipmentSchema = z.object({
   delivery: ship24DeliverySchema.nullish(),
 });
 
-export const ship24TrackingSchema = z.object({
+const ship24TrackingSchema = z.object({
   tracker: ship24TrackerSchema,
   shipment: ship24ShipmentSchema,
   events: z.array(ship24EventSchema),

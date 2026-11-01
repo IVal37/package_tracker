@@ -1,21 +1,17 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { postgresMock, drizzleMock, execute } = vi.hoisted(() => {
-  const execute = vi.fn();
-  return {
-    execute,
-    postgresMock: vi.fn(() => ({ end: vi.fn() })),
-    drizzleMock: vi.fn(() => ({ execute })),
-  };
-});
+const { postgresMock, drizzleMock } = vi.hoisted(() => ({
+  postgresMock: vi.fn(() => ({ end: vi.fn() })),
+  drizzleMock: vi.fn(() => ({ execute: vi.fn() })),
+}));
 
 vi.mock("postgres", () => ({ default: postgresMock }));
 vi.mock("drizzle-orm/postgres-js", () => ({ drizzle: drizzleMock }));
 
 import { resetEnvCache } from "@/lib/env";
 import { stubRequiredEnv } from "../../../tests/env";
-import { checkConnection, createDb, getDb, resetDbCache } from "./client";
+import { createDb, getDb, resetDbCache } from "./client";
 
 const testUrl = "postgresql://user:pw@db.example.test:6543/postgres";
 
@@ -44,21 +40,6 @@ describe("createDb", () => {
     const { db, sql } = createDb(testUrl);
     expect(db).toHaveProperty("execute");
     expect(sql).toHaveProperty("end");
-  });
-});
-
-describe("checkConnection", () => {
-  it("resolves when the query succeeds", async () => {
-    execute.mockResolvedValueOnce([{ "?column?": 1 }]);
-    const { db } = createDb(testUrl);
-    await expect(checkConnection(db)).resolves.toBeUndefined();
-    expect(execute).toHaveBeenCalledOnce();
-  });
-
-  it("rejects when the driver errors", async () => {
-    execute.mockRejectedValueOnce(new Error("connection refused"));
-    const { db } = createDb(testUrl);
-    await expect(checkConnection(db)).rejects.toThrow("connection refused");
   });
 });
 

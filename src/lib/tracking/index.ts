@@ -7,10 +7,9 @@ import { Ship24Provider } from "./ship24/provider";
 import type { TrackingProvider } from "./types";
 
 export * from "./errors";
-export { dedupeEvents, normalizeTrackingNumber } from "./normalize";
-export { MODES, STATUSES, type Mode, type Status } from "./status";
+export { normalizeTrackingNumber } from "./normalize";
+export { STATUSES, type Mode, type Status } from "./status";
 export type {
-  CreateTrackingInput,
   NormalizedEvent,
   NormalizedShipment,
   TrackingProvider,

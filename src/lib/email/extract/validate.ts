@@ -37,9 +37,9 @@ export function cleanDisplayText(value: string | null): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
-export type DropReason = "bad_format" | "not_in_email" | "duplicate";
+type DropReason = "bad_format" | "not_in_email" | "duplicate";
 
-export interface GroundedTrackingNumber {
+interface GroundedTrackingNumber {
   /** Normalized exactly as the Add form would: upper-case, no spaces. */
   trackingNumber: string;
   carrier: string | null;

@@ -46,7 +46,7 @@ export class ProcessingRetryError extends Error {
   }
 }
 
-export type TrackingOutcome =
+type TrackingOutcome =
   | "created"
   | "duplicate"
   | "not_found"

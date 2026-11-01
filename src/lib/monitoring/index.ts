@@ -7,7 +7,6 @@ import type { Details } from "./scrub";
 import { SentryMonitor } from "./sentry";
 import type { IssueKind, Monitor } from "./types";
 
-export { redactText, sanitizeDetails, scrubEvent } from "./scrub";
 export type { Details } from "./scrub";
 export type { IssueKind, Monitor } from "./types";
 

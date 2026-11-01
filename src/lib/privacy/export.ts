@@ -117,4 +117,3 @@ export async function buildUserExport(args: {
   };
 }
 
-export type UserExport = Awaited<ReturnType<typeof buildUserExport>>;

@@ -24,7 +24,7 @@ export const MAX_PART_CHARS = 200_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The provider-neutral body the Cloudflare Worker (or a test) POSTs. */
-export const inboundEmailSchema = z.object({
+const inboundEmailSchema = z.object({
   /** The envelope recipient: the address it was really delivered to. */
   recipient: z.string().min(1).max(320),
   from: z.string().max(998).default(""),
@@ -35,9 +35,7 @@ export const inboundEmailSchema = z.object({
   html: z.string().max(MAX_PART_CHARS).default(""),
 });
 
-export type InboundEmail = z.infer<typeof inboundEmailSchema>;
-
-export type ReceiveOutcome =
+type ReceiveOutcome =
   | "stored"
   /** Gmail's forwarding code: kept as a code right away, nothing to queue. */
   | "gmail_confirmation"

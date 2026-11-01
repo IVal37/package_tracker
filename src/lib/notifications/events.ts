@@ -7,7 +7,7 @@ export const notificationCreatedSchema = z.object({
   notificationId: z.uuid(),
 });
 
-export type NotificationCreatedData = z.infer<typeof notificationCreatedSchema>;
+type NotificationCreatedData = z.infer<typeof notificationCreatedSchema>;
 
 const HOUR_MS = 3_600_000;
 

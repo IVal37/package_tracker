@@ -6,7 +6,7 @@ import { FakeGeocoder } from "./fake";
 import { NominatimGeocoder } from "./nominatim";
 import type { Geocoder } from "./types";
 
-export { GeocoderError, type Geocoder, type GeocodeResult } from "./types";
+export { GeocoderError, type Geocoder } from "./types";
 
 type GeocoderEnv = Pick<Env, "GEOCODER" | "APP_URL">;
 

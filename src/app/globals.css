@@ -2,8 +2,6 @@
 
 @theme {
   --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #3b82f6;
   --color-brand-600: #2563eb;
   --color-brand-700: #1d4ed8;
 
@@ -41,7 +39,6 @@
   --color-slate-700: #cbd5e1;
   --color-slate-900: #f1f5f9;
   --color-brand-50: #14264a;
-  --color-brand-100: #1b3266;
   --color-surface: #121b2e;
   --color-link: #7db3ff;
   --color-danger: #f87171;
@@ -82,7 +79,6 @@
     --color-slate-700: #cbd5e1;
     --color-slate-900: #f1f5f9;
     --color-brand-50: #14264a;
-    --color-brand-100: #1b3266;
     --color-surface: #121b2e;
     --color-link: #7db3ff;
     --color-danger: #f87171;

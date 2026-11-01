@@ -53,4 +53,3 @@ export const pushSubscriptionSchema = z.object({
     auth: base64url(16, 30),
   }),
 });
-

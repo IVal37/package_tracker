@@ -16,16 +16,13 @@ import {
   loadNotification,
   type NotificationRef,
 } from "@/lib/db/notify-sync";
-import {
-  listPushSubscriptions,
-  markPushSuccess,
-  removePushSubscriptionById,
-} from "@/lib/db/push-subscriptions";
+import { listPushSubscriptions } from "@/lib/db/push-subscriptions";
 import { getLastCheckpoint, getShipment } from "@/lib/db/shipments";
 import { getUserEmail } from "@/lib/db/users";
 import { DAY_MS, MINUTE_MS } from "@/lib/time";
 import { buildMessage, type BuiltMessage } from "./message";
 import { channelsFor, type Channel } from "./prefs";
+import { pushToDevice } from "./push-device";
 import { quietHoursEnd } from "./quiet-hours";
 import { SendError, type EmailSender, type PushSender } from "./senders";
 
@@ -183,17 +180,16 @@ export async function deliverPush(args: {
   for (const device of await listPushSubscriptions(db, userId)) {
     result.attempted += 1;
     try {
-      const answer = await sender.send(
-        { endpoint: device.endpoint, p256dh: device.p256dh, auth: device.auth },
-        loaded.message.push,
-      );
-      if (answer === "gone") {
-        result.gone += 1;
-        await removePushSubscriptionById(db, userId, device.id);
-      } else {
-        result.sent += 1;
-        await markPushSuccess(db, userId, device.id, now);
-      }
+      const answer = await pushToDevice({
+        db,
+        sender,
+        userId,
+        device,
+        payload: loaded.message.push,
+        now,
+      });
+      if (answer === "gone") result.gone += 1;
+      else result.sent += 1;
     } catch (error) {
       if (!(error instanceof SendError)) throw error;
       if (error.retryable) retryable = error;

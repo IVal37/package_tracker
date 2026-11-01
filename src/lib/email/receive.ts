@@ -3,7 +3,6 @@ import { verifyBearerSecret } from "@/lib/auth/bearer";
 import type { Db } from "@/lib/db/client";
 import {
   countEmailsSince,
-  finishEmail,
   hasMessageId,
   insertInboundEmail,
 } from "@/lib/db/inbound-emails";
@@ -11,11 +10,8 @@ import { findUserIdByAlias } from "@/lib/db/inbound-sync";
 import { LIMITS, hit, logLimited } from "@/lib/ratelimit";
 import { DAY_MS, msBefore } from "@/lib/time";
 import { aliasFromRecipient } from "./alias";
-import {
-  gmailConfirmationRecord,
-  parseGmailConfirmation,
-} from "./gmail-confirmation";
 import { htmlToText } from "./html-to-text";
+import { keepGmailConfirmation } from "./keep-gmail-confirmation";
 
 /** Largest request body we read. The Worker sends far less. */
 export const MAX_BODY_CHARS = 1_000_000;
@@ -138,19 +134,8 @@ export async function receiveInboundEmail(args: {
   // Gmail's code or link needs no reading by the model, only a regex, so it is
   // kept here instead of waiting for the background job: the person is watching
   // the Setup page for it, and it must not depend on the job queue being up.
-  // The link may sit only in the HTML part, so both parts are searched.
-  const gmail = parseGmailConfirmation({
-    from: email.from,
-    text: `${email.text}\n${email.html ? htmlToText(email.html) : ""}`,
-  });
-  if (gmail) {
-    await finishEmail(
-      db,
-      userId,
-      emailId,
-      "ignored",
-      gmailConfirmationRecord(gmail),
-    );
+  const fromHtml = email.html ? htmlToText(email.html) : "";
+  if (await keepGmailConfirmation(db, userId, emailId, email, fromHtml)) {
     return result(200, "gmail_confirmation");
   }
   return result(200, "stored", emailId);

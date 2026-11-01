@@ -1,12 +1,9 @@
 // "Send a test" on the settings page: a push to the user's own devices, so they
 // can see it works before a real alert depends on it.
 import type { Db } from "@/lib/db/client";
-import {
-  listPushSubscriptions,
-  markPushSuccess,
-  removePushSubscriptionById,
-} from "@/lib/db/push-subscriptions";
+import { listPushSubscriptions } from "@/lib/db/push-subscriptions";
 import { LIMITS, allow } from "@/lib/ratelimit";
+import { pushToDevice } from "./push-device";
 import { SendError, type PushSender } from "./senders";
 
 export type TestPushResult =
@@ -46,16 +43,15 @@ export async function sendTestPush(args: {
   let sent = 0;
   for (const device of devices) {
     try {
-      const answer = await sender.send(
-        { endpoint: device.endpoint, p256dh: device.p256dh, auth: device.auth },
+      const answer = await pushToDevice({
+        db,
+        sender,
+        userId,
+        device,
         payload,
-      );
-      if (answer === "gone") {
-        await removePushSubscriptionById(db, userId, device.id);
-      } else {
-        sent += 1;
-        await markPushSuccess(db, userId, device.id, now);
-      }
+        now,
+      });
+      if (answer === "sent") sent += 1;
     } catch (error) {
       if (!(error instanceof SendError)) throw error;
     }

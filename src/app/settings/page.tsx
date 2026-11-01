@@ -2,18 +2,19 @@ import Link from "next/link";
 import { LegalLinks } from "@/components/legal-page";
 import { DeleteAccount } from "@/components/delete-account";
 import { FailedEmails } from "@/components/failed-emails";
-import { ForwardingAddress } from "@/components/forwarding-address";
+import {
+  AddressUnavailable,
+  PrivateAddressSection,
+} from "@/components/forwarding-address";
 import { NotificationSettingsForm } from "@/components/notification-settings-form";
 import { PushDeviceManager } from "@/components/push-device-manager";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
-import { getOrCreateAlias } from "@/lib/db/forwarding";
 import { countFailedEmails, listFailedEmails } from "@/lib/db/inbound-emails";
 import { getNotificationPrefs } from "@/lib/db/notification-settings";
-import { formatAddress } from "@/lib/email/alias";
+import { loadForwardingAddress } from "@/lib/email/forwarding-address";
 import { failureReason } from "@/lib/email/failed";
 import { getEnv } from "@/lib/env";
 import { formatRelativeTime } from "@/lib/shipments/format";
@@ -34,13 +35,7 @@ export default async function SettingsPage() {
   const db = getDb();
   const now = new Date();
 
-  // The alias hangs off the user row. If the account was deleted on another
-  // device, this session is signed out rather than given a new row.
-  await requireLiveAccount(db, user);
-  const alias = await getOrCreateAlias(db, user.id);
-  const address = alias
-    ? formatAddress(alias, getEnv().INBOUND_EMAIL_DOMAIN)
-    : null;
+  const address = await loadForwardingAddress(db, user);
 
   const env = getEnv();
   // The browser needs the public half of the VAPID key to subscribe; with the
@@ -96,35 +91,18 @@ export default async function SettingsPage() {
         <h2 className="text-lg font-semibold">Email forwarding</h2>
 
         {address ? (
-          <>
-            <section
-              aria-labelledby="address-heading"
-              className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
-            >
-              <h3 id="address-heading" className="font-semibold">
-                Your private address
-              </h3>
-              <p className="text-sm text-slate-600">
-                Forward order and shipping emails here and the packages appear
-                in your list. Keep this address to yourself: anyone who has it
-                can add packages to your account.
-              </p>
-              <ForwardingAddress
-                address={address}
-                regenerateAction={regenerateAddressAction}
-              />
-              <p className="text-sm text-slate-600">
-                <Link href="/setup" className="text-link hover:underline">
-                  How to set up forwarding →
-                </Link>
-              </p>
-            </section>
-          </>
+          <PrivateAddressSection
+            address={address}
+            regenerateAction={regenerateAddressAction}
+          >
+            <p className="text-sm text-slate-600">
+              <Link href="/setup" className="text-link hover:underline">
+                How to set up forwarding →
+              </Link>
+            </p>
+          </PrivateAddressSection>
         ) : (
-          <p className="text-sm text-slate-600">
-            Your forwarding address could not be created. Reload the page to try
-            again.
-          </p>
+          <AddressUnavailable />
         )}
 
         <FailedEmails

@@ -2,18 +2,18 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { ConfirmationWatcher } from "@/components/confirmation-watcher";
 import { DeviceSetup } from "@/components/device-setup";
-import { ForwardingAddress } from "@/components/forwarding-address";
+import {
+  AddressUnavailable,
+  PrivateAddressSection,
+} from "@/components/forwarding-address";
 import { LegalLinks } from "@/components/legal-page";
 import { SetupStatus } from "@/components/setup-status";
 import { SiteHeader } from "@/components/site-header";
-import { requireLiveAccount } from "@/lib/auth/account";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
-import { getOrCreateAlias } from "@/lib/db/forwarding";
 import { latestGmailConfirmation } from "@/lib/db/inbound-emails";
 import { getSetupAnswer, loadSetupSignals } from "@/lib/db/setup";
-import { formatAddress } from "@/lib/email/alias";
-import { getEnv } from "@/lib/env";
+import { loadForwardingAddress } from "@/lib/email/forwarding-address";
 import { deviceKind } from "@/lib/pwa/service-worker";
 import { formatRelativeTime } from "@/lib/shipments/format";
 import { DAY_MS, msBefore } from "@/lib/time";
@@ -29,13 +29,7 @@ export default async function SetupPage() {
   const db = getDb();
   const now = new Date();
 
-  // The alias hangs off the user row. If the account was deleted on another
-  // device, this session is signed out rather than given a new row.
-  await requireLiveAccount(db, user);
-  const alias = await getOrCreateAlias(db, user.id);
-  const address = alias
-    ? formatAddress(alias, getEnv().INBOUND_EMAIL_DOMAIN)
-    : null;
+  const address = await loadForwardingAddress(db, user);
 
   const confirmation = await latestGmailConfirmation(
     db,
@@ -54,19 +48,7 @@ export default async function SetupPage() {
 
   const addressPanel = address ? (
     <>
-      <section
-        aria-labelledby="address-heading"
-        className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
-      >
-        <h3 id="address-heading" className="font-semibold">
-          Your private address
-        </h3>
-        <p className="text-sm text-slate-600">
-          Forward order and shipping emails here and the packages appear in your
-          list. Keep this address to yourself: anyone who has it can add
-          packages to your account.
-        </p>
-        <ForwardingAddress address={address} />
+      <PrivateAddressSection address={address}>
         <p className="text-sm text-slate-500">
           Need a new address? You can make one in{" "}
           <Link href="/settings" className="text-link underline">
@@ -74,7 +56,7 @@ export default async function SetupPage() {
           </Link>
           .
         </p>
-      </section>
+      </PrivateAddressSection>
 
       {!confirmation && <ConfirmationWatcher />}
 
@@ -115,10 +97,7 @@ export default async function SetupPage() {
       )}
     </>
   ) : (
-    <p className="text-sm text-slate-600">
-      Your forwarding address could not be created. Reload the page to try
-      again.
-    </p>
+    <AddressUnavailable />
   );
 
   return (

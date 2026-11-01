@@ -56,6 +56,13 @@ function isCacheable(response) {
   );
 }
 
+/** The saved copy, or the network's error if there is none. */
+async function savedOrThrow(cache, key, error) {
+  const saved = await cache.match(key);
+  if (saved) return saved;
+  throw error;
+}
+
 async function networkFirstList(request, url) {
   const cache = await caches.open(PAGE_CACHE);
   try {
@@ -67,31 +74,27 @@ async function networkFirstList(request, url) {
     }
     return response;
   } catch (error) {
-    const saved = await cache.match(LIST_KEY);
-    if (saved) return saved;
-    throw error;
+    return savedOrThrow(cache, LIST_KEY, error);
   }
 }
 
-async function cacheFirstStatic(request) {
-  const cache = await caches.open(STATIC_CACHE);
-  const saved = await cache.match(request);
-  if (saved) return saved;
+async function fetchAndKeep(cache, request) {
   const response = await fetch(request);
   if (isCacheable(response)) await cache.put(request, response.clone());
   return response;
 }
 
+async function cacheFirstStatic(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  return (await cache.match(request)) ?? fetchAndKeep(cache, request);
+}
+
 async function networkFirstStatic(request) {
   const cache = await caches.open(STATIC_CACHE);
   try {
-    const response = await fetch(request);
-    if (isCacheable(response)) await cache.put(request, response.clone());
-    return response;
+    return await fetchAndKeep(cache, request);
   } catch (error) {
-    const saved = await cache.match(request);
-    if (saved) return saved;
-    throw error;
+    return savedOrThrow(cache, request, error);
   }
 }
 

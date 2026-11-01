@@ -25,7 +25,7 @@ import {
   type EvalExpectation,
   type TextEmail,
 } from "@/lib/email/eval-score";
-import { htmlToText } from "@/lib/email/html-to-text";
+import { emailTexts } from "@/lib/email/email-texts";
 
 const FIXTURES = join(process.cwd(), "tests", "fixtures", "email");
 
@@ -73,14 +73,6 @@ function loadRealCases(): Case[] {
     });
 }
 
-/** The same text the app gives the model (see processInboundEmail). */
-function readableText(email: TextEmail): string {
-  const fromHtml = email.html.trim() ? htmlToText(email.html) : "";
-  const body =
-    fromHtml.length >= 20 || !email.text.trim() ? fromHtml : email.text;
-  return body || email.text;
-}
-
 describe("email extraction against the real model", () => {
   it(
     "scores the example emails",
@@ -103,7 +95,7 @@ describe("email extraction against the real model", () => {
       log(`\nRunning ${cases.length} emails through ${extractor.name}...\n`);
 
       for (const { name, email, expected } of cases) {
-        const readable = readableText(email);
+        const { readable, source } = emailTexts(email);
         let extraction: Extraction;
         try {
           extraction = await extractor.extract({
@@ -119,7 +111,6 @@ describe("email extraction against the real model", () => {
           continue;
         }
 
-        const source = `${email.subject}\n${email.text}\n${email.html}\n${readable}`;
         const trackingNumbers = groundTrackingNumbers(
           extraction.tracking_numbers,
           source,

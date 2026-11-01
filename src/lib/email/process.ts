@@ -14,11 +14,8 @@ import {
   type Extraction,
   type Extractor,
 } from "./extract";
-import {
-  gmailConfirmationRecord,
-  parseGmailConfirmation,
-} from "./gmail-confirmation";
-import { htmlToText } from "./html-to-text";
+import { emailTexts } from "./email-texts";
+import { keepGmailConfirmation } from "./keep-gmail-confirmation";
 import { retailerKey } from "./retailer-key";
 import { findTrackingCandidates } from "./tracking-patterns";
 
@@ -114,25 +111,9 @@ export async function processInboundEmail(args: {
     return result("failed");
   }
 
-  // HTML keeps links (tracking numbers often live in them); fall back to the
-  // plain-text part when the HTML says nothing.
-  const fromHtml = email.html.trim() ? htmlToText(email.html) : "";
-  const body =
-    fromHtml.length >= 20 || !email.text.trim() ? fromHtml : email.text;
-  const readable = body || email.text;
+  const { fromHtml, readable, source } = emailTexts(email);
 
-  const gmail = parseGmailConfirmation({
-    from: email.from,
-    text: `${email.text}\n${fromHtml}`,
-  });
-  if (gmail) {
-    await finishEmail(
-      db,
-      userId,
-      emailId,
-      "ignored",
-      gmailConfirmationRecord(gmail),
-    );
+  if (await keepGmailConfirmation(db, userId, emailId, email, fromHtml)) {
     return result("ignored");
   }
 
@@ -200,7 +181,6 @@ export async function processInboundEmail(args: {
   // are looked for only in what a reader sees (link targets are kept): in raw
   // markup, "dhl" in an image name next to a phone number looks like a DHL
   // tracking number.
-  const source = `${email.subject}\n${email.text}\n${email.html}\n${readable}`;
   const visible = `${email.subject}\n${email.text}\n${fromHtml}`;
   const grounded = groundTrackingNumbers(extraction.tracking_numbers, source);
   const numbers = grounded.accepted.map((entry) => entry.trackingNumber);

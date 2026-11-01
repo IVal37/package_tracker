@@ -26,6 +26,15 @@ export function LegalPage({
   );
 }
 
+/** The contact address, as a link. */
+export function SupportLink({ email }: { email: string }) {
+  return (
+    <a className="text-link underline" href={`mailto:${email}`}>
+      {email}
+    </a>
+  );
+}
+
 /** Links to the privacy policy and terms, for page footers. */
 export function LegalLinks() {
   return (

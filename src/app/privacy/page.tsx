@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { LegalPage } from "@/components/legal-page";
+import { LegalPage, SupportLink } from "@/components/legal-page";
 import { RAW_EMAIL_DAYS, STALE_ORDER_DAYS } from "@/lib/email/cleanup";
 import { getEnv } from "@/lib/env";
 import { SERVICES } from "@/lib/legal/services";
@@ -21,10 +21,7 @@ export default async function PrivacyPage() {
         why, who else sees it, how long we keep it, and how to take it with you
         or delete it. Wayfind is run by Izaak Valadez, United States, who is
         responsible for your data here. Questions:{" "}
-        <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
-          {SUPPORT_EMAIL}
-        </a>
-        .
+        <SupportLink email={SUPPORT_EMAIL} />.
       </p>
 
       <h2>What we keep</h2>
@@ -97,11 +94,7 @@ export default async function PrivacyPage() {
       <p>
         Wayfind isn&apos;t meant for children under 13, and we don&apos;t
         knowingly keep data about them. If you think a child has an account,
-        write to{" "}
-        <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
-          {SUPPORT_EMAIL}
-        </a>{" "}
-        and we will delete it.
+        write to <SupportLink email={SUPPORT_EMAIL} /> and we will delete it.
       </p>
 
       <h2>Your choices</h2>

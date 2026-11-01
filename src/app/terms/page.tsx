@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { LegalPage } from "@/components/legal-page";
+import { LegalPage, SupportLink } from "@/components/legal-page";
 import { getEnv } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Terms · Wayfind" };
@@ -15,11 +15,7 @@ export default async function TermsPage() {
     <LegalPage title="Terms of use" updated="October 31, 2026">
       <p>
         By using Wayfind you agree to these terms. If you don&apos;t, please
-        don&apos;t use it. Questions:{" "}
-        <a className="text-link underline" href={`mailto:${SUPPORT_EMAIL}`}>
-          {SUPPORT_EMAIL}
-        </a>
-        .
+        don&apos;t use it. Questions: <SupportLink email={SUPPORT_EMAIL} />.
       </p>
 
       <h2>What Wayfind is</h2>

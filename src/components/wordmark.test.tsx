@@ -10,4 +10,14 @@ describe("Wordmark", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Every package, one place.")).toBeInTheDocument();
   });
+
+  it("drops the tagline when compact, keeping the name", () => {
+    render(<Wordmark compact />);
+    expect(
+      screen.getByRole("heading", { name: "Wayfind" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Every package, one place."),
+    ).not.toBeInTheDocument();
+  });
 });

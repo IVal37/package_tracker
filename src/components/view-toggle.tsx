@@ -12,8 +12,14 @@ export function ViewToggle({ view }: { view: View }) {
   return (
     <nav
       aria-label="View"
-      className="inline-flex rounded-md border border-slate-300 bg-surface p-0.5 text-sm"
+      data-view={view}
+      className="glass group inline-grid grid-cols-2 rounded-full p-1 text-sm"
     >
+      {/* The pill is a sibling behind the links, so it can slide between them. */}
+      <span
+        aria-hidden="true"
+        className="glass-pill pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full transition-transform duration-300 ease-out group-data-[view=map]:translate-x-full motion-reduce:transition-none"
+      />
       {LINKS.map((link) => (
         <Link
           key={link.view}
@@ -21,8 +27,8 @@ export function ViewToggle({ view }: { view: View }) {
           aria-current={link.view === view ? "page" : undefined}
           className={
             link.view === view
-              ? "rounded bg-ink px-3 py-1 font-medium text-on-ink"
-              : "rounded px-3 py-1 text-slate-700 hover:bg-slate-100"
+              ? "relative rounded-full px-5 py-1.5 text-center font-medium text-slate-900"
+              : "hover-glass relative rounded-full px-5 py-1.5 text-center text-slate-700"
           }
         >
           {link.label}

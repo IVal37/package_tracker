@@ -12,8 +12,8 @@ interface SiteHeaderProps {
   current?: "setup" | "settings";
 }
 
-const TAB = "rounded-md px-3 py-1.5 text-sm hover:bg-slate-100";
-const TAB_CURRENT = "rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium";
+const TAB = "hover-glass rounded-full px-3 py-1.5 text-sm";
+const TAB_CURRENT = "glass-pill rounded-full px-3 py-1.5 text-sm font-medium";
 
 export function SiteHeader({
   email,
@@ -22,9 +22,11 @@ export function SiteHeader({
   current,
 }: SiteHeaderProps) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-surface px-4 py-3">
-      <Wordmark />
-      <div className="flex flex-wrap items-center gap-3">
+    // The glass is a ::before layer, so the Upgrade popup below can still be
+    // fixed to the whole window.
+    <header className="glass sticky top-3 z-40 mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-[46rem] flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-sheet px-4 py-2">
+      <Wordmark compact />
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         <Link
           href="/setup"
           aria-current={current === "setup" ? "page" : undefined}
@@ -40,7 +42,12 @@ export function SiteHeader({
           Settings
         </Link>
         <UpgradeButton />
-        <span className="hidden text-sm text-slate-500 sm:inline">{email}</span>
+        <span
+          title={email}
+          className="hidden max-w-[12rem] truncate text-sm text-slate-500 md:inline"
+        >
+          {email}
+        </span>
         <SignOutForm
           signOutAction={signOutAction}
           removeDeviceAction={removeDeviceAction}

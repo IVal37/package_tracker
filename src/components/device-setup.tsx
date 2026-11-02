@@ -143,7 +143,7 @@ export function DeviceSetup({
           role="tablist"
           aria-label="Your device"
           onKeyDown={onKeyDown}
-          className="inline-flex flex-wrap gap-1 rounded-md border border-slate-300 bg-surface p-0.5 text-sm"
+          className="glass inline-flex flex-wrap gap-1 rounded-full p-1 text-sm"
         >
           {DEVICES.map((device) => {
             const active = device.kind === selected;
@@ -159,8 +159,8 @@ export function DeviceSetup({
                 onClick={() => setSelected(device.kind)}
                 className={
                   active
-                    ? "rounded bg-ink px-3 py-1 font-medium text-on-ink"
-                    : "rounded px-3 py-1 text-slate-700 hover:bg-slate-100"
+                    ? "glass-pill rounded-full px-3 py-1 font-medium"
+                    : "hover-glass rounded-full px-3 py-1 text-slate-700"
                 }
               >
                 {device.label}

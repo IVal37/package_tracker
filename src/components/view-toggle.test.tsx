@@ -43,4 +43,13 @@ describe("ViewToggle", () => {
       screen.getByRole("navigation", { name: "View" }),
     ).toBeInTheDocument();
   });
+
+  it("tells the sliding pill which view is showing, and hides it from readers", () => {
+    const { rerender } = render(<ViewToggle view="list" />);
+    const nav = screen.getByRole("navigation", { name: "View" });
+    expect(nav).toHaveAttribute("data-view", "list");
+    expect(nav.querySelector("[aria-hidden=true]")).not.toBeNull();
+    rerender(<ViewToggle view="map" />);
+    expect(nav).toHaveAttribute("data-view", "map");
+  });
 });

@@ -77,15 +77,15 @@ export function Modal({
 
   const layout =
     variant === "drawer"
-      ? "ml-auto h-full w-full max-w-md"
-      : "m-auto w-full max-w-sm rounded-lg";
+      ? "ml-auto h-full w-full max-w-md animate-sheet-side"
+      : "m-auto w-full max-w-sm animate-sheet";
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex p-3 sm:p-4">
       <div
         data-testid="modal-backdrop"
         aria-hidden="true"
-        className="absolute inset-0 bg-black/40"
+        className="glass-scrim absolute inset-0"
         onClick={onClose}
       />
       <div
@@ -94,24 +94,27 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`relative overflow-y-auto bg-surface p-5 shadow-xl outline-none ${layout}`}
+        className={`glass-strong flex max-h-full flex-col rounded-sheet outline-none ${layout}`}
       >
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <h2 id={titleId} className="text-lg font-semibold">
-            {title}
-          </h2>
-          {onClose && (
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={onClose}
-              className="rounded p-1 text-slate-500 hover:bg-slate-100"
-            >
-              ×
-            </button>
-          )}
+        {/* The glass is on the dialog above; only this part scrolls. */}
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-[inherit] p-5">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <h2 id={titleId} className="text-lg font-semibold">
+              {title}
+            </h2>
+            {onClose && (
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={onClose}
+                className="hover-glass grid size-8 shrink-0 place-items-center rounded-full text-slate-500"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </div>
   );

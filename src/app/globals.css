@@ -10,16 +10,15 @@
 
   /*
    * Colours whose meaning differs from the shade they replace in the dark
-   * theme. Use these, not the shade, for: card backgrounds (bg-surface),
-   * links and the wordmark (text-link), error text (text-danger) and the
-   * selected-toggle fill (bg-ink with text-on-ink). Buttons keep
-   * bg-brand-600 / bg-red-600 with text-white in both themes.
+   * theme. Use these, not the shade, for: the solid stand-in for glass
+   * (--color-surface), links and the wordmark (text-link) and error text
+   * (text-danger). Cards, fields, buttons and tabs are the glass classes
+   * below. Filled buttons keep bg-brand-600 / bg-red-600 with text-white in
+   * both themes.
    */
   --color-surface: #ffffff;
   --color-link: #1d4ed8;
   --color-danger: #dc2626;
-  --color-ink: #0f172a;
-  --color-on-ink: #ffffff;
 }
 
 /*
@@ -70,8 +69,6 @@
   --color-surface: #121b2e;
   --color-link: #7db3ff;
   --color-danger: #f87171;
-  --color-ink: #e2e8f0;
-  --color-on-ink: #0f172a;
   --color-red-50: #2b1216;
   --color-red-100: #3d171c;
   --color-red-200: #5e2128;
@@ -122,8 +119,6 @@
     --color-surface: #121b2e;
     --color-link: #7db3ff;
     --color-danger: #f87171;
-    --color-ink: #e2e8f0;
-    --color-on-ink: #0f172a;
     --color-red-50: #2b1216;
     --color-red-100: #3d171c;
     --color-red-200: #5e2128;

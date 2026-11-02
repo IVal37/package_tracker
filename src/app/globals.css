@@ -38,12 +38,12 @@
   --glass-edge: rgb(15 23 42 / 0.1);
   --glass-shadow: rgb(15 23 42 / 0.12);
   --glass-hover: rgb(15 23 42 / 0.06);
-  --glass-scrim: rgb(15 23 42 / 0.3);
+  --glass-scrim: rgb(15 23 42 / 0.22);
   --glass-blur: blur(20px) saturate(1.6);
   --glass-blur-strong: blur(32px) saturate(1.7);
   --glass-blur-scrim: blur(8px);
-  --wash-a: rgb(37 99 235 / 0.16);
-  --wash-b: rgb(99 102 241 / 0.1);
+  --wash-a: rgb(37 99 235 / 0.22);
+  --wash-b: rgb(99 102 241 / 0.14);
 }
 
 /*
@@ -175,7 +175,8 @@ body::before {
   pointer-events: none;
   background:
     radial-gradient(60rem 36rem at 8% -8%, var(--wash-a), transparent 65%),
-    radial-gradient(48rem 32rem at 100% 4%, var(--wash-b), transparent 60%);
+    radial-gradient(48rem 32rem at 100% 4%, var(--wash-b), transparent 60%),
+    radial-gradient(44rem 30rem at 0% 100%, var(--wash-b), transparent 60%);
 }
 
 @layer base {

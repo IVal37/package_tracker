@@ -44,7 +44,7 @@ export function SiteHeader({
         <UpgradeButton />
         <span
           title={email}
-          className="hidden max-w-[12rem] truncate text-sm text-slate-500 md:inline"
+          className="hidden max-w-[12rem] truncate text-sm text-slate-600 md:inline"
         >
           {email}
         </span>

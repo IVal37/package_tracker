@@ -143,7 +143,7 @@ export function DeviceSetup({
           role="tablist"
           aria-label="Your device"
           onKeyDown={onKeyDown}
-          className="glass inline-flex flex-wrap gap-1 rounded-full p-1 text-sm"
+          className="glass inline-flex flex-wrap gap-1 rounded-3xl p-1 text-sm"
         >
           {DEVICES.map((device) => {
             const active = device.kind === selected;

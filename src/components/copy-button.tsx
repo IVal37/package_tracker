@@ -8,7 +8,7 @@ interface CopyButtonProps {
 }
 
 /** Copies text to the clipboard and says so. Quietly does nothing if the browser refuses. */
-export function CopyButton({ text, label = "Copy" }: CopyButtonProps) {
+export function useCopy(text: string) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -19,6 +19,13 @@ export function CopyButton({ text, label = "Copy" }: CopyButtonProps) {
       setCopied(false);
     }
   };
+
+  return { copied, copy };
+}
+
+/** A button that copies `text` to the clipboard. */
+export function CopyButton({ text, label = "Copy" }: CopyButtonProps) {
+  const { copied, copy } = useCopy(text);
 
   return (
     <button

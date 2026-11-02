@@ -42,13 +42,60 @@ describe("ForwardingInstructions on a computer", () => {
       .getByRole("heading", { name: "Gmail" })
       .closest("section")!;
     expect(gmail).toHaveTextContent(/Filters and Blocked Addresses/);
-    expect(gmail).toHaveTextContent(
-      /Subject. Type order OR shipped OR shipping OR delivered OR tracking/,
-    );
-    expect(gmail).toHaveTextContent(/Create filter stays grey/);
+    expect(gmail).toHaveTextContent(/Subject, paste this, with OR in capitals/);
+    expect(
+      within(gmail).getByText(
+        "order OR shipped OR shipping OR delivered OR tracking",
+      ),
+    ).toBeInTheDocument();
+    expect(gmail).toHaveTextContent(/It stays grey until a box has something/);
     expect(gmail).toHaveTextContent(/tick Forward it to/);
     expect(gmail).toHaveTextContent(/Also apply filter to matching/);
     expect(gmail).toHaveTextContent(/only catches new mail/);
+  });
+
+  it("numbers the Gmail steps and names every button in its own element", () => {
+    render(<ForwardingInstructions address={ADDRESS} device="computer" />);
+    const gmail = screen
+      .getByRole("heading", { name: "Gmail" })
+      .closest("section")!;
+    expect(gmail.querySelectorAll("ol > li")).toHaveLength(10);
+    const buttons = Array.from(gmail.querySelectorAll("strong")).map(
+      (element) => element.textContent,
+    );
+    expect(buttons).toEqual(
+      expect.arrayContaining([
+        "Settings",
+        "See all settings",
+        "Forwarding and POP/IMAP",
+        "Add a forwarding address",
+        "Filters and Blocked Addresses",
+        "Create a new filter",
+        "Create filter",
+        "Forward it to",
+      ]),
+    );
+  });
+
+  it("puts the address and the subject in copy boxes", async () => {
+    const user = userEvent.setup();
+    const write = vi.spyOn(navigator.clipboard, "writeText");
+    render(<ForwardingInstructions address={ADDRESS} device="computer" />);
+    const gmail = screen
+      .getByRole("heading", { name: "Gmail" })
+      .closest("section")!;
+    const boxes = within(gmail).getAllByTitle("Click to copy");
+    expect(boxes.map((box) => box.textContent)).toEqual([
+      `${ADDRESS}Click to copy`,
+      "order OR shipped OR shipping OR delivered OR tracking" + "Click to copy",
+      `${ADDRESS}Click to copy`,
+    ]);
+
+    await user.click(boxes[1]!);
+    expect(write).toHaveBeenLastCalledWith(
+      "order OR shipped OR shipping OR delivered OR tracking",
+    );
+    expect(boxes[1]).toHaveTextContent("Copied");
   });
 
   it("tells iCloud readers not to forward everything, and Yahoo readers to forward by hand", () => {

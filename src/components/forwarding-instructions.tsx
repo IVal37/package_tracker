@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DeviceKind } from "@/lib/pwa/service-worker";
+import { CopyField } from "./copy-field";
 
 interface ForwardingInstructionsProps {
   address: string;
@@ -29,7 +30,7 @@ function Method({
             {title}
           </h3>
         </summary>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-3">
           {where && <p className="text-slate-600">{where}</p>}
           {children}
         </div>
@@ -38,13 +39,44 @@ function Method({
   );
 }
 
+/** Numbered steps; a step may end with boxes to copy and paste. */
 const Steps = ({ children }: { children: ReactNode }) => (
-  <ol className="list-decimal space-y-1 pl-5">{children}</ol>
+  <ol className="list-decimal space-y-3 pl-5 marker:font-semibold">
+    {children}
+  </ol>
 );
 
-const Address = ({ address }: { address: string }) => (
-  <span className="font-mono">{address}</span>
+/** What the reader types or pastes goes below the step's sentence. */
+const Paste = ({ children }: { children: ReactNode }) => (
+  <div className="mt-2 flex flex-wrap gap-2">{children}</div>
 );
+
+/** The name of something to click or tap, coloured so it stands out from the sentence. */
+const Btn = ({ children }: { children: ReactNode }) => (
+  <strong className="rounded-md bg-brand-50 px-1.5 py-0.5 font-semibold text-link">
+    {children}
+  </strong>
+);
+
+/** A path through menus, such as Settings → Mail → Rules. */
+function Path({ items }: { items: string[] }) {
+  return items.map((item, index) => (
+    <span key={item}>
+      {index > 0 && " → "}
+      <Btn>{item}</Btn>
+    </span>
+  ));
+}
+
+const Notes = ({ children }: { children: ReactNode }) => (
+  <ul className="list-disc space-y-1 pl-5 text-slate-600">{children}</ul>
+);
+
+/** The Gmail filter's Subject box. OR must be in capitals. */
+const SUBJECT_SEARCH = "order OR shipped OR shipping OR delivered OR tracking";
+
+/** The words an Outlook or iCloud rule looks for in the subject. */
+const SUBJECT_WORDS = ["order", "shipped"];
 
 /** Forwarding one email by hand: works in any mail app on any device. */
 function ByHand({ address, device }: { address: string; device: DeviceKind }) {
@@ -52,30 +84,39 @@ function ByHand({ address, device }: { address: string; device: DeviceKind }) {
     <>
       <Steps>
         <li>Open the order or shipping email.</li>
-        <li>Tap or click Forward.</li>
         <li>
-          Send it to <Address address={address} />. The package appears in your
-          list within a minute or two.
+          Tap or click <Btn>Forward</Btn>.
+        </li>
+        <li>
+          Send it to this address:
+          <Paste>
+            <CopyField text={address} />
+          </Paste>
+          <span className="mt-2 block text-slate-600">
+            The package appears in your list within a minute or two.
+          </span>
         </li>
       </Steps>
       {device !== "computer" && (
-        <ul className="list-disc space-y-1 pl-5 text-slate-600">
+        <Notes>
           {device === "ios" && (
             <li>
-              Mail on iPhone: tap the arrow at the bottom of the email, then
-              Forward.
+              Mail on iPhone: tap the arrow at the bottom of the email, then{" "}
+              <Btn>Forward</Btn>.
             </li>
           )}
           <li>
-            Gmail app: the Forward option is under the email, or in the ⋮ menu
-            at the top.
+            Gmail app: the <Btn>Forward</Btn> option is under the email, or in
+            the ⋮ menu at the top.
           </li>
-          <li>Outlook app: open the ⋯ menu at the top, then Forward.</li>
+          <li>
+            Outlook app: open the ⋯ menu at the top, then <Btn>Forward</Btn>.
+          </li>
           <li>
             Save the address as a contact called &ldquo;Wayfind&rdquo; and it
             fills in for you next time.
           </li>
-        </ul>
+        </Notes>
       )}
     </>
   );
@@ -134,45 +175,84 @@ export function ForwardingInstructions({
       >
         <Steps>
           <li>
-            In Gmail, open Settings → See all settings → Forwarding and
-            POP/IMAP, then choose Add a forwarding address and enter{" "}
-            <Address address={address} />.
+            In Gmail, open{" "}
+            <Path
+              items={[
+                "Settings",
+                "See all settings",
+                "Forwarding and POP/IMAP",
+              ]}
+            />
+            .
+          </li>
+          <li>
+            Choose <Btn>Add a forwarding address</Btn>.
+          </li>
+          <li>
+            Enter this address:
+            <Paste>
+              <CopyField text={address} />
+            </Paste>
           </li>
           <li>
             Gmail sends a confirmation link (sometimes a code) to that address.
-            It will appear on this page within a minute; open the link, or enter
-            the code in Gmail, to finish.
+            Wait for it to appear on this page, within a minute. Then open the
+            link, or enter the code in Gmail, to finish.
           </li>
           <li>
-            Once the address is confirmed, open the Filters and Blocked
-            Addresses tab in the same Settings page and choose Create a new
-            filter. (Or click the Show search options icon at the right end of
+            Back in the same Settings page, open the{" "}
+            <Btn>Filters and Blocked Addresses</Btn> tab.
+          </li>
+          <li>
+            Choose <Btn>Create a new filter</Btn>. (Or click the{" "}
+            <Btn>Show search options</Btn> icon at the right end of
             Gmail&rsquo;s search bar.)
           </li>
           <li>
-            Fill in one box only. The easiest is Subject. Type{" "}
-            <span className="font-mono">
-              order OR shipped OR shipping OR delivered OR tracking
-            </span>
-            , with OR in capitals. Create filter stays grey until a box has
+            Fill in one box only. In <Btn>Subject</Btn>, paste this, with OR in
+            capitals:
+            <Paste>
+              <CopyField text={SUBJECT_SEARCH} />
+            </Paste>
+          </li>
+          <li>
+            Click <Btn>Create filter</Btn>. It stays grey until a box has
             something in it.
           </li>
           <li>
-            Click Create filter. In the next box, tick Forward it to and pick{" "}
-            <Address address={address} /> from the list. Leave Also apply filter
-            to matching conversations unticked, or Gmail forwards your old mail
-            too. Then click Create filter again.
+            In the next box, tick <Btn>Forward it to</Btn> and pick this address
+            from the list:
+            <Paste>
+              <CopyField text={address} compact />
+            </Paste>
+            <span className="mt-2 block">
+              Leave <Btn>Also apply filter to matching conversations</Btn>{" "}
+              unticked, or Gmail forwards your old mail too.
+            </span>
+          </li>
+          <li>
+            Click <Btn>Create filter</Btn> again.
           </li>
         </Steps>
-        <p className="text-slate-600">
-          If Forward it to is missing or greyed out, Gmail hasn&rsquo;t
-          confirmed the address yet: finish the confirmation step above first. A
-          filter only catches new mail, so it starts working with your next
-          order. To check it now, forward one old shipping email by hand. A
-          filter that is too broad forwards newsletters too; that does no harm,
-          but narrow it if you get a lot. To change or remove it later, go back
-          to Filters and Blocked Addresses.
-        </p>
+        <Notes>
+          <li>
+            If <Btn>Forward it to</Btn> is missing or greyed out, Gmail
+            hasn&rsquo;t confirmed the address yet: finish the confirmation step
+            above first.
+          </li>
+          <li>
+            A filter only catches new mail, so it starts working with your next
+            order. To check it now, forward one old shipping email by hand.
+          </li>
+          <li>
+            A filter that is too broad forwards newsletters too; that does no
+            harm, but narrow it if you get a lot.
+          </li>
+          <li>
+            To change or remove it later, go back to Filters and Blocked
+            Addresses.
+          </li>
+        </Notes>
       </Method>
       <Method
         id="outlook-steps"
@@ -180,20 +260,36 @@ export function ForwardingInstructions({
         where="On a computer, at outlook.com. The Outlook phone app can&rsquo;t make rules."
       >
         <Steps>
-          <li>Open Settings → Mail → Rules → Add new rule.</li>
           <li>
-            Add a condition such as &ldquo;Subject includes&rdquo; order or
-            shipped.
+            Open <Path items={["Settings", "Mail", "Rules"]} />.
           </li>
           <li>
-            Add the action Forward to and enter <Address address={address} />.
-            Outlook does not ask for a confirmation code.
+            Choose <Btn>Add new rule</Btn>.
+          </li>
+          <li>
+            Add a condition <Btn>Subject includes</Btn>, with these words:
+            <Paste>
+              {SUBJECT_WORDS.map((word) => (
+                <CopyField key={word} text={word} compact />
+              ))}
+            </Paste>
+          </li>
+          <li>
+            Add the action <Btn>Forward to</Btn> and enter this address:
+            <Paste>
+              <CopyField text={address} />
+            </Paste>
+            <span className="mt-2 block text-slate-600">
+              Outlook does not ask for a confirmation code.
+            </span>
           </li>
         </Steps>
-        <p className="text-slate-600">
-          Some work and school accounts block forwarding to outside addresses.
-          If yours does, forward by hand.
-        </p>
+        <Notes>
+          <li>
+            Some work and school accounts block forwarding to outside addresses.
+            If yours does, forward by hand.
+          </li>
+        </Notes>
       </Method>
       <Method
         id="icloud-steps"
@@ -201,20 +297,35 @@ export function ForwardingInstructions({
         where="On a computer, at icloud.com/mail."
       >
         <Steps>
-          <li>Open Settings → Rules → Add a Rule.</li>
           <li>
-            Set the condition to a subject containing &ldquo;order&rdquo; or
-            &ldquo;shipped&rdquo;.
+            Open <Path items={["Settings", "Rules"]} />, then choose{" "}
+            <Btn>Add a Rule</Btn>.
           </li>
           <li>
-            Choose a forward action and enter <Address address={address} />. If
-            your rules don&rsquo;t offer forwarding, forward by hand instead.
+            Set the condition to a subject containing these words:
+            <Paste>
+              {SUBJECT_WORDS.map((word) => (
+                <CopyField key={word} text={word} compact />
+              ))}
+            </Paste>
+          </li>
+          <li>
+            Choose a forward action and enter this address:
+            <Paste>
+              <CopyField text={address} />
+            </Paste>
+            <span className="mt-2 block text-slate-600">
+              If your rules don&rsquo;t offer forwarding, forward by hand
+              instead.
+            </span>
           </li>
         </Steps>
-        <p className="text-slate-600">
-          Don&rsquo;t use iCloud&rsquo;s &ldquo;forward all my email&rdquo;
-          option: it would send us everything, not just your orders.
-        </p>
+        <Notes>
+          <li>
+            Don&rsquo;t use iCloud&rsquo;s &ldquo;forward all my email&rdquo;
+            option: it would send us everything, not just your orders.
+          </li>
+        </Notes>
       </Method>
       <Method id="yahoo-steps" title="Yahoo Mail">
         <p>

@@ -27,7 +27,7 @@ export function SetupPrompt({ completeAction, skipAction }: SetupPromptProps) {
         </ul>
         <Link
           href="/setup"
-          className="block rounded-md bg-brand-600 px-4 py-2 text-center font-medium text-white hover:bg-brand-700"
+          className="block rounded-full bg-brand-600 px-4 py-2 text-center font-medium text-white hover:bg-brand-700"
         >
           Open the setup guide
         </Link>
@@ -35,7 +35,7 @@ export function SetupPrompt({ completeAction, skipAction }: SetupPromptProps) {
           <form action={completeAction}>
             <button
               type="submit"
-              className="w-full rounded-md border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50"
+              className="w-full btn-soft rounded-full px-4 py-2 font-medium"
             >
               I&rsquo;ve finished setup
             </button>
@@ -43,7 +43,7 @@ export function SetupPrompt({ completeAction, skipAction }: SetupPromptProps) {
           <form action={skipAction}>
             <button
               type="submit"
-              className="w-full rounded-md border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50"
+              className="w-full btn-soft rounded-full px-4 py-2 font-medium"
             >
               Skip, I&rsquo;ll do it later
             </button>

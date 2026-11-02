@@ -103,14 +103,14 @@ export function ShipmentDrawer({
             <span className="text-sm">Delete this package?</span>
             <button
               type="submit"
-              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+              className="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
             >
               Yes, delete
             </button>
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="rounded-md px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="hover-glass rounded-full px-3 py-1.5 text-sm"
             >
               Cancel
             </button>
@@ -119,7 +119,7 @@ export function ShipmentDrawer({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-danger hover:bg-red-50"
+            className="rounded-full border border-red-300 px-3 py-1.5 text-sm font-medium text-danger hover:bg-red-50"
           >
             Delete
           </button>

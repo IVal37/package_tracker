@@ -36,7 +36,7 @@ export function OfflineBanner({ renderedAt }: OfflineBannerProps) {
   return (
     <p
       role="status"
-      className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
+      className="rounded-card border border-amber-300 bg-amber-50 p-3 text-sm"
     >
       You&apos;re offline.{" "}
       {shown

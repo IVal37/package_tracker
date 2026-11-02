@@ -130,7 +130,7 @@ export function NotificationSettingsForm({
               name={FIELD.quietStart}
               defaultValue={formatTimeOfDay(prefs.quiet.start)}
               required
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="glass-field rounded-xl px-2 py-1"
             />
           </label>
           <label className="block">
@@ -140,7 +140,7 @@ export function NotificationSettingsForm({
               name={FIELD.quietEnd}
               defaultValue={formatTimeOfDay(prefs.quiet.end)}
               required
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="glass-field rounded-xl px-2 py-1"
             />
           </label>
           <label className="block">
@@ -152,7 +152,7 @@ export function NotificationSettingsForm({
               defaultValue={prefs.quiet.timeZone}
               required
               autoComplete="off"
-              className="w-56 rounded-md border border-slate-300 px-2 py-1"
+              className="w-56 glass-field rounded-xl px-2 py-1"
             />
             <datalist id="time-zones">
               {timeZones.map((zone) => (
@@ -167,7 +167,7 @@ export function NotificationSettingsForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {pending ? "Saving…" : "Save settings"}
         </button>

@@ -75,7 +75,7 @@ export default async function SettingsPage() {
         />
         <section
           aria-labelledby="alerts-heading"
-          className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
+          className="space-y-3 rounded-card glass-card p-4"
         >
           <h3 id="alerts-heading" className="font-semibold">
             Which alerts you get
@@ -121,7 +121,7 @@ export default async function SettingsPage() {
         <h2 className="text-lg font-semibold">Your data</h2>
         <section
           aria-labelledby="export-heading"
-          className="space-y-2 rounded-lg border border-slate-200 bg-surface p-4"
+          className="space-y-2 rounded-card glass-card p-4"
         >
           <h3 id="export-heading" className="font-semibold">
             Download my data
@@ -133,14 +133,14 @@ export default async function SettingsPage() {
           <a
             href="/settings/export"
             download
-            className="inline-block rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+            className="inline-block btn-soft rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Download my data
           </a>
         </section>
         <section
           aria-labelledby="delete-heading"
-          className="space-y-2 rounded-lg border border-red-200 bg-surface p-4"
+          className="space-y-2 rounded-card glass-card border border-red-200 p-4"
         >
           <h3 id="delete-heading" className="font-semibold">
             Delete my account

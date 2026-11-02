@@ -63,7 +63,7 @@ export default async function SetupPage() {
       {confirmation && (
         <section
           aria-labelledby="confirmation-heading"
-          className="space-y-2 rounded-lg border border-brand-600 bg-brand-50 p-4"
+          className="space-y-2 rounded-card border border-brand-600 bg-brand-50 p-4"
         >
           <h3 id="confirmation-heading" className="font-semibold">
             Gmail confirmation
@@ -74,7 +74,7 @@ export default async function SetupPage() {
                 href={confirmation.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+                className="inline-block rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
               >
                 Confirm in Gmail
               </a>

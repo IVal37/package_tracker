@@ -15,7 +15,7 @@ export function SignInForm({ action }: SignInFormProps) {
 
   if (state.status === "sent") {
     return (
-      <p role="status" className="rounded-md bg-brand-50 p-4 text-sm">
+      <p role="status" className="rounded-xl bg-brand-50 p-4 text-sm">
         Check your email for a sign-in link.
       </p>
     );
@@ -32,7 +32,7 @@ export function SignInForm({ action }: SignInFormProps) {
         type="email"
         autoComplete="email"
         required
-        className="w-full rounded-md border border-slate-300 px-3 py-2"
+        className="w-full glass-field rounded-xl px-3 py-2"
       />
       {state.status === "error" && (
         <p role="alert" className="text-sm text-danger">
@@ -42,7 +42,7 @@ export function SignInForm({ action }: SignInFormProps) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-brand-600 px-3 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        className="w-full rounded-full bg-brand-600 px-3 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
       >
         {pending ? "Sending…" : "Email me a sign-in link"}
       </button>

@@ -57,7 +57,7 @@ export function FailedEmails({
   return (
     <section
       aria-labelledby="failed-heading"
-      className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4"
+      className="space-y-3 rounded-card border border-amber-300 bg-amber-50 p-4"
     >
       <h3 id="failed-heading" className="font-semibold">
         Emails we couldn&apos;t read
@@ -85,7 +85,7 @@ export function FailedEmails({
                 <button
                   type="submit"
                   disabled={busy}
-                  className="rounded-md border border-slate-300 bg-surface px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
+                  className="btn-soft rounded-full px-2.5 py-1 text-xs font-medium disabled:opacity-60"
                 >
                   Try again
                 </button>
@@ -95,7 +95,7 @@ export function FailedEmails({
                 <button
                   type="submit"
                   disabled={busy}
-                  className="rounded-md px-2.5 py-1 text-xs hover:bg-amber-100 disabled:opacity-60"
+                  className="rounded-full px-2.5 py-1 text-xs hover:bg-amber-100 disabled:opacity-60"
                 >
                   Dismiss
                 </button>

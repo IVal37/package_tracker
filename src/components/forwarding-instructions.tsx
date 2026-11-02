@@ -23,7 +23,7 @@ function Method({
 }) {
   return (
     <section aria-labelledby={id}>
-      <details className="rounded-lg border border-slate-200 bg-surface p-3">
+      <details className="rounded-card glass-card p-3">
         <summary className="cursor-pointer">
           <h3 id={id} className="inline font-semibold">
             {title}
@@ -100,7 +100,7 @@ export function ForwardingInstructions({
         >
           <ByHand address={address} device={device} />
         </Method>
-        <div className="space-y-2 rounded-lg border border-slate-200 bg-surface p-3">
+        <div className="space-y-2 rounded-card glass-card p-3">
           <h3 className="font-semibold">Forward them automatically</h3>
           <p>
             Gmail, Outlook and iCloud can forward order emails for you, but
@@ -115,7 +115,7 @@ export function ForwardingInstructions({
             <button
               type="button"
               onClick={onShowComputer}
-              className="rounded-md border border-slate-300 px-3 py-1.5 font-medium hover:bg-slate-50"
+              className="btn-soft rounded-full px-3 py-1.5 font-medium"
             >
               Show the computer steps
             </button>

@@ -38,7 +38,7 @@ export function ThemeSwitcher() {
   return (
     <section
       aria-labelledby="theme-heading"
-      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
+      className="space-y-3 rounded-card glass-card p-4"
     >
       <h3 id="theme-heading" className="font-semibold">
         Theme

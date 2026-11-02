@@ -19,7 +19,7 @@ export function UpgradeButton() {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-brand-600 px-3 py-1.5 text-sm font-medium text-link hover:bg-brand-50"
+        className="rounded-full border border-brand-600 px-3 py-1.5 text-sm font-medium text-link hover:bg-brand-50"
       >
         Upgrade
       </button>
@@ -32,7 +32,7 @@ export function UpgradeButton() {
           <button
             type="button"
             onClick={close}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+            className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             Got it
           </button>

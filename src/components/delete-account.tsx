@@ -60,12 +60,12 @@ export function DeleteAccount({
           autoComplete="off"
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
-          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          className="glass-field rounded-xl px-2 py-1.5 text-sm"
         />
         <button
           type="submit"
           disabled={pending || typed.trim() !== DELETE_CONFIRMATION}
-          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+          className="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
         >
           {pending ? "Deleting…" : "Delete my account"}
         </button>

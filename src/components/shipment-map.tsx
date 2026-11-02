@@ -162,12 +162,12 @@ function PackageList({
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">{empty}</p>
       ) : (
-        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-surface">
+        <ul className="divide-y divide-slate-200/60 overflow-hidden rounded-card glass-card">
           {items.map((item) => (
             <li key={item.id}>
               <Link
                 href={drawerHref(item.id)}
-                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-50"
+                className="flex items-center justify-between gap-3 p-3 hover-glass"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <ModeIcon mode={item.mode} className="text-slate-500" />
@@ -268,7 +268,7 @@ export function ShipmentMap({ data }: ShipmentMapProps) {
       {failed ? (
         <p
           role="status"
-          className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+          className="rounded-card border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
         >
           The map couldn&apos;t load. Your packages are listed below.
         </p>
@@ -278,7 +278,7 @@ export function ShipmentMap({ data }: ShipmentMapProps) {
           role="region"
           aria-label="Map of your packages"
           data-testid="shipment-map"
-          className="h-[28rem] w-full overflow-hidden rounded-lg border border-slate-200"
+          className="h-[28rem] w-full glass-frame rounded-card bg-slate-100"
         />
       )}
       <PackageList

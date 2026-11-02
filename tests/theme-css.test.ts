@@ -114,6 +114,15 @@ describe("liquid glass", () => {
     expect([...unwanted]).toEqual([...unsupported]);
   });
 
+  it("draws cards as glass, not as flat bordered boxes", () => {
+    const flat = sources.filter((file) =>
+      /rounded-(?:md|lg) border border-slate-d+ bg-surface/.test(
+        readFileSync(file, "utf8"),
+      ),
+    );
+    expect(flat).toEqual([]);
+  });
+
   it("never blurs an element itself, only its ::before layer", () => {
     // A backdrop filter on an element makes it the containing block of its
     // fixed children, which traps the Upgrade popup inside the header.

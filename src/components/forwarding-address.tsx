@@ -16,7 +16,7 @@ export function PrivateAddressSection({
   return (
     <section
       aria-labelledby="address-heading"
-      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
+      className="space-y-3 rounded-card glass-card p-4"
     >
       <h3 id="address-heading" className="font-semibold">
         Your private address
@@ -53,7 +53,7 @@ export function ForwardingAddress({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <code className="break-all rounded bg-slate-100 px-2 py-1 text-sm">
+        <code className="break-all rounded-lg bg-slate-100 px-2 py-1 text-sm">
           {address}
         </code>
         <CopyButton text={address} />

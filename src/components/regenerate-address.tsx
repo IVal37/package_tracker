@@ -19,14 +19,14 @@ export function RegenerateAddress({ action }: RegenerateAddressProps) {
           </span>
           <button
             type="submit"
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+            className="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
           >
             Yes, regenerate
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className="rounded-md px-3 py-1.5 text-sm hover:bg-slate-100"
+            className="hover-glass rounded-full px-3 py-1.5 text-sm"
           >
             Cancel
           </button>
@@ -35,7 +35,7 @@ export function RegenerateAddress({ action }: RegenerateAddressProps) {
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+          className="btn-soft rounded-full px-3 py-1.5 text-sm font-medium"
         >
           Regenerate address
         </button>

@@ -13,8 +13,7 @@ interface SetupStatusProps {
   skipAction: () => Promise<void>;
 }
 
-const buttonClass =
-  "rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50";
+const buttonClass = "btn-soft rounded-full px-3 py-1.5 text-sm font-medium";
 
 function Signal({ ok, children }: { ok: boolean; children: string }) {
   return (
@@ -42,7 +41,7 @@ export function SetupStatus({
   return (
     <section
       aria-labelledby="setup-status-heading"
-      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
+      className="space-y-3 rounded-card glass-card p-4"
     >
       <div className="space-y-1">
         <h2 id="setup-status-heading" className="font-semibold">

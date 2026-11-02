@@ -155,7 +155,7 @@ export function PushDeviceManager({
   return (
     <section
       aria-labelledby="push-heading"
-      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
+      className="space-y-3 rounded-card glass-card p-4"
     >
       <h3 id="push-heading" className="font-semibold">
         Push on this device
@@ -183,7 +183,7 @@ export function PushDeviceManager({
             type="button"
             onClick={turnOn}
             disabled={busy}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             Turn on push
           </button>
@@ -197,7 +197,7 @@ export function PushDeviceManager({
               type="button"
               onClick={sendTest}
               disabled={busy}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-60"
+              className="btn-soft rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-60"
             >
               Send a test
             </button>
@@ -205,7 +205,7 @@ export function PushDeviceManager({
               type="button"
               onClick={turnOff}
               disabled={busy}
-              className="rounded-md px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-60"
+              className="hover-glass rounded-full px-3 py-1.5 text-sm disabled:opacity-60"
             >
               Turn off push
             </button>

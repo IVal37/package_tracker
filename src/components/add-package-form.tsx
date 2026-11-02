@@ -27,10 +27,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
       : null;
 
   return (
-    <form
-      action={formAction}
-      className="rounded-lg border border-slate-200 bg-surface p-4"
-    >
+    <form action={formAction} className="rounded-card glass-card p-4">
       <h2 className="mb-3 font-semibold">Add a package</h2>
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-start">
         <div>
@@ -50,7 +47,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
                 ? "trackingNumber-error"
                 : undefined
             }
-            className="w-full rounded-md border border-slate-300 px-3 py-2"
+            className="w-full glass-field rounded-xl px-3 py-2"
           />
           {error?.fieldErrors.trackingNumber && (
             <p id="trackingNumber-error" className="mt-1 text-sm text-danger">
@@ -72,7 +69,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
             aria-describedby={
               error?.fieldErrors.nickname ? "nickname-error" : undefined
             }
-            className="w-full rounded-md border border-slate-300 px-3 py-2"
+            className="w-full glass-field rounded-xl px-3 py-2"
           />
           {error?.fieldErrors.nickname && (
             <p id="nickname-error" className="mt-1 text-sm text-danger">
@@ -83,7 +80,7 @@ export function AddPackageForm({ action }: AddPackageFormProps) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {pending ? "Adding…" : "Add"}
         </button>

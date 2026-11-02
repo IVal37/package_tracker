@@ -45,7 +45,7 @@ export function InstallCard() {
   return (
     <section
       aria-label="Install Wayfind"
-      className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4"
+      className="space-y-3 rounded-card glass-card p-4"
     >
       {prompt && (
         <>
@@ -60,7 +60,7 @@ export function InstallCard() {
               setPrompt(null);
               setMode("hidden");
             }}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+            className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             Install app
           </button>

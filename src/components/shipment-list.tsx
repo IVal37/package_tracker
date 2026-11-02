@@ -37,7 +37,7 @@ export function ShipmentList({
 }: ShipmentListProps) {
   if (groups.length === 0 && orders.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-500">
+      <p className="rounded-card border border-dashed border-slate-300 p-8 text-center text-slate-500">
         No packages yet — add a tracking number above.
       </p>
     );
@@ -74,12 +74,12 @@ function renderGroup(group: ShipmentGroup<ShipmentListItem>, now: Date) {
           ({group.shipments.length})
         </span>
       </h2>
-      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-surface">
+      <ul className="divide-y divide-slate-200/60 overflow-hidden rounded-card glass-card">
         {group.shipments.map((shipment) => (
           <li key={shipment.id}>
             <Link
               href={`/?shipment=${shipment.id}`}
-              className="flex flex-col gap-1 p-4 hover:bg-slate-50"
+              className="flex flex-col gap-1 p-4 hover-glass"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="font-medium">
@@ -135,7 +135,7 @@ function OrderedSection({ orders, now, dismissAction }: OrderedSectionProps) {
         Ordered{" "}
         <span className="font-normal text-slate-400">({orders.length})</span>
       </h2>
-      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-surface">
+      <ul className="divide-y divide-slate-200/60 overflow-hidden rounded-card glass-card">
         {orders.map((order) => {
           const details = [
             order.item ? order.retailer : null,
@@ -165,7 +165,7 @@ function OrderedSection({ orders, now, dismissAction }: OrderedSectionProps) {
                   <input type="hidden" name="orderId" value={order.id} />
                   <button
                     type="submit"
-                    className="rounded-md px-3 py-1.5 text-sm hover:bg-slate-100"
+                    className="hover-glass rounded-full px-3 py-1.5 text-sm"
                   >
                     Dismiss
                   </button>

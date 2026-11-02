@@ -22,7 +22,7 @@ export default async function AccountDeletedPage({
         been removed from Wayfind.
       </p>
       {signInKept && (
-        <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           Your sign-in could not be removed just now. It holds no data, and we
           have been told so we can remove it. Signing in again would start a
           new, empty account.

@@ -52,7 +52,7 @@ export function ConfirmationWatcher() {
       <button
         type="button"
         onClick={checkNow}
-        className="rounded border border-slate-300 bg-surface px-2 py-1 text-slate-700 hover:bg-slate-100"
+        className="btn-soft rounded-full px-2.5 py-1 text-slate-700"
       >
         Check now
       </button>

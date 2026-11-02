@@ -5,6 +5,9 @@
   --color-brand-600: #2563eb;
   --color-brand-700: #1d4ed8;
 
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.75rem;
+
   /*
    * Colours whose meaning differs from the shade they replace in the dark
    * theme. Use these, not the shade, for: card backgrounds (bg-surface),
@@ -17,6 +20,31 @@
   --color-danger: #dc2626;
   --color-ink: #0f172a;
   --color-on-ink: #ffffff;
+}
+
+/*
+ * Liquid glass. Light values here; the dark ones sit in the two dark blocks
+ * below. Blur lives only on the ::before layer of .glass and .glass-strong
+ * (never on the element): a backdrop filter on an element makes it the
+ * containing block for fixed-position children, which would trap the Upgrade
+ * popup inside the header.
+ */
+:root {
+  --glass-tint: rgb(255 255 255 / 0.55);
+  --glass-tint-strong: rgb(255 255 255 / 0.8);
+  --glass-card: rgb(255 255 255 / 0.62);
+  --glass-field: rgb(255 255 255 / 0.7);
+  --glass-pill: rgb(255 255 255 / 0.95);
+  --glass-rim: rgb(255 255 255 / 0.9);
+  --glass-edge: rgb(15 23 42 / 0.1);
+  --glass-shadow: rgb(15 23 42 / 0.12);
+  --glass-hover: rgb(15 23 42 / 0.06);
+  --glass-scrim: rgb(15 23 42 / 0.3);
+  --glass-blur: blur(20px) saturate(1.6);
+  --glass-blur-strong: blur(32px) saturate(1.7);
+  --glass-blur-scrim: blur(8px);
+  --wash-a: rgb(37 99 235 / 0.16);
+  --wash-b: rgb(99 102 241 / 0.1);
 }
 
 /*
@@ -64,6 +92,18 @@
   --color-indigo-800: #a5b4fc;
   --color-teal-100: #0f3533;
   --color-teal-800: #5eead4;
+  --glass-tint: rgb(24 35 58 / 0.5);
+  --glass-tint-strong: rgb(18 27 46 / 0.82);
+  --glass-card: rgb(18 27 46 / 0.62);
+  --glass-field: rgb(255 255 255 / 0.07);
+  --glass-pill: rgb(255 255 255 / 0.18);
+  --glass-rim: rgb(255 255 255 / 0.16);
+  --glass-edge: rgb(255 255 255 / 0.09);
+  --glass-shadow: rgb(0 0 0 / 0.4);
+  --glass-hover: rgb(255 255 255 / 0.07);
+  --glass-scrim: rgb(0 0 0 / 0.55);
+  --wash-a: rgb(59 130 246 / 0.2);
+  --wash-b: rgb(99 102 241 / 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,6 +144,18 @@
     --color-indigo-800: #a5b4fc;
     --color-teal-100: #0f3533;
     --color-teal-800: #5eead4;
+    --glass-tint: rgb(24 35 58 / 0.5);
+    --glass-tint-strong: rgb(18 27 46 / 0.82);
+    --glass-card: rgb(18 27 46 / 0.62);
+    --glass-field: rgb(255 255 255 / 0.07);
+    --glass-pill: rgb(255 255 255 / 0.18);
+    --glass-rim: rgb(255 255 255 / 0.16);
+    --glass-edge: rgb(255 255 255 / 0.09);
+    --glass-shadow: rgb(0 0 0 / 0.4);
+    --glass-hover: rgb(255 255 255 / 0.07);
+    --glass-scrim: rgb(0 0 0 / 0.55);
+    --wash-a: rgb(59 130 246 / 0.2);
+    --wash-b: rgb(99 102 241 / 0.14);
   }
 }
 
@@ -111,6 +163,224 @@
   color-scheme: light;
 }
 
+html {
+  scroll-padding-top: 6rem;
+}
+
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* The soft brand wash the glass sits on: fixed, behind everything. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 36rem at 8% -8%, var(--wash-a), transparent 65%),
+    radial-gradient(48rem 32rem at 100% 4%, var(--wash-b), transparent 60%);
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-link);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Radius is never set here: the component adds rounded-full, rounded-card or
+ * rounded-sheet, and the glass layer follows it (border-radius: inherit).
+ */
+@layer components {
+  .glass,
+  .glass-strong {
+    position: relative;
+    isolation: isolate;
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      inset 0 0 0 1px var(--glass-edge),
+      0 10px 32px -12px var(--glass-shadow);
+  }
+
+  .glass::before,
+  .glass-strong::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--glass-tint);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+
+  .glass-strong::before {
+    background: var(--glass-tint-strong);
+    -webkit-backdrop-filter: var(--glass-blur-strong);
+    backdrop-filter: var(--glass-blur-strong);
+  }
+
+  /* Cards: translucent with a bright rim, and no blur, so long lists stay fast. */
+  .glass-card {
+    background: var(--glass-card);
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      inset 0 0 0 1px var(--glass-edge),
+      0 6px 24px -14px var(--glass-shadow);
+  }
+
+  .glass-field {
+    background: var(--glass-field);
+    box-shadow: inset 0 0 0 1px var(--glass-edge);
+  }
+
+  .btn-soft {
+    background: var(--glass-card);
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      inset 0 0 0 1px var(--glass-edge);
+    transition: background-color 0.15s;
+  }
+
+  .btn-soft:hover {
+    background: var(--glass-tint-strong);
+  }
+
+  /* The selected tab. */
+  .glass-pill {
+    background: var(--glass-pill);
+    color: var(--color-slate-900);
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      inset 0 0 0 1px var(--glass-edge),
+      0 2px 8px -2px var(--glass-shadow);
+  }
+
+  .hover-glass:hover {
+    background: var(--glass-hover);
+  }
+
+  .glass-frame {
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px var(--glass-edge),
+      0 12px 32px -14px var(--glass-shadow);
+  }
+
+  .glass-scrim {
+    background: var(--glass-scrim);
+    -webkit-backdrop-filter: var(--glass-blur-scrim);
+    backdrop-filter: var(--glass-blur-scrim);
+    animation: scrim-in 0.2s ease-out;
+  }
+
+  /* No opacity here: it would turn the panel into a backdrop root and the blur would flicker. */
+  .animate-sheet {
+    animation: sheet-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  }
+
+  .animate-sheet-side {
+    animation: sheet-side-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: scale(0.96) translateY(0.5rem);
+  }
+}
+
+@keyframes sheet-side-in {
+  from {
+    transform: translateX(1.5rem);
+  }
+}
+
+/*
+ * Solid instead of glass: when the browser cannot blur, or the person asks for
+ * less transparency or more contrast. Two blocks with the same declarations
+ * (CSS cannot share them between @supports and @media); tests/theme-css.test.ts
+ * fails if they drift apart.
+ */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  :root:root {
+    --glass-tint: var(--color-surface);
+    --glass-tint-strong: var(--color-surface);
+    --glass-card: var(--color-surface);
+    --glass-field: var(--color-surface);
+    --glass-pill: var(--color-slate-200);
+    --glass-blur: none;
+    --glass-blur-strong: none;
+    --glass-blur-scrim: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce),
+  (prefers-contrast: more),
+  (forced-colors: active) {
+  :root:root {
+    --glass-tint: var(--color-surface);
+    --glass-tint-strong: var(--color-surface);
+    --glass-card: var(--color-surface);
+    --glass-field: var(--color-surface);
+    --glass-pill: var(--color-slate-200);
+    --glass-blur: none;
+    --glass-blur-strong: none;
+    --glass-blur-scrim: none;
+  }
+}
+
+/* Forced colours drop shadows, so edges become real borders. */
+@media (forced-colors: active) {
+  .glass,
+  .glass-strong,
+  .glass-card,
+  .glass-field,
+  .btn-soft {
+    border: 1px solid CanvasText;
+  }
+
+  .glass-pill {
+    border: 2px solid Highlight;
+    background: Canvas;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-scrim,
+  .animate-sheet,
+  .animate-sheet-side {
+    animation: none;
+  }
+}
+
+/*
+ * MapLibre's attribution, as glass. Not in a layer on purpose: MapLibre's own
+ * stylesheet is unlayered and would beat a layered rule. The credit stays
+ * fully legible.
+ */
+.maplibregl-map .maplibregl-ctrl-attrib,
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  margin: 0.5rem;
+  border-radius: 9999px;
+  background: var(--glass-tint-strong);
+  color: var(--color-slate-700);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib a {
+  color: inherit;
 }

@@ -82,3 +82,44 @@ describe("colours used by components", () => {
     expect(wrong).toEqual([]);
   });
 });
+
+/** The declarations of the first `:root:root` block after `marker`. */
+function declarationsAfter(marker: string): Map<string, string> {
+  const at = css.indexOf(marker);
+  expect(at, `${marker} not found in globals.css`).toBeGreaterThan(-1);
+  const open = css.indexOf("{", css.indexOf(":root:root", at));
+  const found = new Map<string, string>();
+  for (const line of css.slice(open + 1, css.indexOf("}", open)).split(";")) {
+    const [name, value] = line.split(":").map((part) => part.trim());
+    if (name?.startsWith("--")) found.set(name, value ?? "");
+  }
+  return found;
+}
+
+describe("liquid glass", () => {
+  it("has a dark value for every glass token", () => {
+    const tokens = [...css.matchAll(/^ {2}(--(?:glass|wash)-[a-z-]+):/gm)].map(
+      (match) => match[1]!,
+    );
+    const colours = tokens.filter((name) => !name.startsWith("--glass-blur"));
+    for (const name of new Set(colours)) {
+      expect(pinned.has(name), `${name} has no dark value`).toBe(true);
+    }
+  });
+
+  it("falls back to solid in the same way when blur is unsupported or unwanted", () => {
+    const unsupported = declarationsAfter("@supports not");
+    const unwanted = declarationsAfter("@media (prefers-reduced-transparency");
+    expect(unsupported.size).toBeGreaterThan(4);
+    expect([...unwanted]).toEqual([...unsupported]);
+  });
+
+  it("never blurs an element itself, only its ::before layer", () => {
+    // A backdrop filter on an element makes it the containing block of its
+    // fixed children, which traps the Upgrade popup inside the header.
+    const offenders = sources.filter((file) =>
+      /\bbackdrop-|backdrop-?[fF]ilter/.test(readFileSync(file, "utf8")),
+    );
+    expect(offenders).toEqual([]);
+  });
+});

@@ -67,6 +67,9 @@ describe("buildUserExport", () => {
         item: "alice item",
         orderNumber: "alice-1001",
         packageId: alice.shipmentId,
+        stage: "ordered",
+        estimate: null,
+        stageUpdatedAt: null,
       }),
     ]);
     expect(data.forwardedEmails).toEqual([

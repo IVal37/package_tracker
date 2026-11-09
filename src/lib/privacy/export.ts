@@ -67,6 +67,9 @@ export async function buildUserExport(args: {
       item: order.item,
       orderNumber: order.orderNumber,
       packageId: order.shipmentId,
+      stage: order.stage,
+      estimate: order.etaText,
+      stageUpdatedAt: iso(order.stageAt),
       createdAt: iso(order.createdAt),
     })),
     forwardedEmails: data.emails.map((email) => ({

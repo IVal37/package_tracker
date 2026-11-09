@@ -23,8 +23,10 @@ export function PrivateAddressSection({
       </h3>
       <p className="text-sm text-slate-600">
         Forward order and shipping emails here and the packages appear in your
-        list. Keep this address to yourself: anyone who has it can add packages
-        to your account.
+        list. Some stores, Amazon among them, leave the tracking number out of
+        their emails; those orders show what the email says, without a map. Keep
+        this address to yourself: anyone who has it can add packages to your
+        account.
       </p>
       <ForwardingAddress
         address={address}

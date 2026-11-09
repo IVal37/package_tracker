@@ -82,7 +82,7 @@ src/
   lib/geo/             infer-mode (inferMode/shipmentMode), map-data (buildMapData), geocode-place (cache-first), place-events, map-style
   lib/geo/geocoder/    import only from index.ts: Geocoder, getGeocoder(); nominatim.ts and fake.ts are never imported from outside lib/geo
   lib/db/geo-sync.ts   system-scope place queries for the geocoding jobs (import-restricted by ESLint)
-  lib/email/           alias (forwarding addresses), forwarding-address (a signed-in user's address), receive (webhook logic), process (email -> orders and shipments), email-texts (what the model reads), html-to-text, tracking-patterns, gmail-confirmation, keep-gmail-confirmation, retailer-key, cleanup, eval-score
+  lib/email/           alias (forwarding addresses), forwarding-address (a signed-in user's address), receive (webhook logic), process (email -> orders and shipments), email-texts (what the model reads), html-to-text, tracking-patterns, gmail-confirmation, keep-gmail-confirmation, retailer-key, order-stage (stageForEmailType, shouldSetStage), cleanup, eval-score
   lib/email/extract/   import only from index.ts: Extractor, getExtractor(); claude.ts and fake.ts are never imported from outside lib/email. validate.ts grounds and cleans model output
   lib/db/inbound-sync.ts  system-scope alias -> user lookup and email loading for the webhook and jobs (import-restricted by ESLint)
   lib/db/orders.ts, forwarding.ts, inbound-emails.ts  user-scoped queries for orders, the forwarding alias and stored emails
@@ -174,7 +174,8 @@ docs/
   - Strings that came from an email (retailer, item, order number) are rendered as React text only: never as HTML, a URL or a link target. The one exception is Gmail's forwarding confirmation link on Setup: it is kept and shown only if `safeGmailConfirmationLink` accepts it (https, one of Google's three confirmation hosts, the `/mail/vf-` path, no credentials or port), it is checked again when read back, and nothing else from an email is ever linked.
   - An unknown alias, a repeated Message-ID and a user over the daily cap all answer 200 and store nothing, so a prober learns nothing. Logs hold outcomes and counts only, never the body, subject, addresses or secret.
   - Orders match on `(user, retailer key, order number)`; an order number alone is never enough (Shopify stores all start at `#1001`).
-- Raw inbound emails are deleted after 30 days; "Ordered" placeholders that never shipped are deleted after 90 days (daily cleanup job).
+  - A shipping or delivery email with an order number but no tracking number sets the order's stage (`recordOrderStage`, plan: `docs/amazon-order-status-plan.md`). The stage comes from `email_type`, never from a model field, and the newest email by arrival time wins (`shouldSetStage`), never by ranking stages. `delivery_estimate` is email text: rendered as React text only. An order that already has a package is left alone, and none of this creates alerts or map pins.
+- Raw inbound emails are deleted after 30 days; orders with no package are deleted 90 days after their last email, and ones an email called delivered after 14 days (daily cleanup job).
 - Alerts (Phase 6):
   - An alert is recorded only by `applyTrackerUpdate`, in the same transaction as the status change, and by the hourly overdue scan. The unique key `(shipment, kind, dedupe_key)` is what makes "once per event" true: a redelivered webhook, a re-fetch and a late older event record nothing. Archived shipments never alert, and a shipment added by hand or from an email never alerts at creation.
   - Alerts are sent from jobs only. The one exception is Settings' "Send a test", limited to 3 a minute per user and sent only to that user's own devices.

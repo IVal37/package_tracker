@@ -13,6 +13,7 @@ import {
   findOrdersByKey,
   getOrderForShipment,
   listOrderPlaceholders,
+  recordOrderStage,
 } from "./orders";
 import { orders } from "./schema";
 
@@ -254,6 +255,136 @@ describe("database errors that are not duplicates", () => {
       createOrder(ctx.db, user.id, {
         ...order(),
         shipmentId: NO_SUCH_ID,
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("recordOrderStage", () => {
+  const at = (minutes: number) =>
+    new Date(Date.UTC(2026, 10, 7, 12, minutes, 0));
+  const keyed = (orderNumber: string, extra = {}) => ({
+    ...order({ orderNumber, ...extra }),
+    retailerKey: "amazon",
+    orderNumber,
+  });
+
+  it("creates an order from a shipping email that has no shipment", async () => {
+    const user = await insertUser(ctx.db);
+    const result = await recordOrderStage(ctx.db, user.id, keyed("112-1"), {
+      stage: "shipped",
+      etaText: "Arriving tomorrow",
+      at: at(0),
+    });
+    expect(result).toBe("created");
+
+    const [row] = await listOrderPlaceholders(ctx.db, user.id);
+    expect(row).toMatchObject({
+      stage: "shipped",
+      etaText: "Arriving tomorrow",
+      shipmentId: null,
+    });
+    expect(row?.stageAt).toEqual(at(0));
+  });
+
+  it("moves an existing placeholder on, keeping what the first email said", async () => {
+    const user = await insertUser(ctx.db);
+    await createOrder(ctx.db, user.id, keyed("112-2", { item: "Socks" }));
+
+    const result = await recordOrderStage(
+      ctx.db,
+      user.id,
+      keyed("112-2", { item: null, retailer: null }),
+      { stage: "shipped", etaText: "Arriving tomorrow", at: at(0) },
+    );
+
+    expect(result).toBe("updated");
+    const rows = await listOrderPlaceholders(ctx.db, user.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      stage: "shipped",
+      item: "Socks",
+      retailer: "Amazon",
+    });
+  });
+
+  it("lets a newer email replace an older one, and ignores a late older one", async () => {
+    const user = await insertUser(ctx.db);
+    const data = keyed("112-3");
+    await recordOrderStage(ctx.db, user.id, data, {
+      stage: "shipped",
+      etaText: "Arriving tomorrow",
+      at: at(10),
+    });
+
+    expect(
+      await recordOrderStage(ctx.db, user.id, data, {
+        stage: "delivered",
+        etaText: null,
+        at: at(20),
+      }),
+    ).toBe("updated");
+    expect(
+      await recordOrderStage(ctx.db, user.id, data, {
+        stage: "shipped",
+        etaText: "Arriving Friday",
+        at: at(5),
+      }),
+    ).toBe("unchanged");
+    expect(
+      await recordOrderStage(ctx.db, user.id, data, {
+        stage: "shipped",
+        etaText: "Arriving Friday",
+        at: at(20),
+      }),
+    ).toBe("unchanged");
+
+    const [row] = await listOrderPlaceholders(ctx.db, user.id);
+    expect(row).toMatchObject({ stage: "delivered", etaText: null });
+  });
+
+  it("leaves an order that already has a shipment alone", async () => {
+    const user = await insertUser(ctx.db);
+    const shipment = await insertShipment(ctx.db, user.id);
+    await createOrder(ctx.db, user.id, {
+      ...keyed("112-4"),
+      shipmentId: shipment.id,
+    });
+
+    const result = await recordOrderStage(ctx.db, user.id, keyed("112-4"), {
+      stage: "delivered",
+      etaText: null,
+      at: at(0),
+    });
+
+    expect(result).toBe("unchanged");
+    expect(await listOrderPlaceholders(ctx.db, user.id)).toEqual([]);
+    const [row] = await findOrdersByKey(ctx.db, user.id, "amazon", "112-4");
+    expect(row?.stage).toBe("ordered");
+  });
+
+  it("never touches another user's order of the same number", async () => {
+    const owner = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    await createOrder(ctx.db, owner.id, keyed("112-5"));
+
+    await recordOrderStage(ctx.db, other.id, keyed("112-5"), {
+      stage: "shipped",
+      etaText: null,
+      at: at(0),
+    });
+
+    const [mine] = await listOrderPlaceholders(ctx.db, owner.id);
+    expect(mine?.stage).toBe("ordered");
+    expect(await listOrderPlaceholders(ctx.db, other.id)).toHaveLength(1);
+  });
+
+  it("refuses a stage the database does not know", async () => {
+    const user = await insertUser(ctx.db);
+    await expect(
+      ctx.db.insert(orders).values({
+        userId: user.id,
+        stage: "lost" as unknown as "shipped",
       }),
     ).rejects.toThrow();
   });

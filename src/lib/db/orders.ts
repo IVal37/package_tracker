@@ -2,6 +2,7 @@
 // userId and filters by it: another user's order is indistinguishable from a
 // missing one.
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { shouldSetStage, type OrderStage } from "@/lib/email/order-stage";
 import type { Db } from "./client";
 import { orders } from "./schema";
 import { isUuid, onUniqueViolation } from "./shipments";
@@ -14,6 +15,15 @@ export interface NewOrder {
   item: string | null;
   orderNumber: string | null;
   sourceEmailId: string | null;
+}
+
+/** What an email says about an order that has no shipment. */
+export interface OrderStageUpdate {
+  stage: OrderStage;
+  /** The retailer's estimate in its own words, already cleaned. */
+  etaText: string | null;
+  /** When the email arrived (our clock, not the email's headers). */
+  at: Date;
 }
 
 /** One of the user's orders that has no shipment yet. */
@@ -92,7 +102,12 @@ export async function findOrdersByKey(
 export function createOrder(
   db: Db,
   userId: string,
-  order: NewOrder & { shipmentId?: string },
+  order: NewOrder & {
+    shipmentId?: string;
+    stage?: OrderStage;
+    etaText?: string | null;
+    stageAt?: Date;
+  },
 ): Promise<string | null> {
   return onUniqueViolation(null, async () => {
     const [row] = await db
@@ -119,4 +134,65 @@ export function attachShipment(
       .returning({ id: orders.id });
     return updated.length > 0;
   });
+}
+
+/**
+ * Records what an email says about an order that has no shipment: creates the
+ * order if there is none, or moves its stage on. The newest email wins by
+ * arrival time (shouldSetStage); a late older one changes nothing. An order
+ * that already has a shipment is the shipment's business and is left alone.
+ * Returns what happened.
+ */
+export async function recordOrderStage(
+  db: Db,
+  userId: string,
+  order: NewOrder & { retailerKey: string; orderNumber: string },
+  update: OrderStageUpdate,
+): Promise<"created" | "updated" | "unchanged"> {
+  // A second email for the same order can land between the read and the
+  // write; read again a couple of times before giving up.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const rows = await findOrdersByKey(
+      db,
+      userId,
+      order.retailerKey,
+      order.orderNumber,
+    );
+    if (rows.some((row) => row.shipmentId !== null)) return "unchanged";
+
+    const current = rows[0];
+    if (!current) {
+      const id = await createOrder(db, userId, {
+        ...order,
+        stage: update.stage,
+        etaText: update.etaText,
+        stageAt: update.at,
+      });
+      if (id) return "created";
+      continue;
+    }
+    if (!shouldSetStage(current, update.at)) return "unchanged";
+
+    const updated = await db
+      .update(orders)
+      .set({
+        stage: update.stage,
+        etaText: update.etaText,
+        stageAt: update.at,
+        // Keep what the first email told us; fill in what it lacked.
+        retailer: current.retailer ?? order.retailer,
+        item: current.item ?? order.item,
+      })
+      .where(
+        and(
+          placeholderOf(userId, current.id),
+          current.stageAt === null
+            ? isNull(orders.stageAt)
+            : eq(orders.stageAt, current.stageAt),
+        ),
+      )
+      .returning({ id: orders.id });
+    if (updated.length > 0) return "updated";
+  }
+  return "unchanged";
 }

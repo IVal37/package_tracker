@@ -257,6 +257,9 @@ describe("Home page: orders from forwarded email", () => {
     orderNumber: "1001",
     shipmentId: null,
     sourceEmailId: null,
+    stage: "ordered",
+    etaText: null,
+    stageAt: null,
     createdAt: NOW,
   };
 

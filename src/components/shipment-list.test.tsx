@@ -141,6 +141,9 @@ describe("ShipmentList: Ordered section", () => {
     retailer: "Target",
     item: "Desk lamp",
     orderNumber: "1001",
+    stage: "ordered",
+    etaText: null,
+    stageAt: null,
     createdAt: new Date("2026-06-08T12:00:00Z"),
     ...overrides,
   });
@@ -253,5 +256,103 @@ describe("ShipmentList: Ordered section", () => {
     expect(
       screen.queryByRole("button", { name: "Dismiss" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ShipmentList: orders known only from emails", () => {
+  const sent = new Date("2026-06-10T11:00:00Z");
+  const order = (
+    id: string,
+    overrides: Partial<OrderedItem> = {},
+  ): OrderedItem => ({
+    id,
+    retailer: "Amazon",
+    item: "Phone Accessories",
+    orderNumber: "112-1354490-0056218",
+    stage: "shipped",
+    etaText: "Arriving tomorrow",
+    stageAt: sent,
+    createdAt: new Date("2026-06-08T12:00:00Z"),
+    ...overrides,
+  });
+  const headings = () =>
+    screen
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent?.replace(/\s+/g, " ").trim());
+  const show = (
+    items: ShipmentListItem[],
+    orders: OrderedItem[],
+    dismissOrderAction?: (formData: FormData) => Promise<void>,
+  ) =>
+    render(
+      <ShipmentList
+        groups={groupShipmentsByStatus(items)}
+        now={NOW}
+        orders={orders}
+        dismissOrderAction={dismissOrderAction}
+      />,
+    );
+
+  it("says an order shipped, with the retailer's estimate and where it came from", () => {
+    show([], [order("o1")]);
+    const row = screen.getByRole("listitem");
+    expect(headings()).toEqual(["Shipped, no tracking number (1)"]);
+    expect(row).toHaveTextContent("Shipped · Arriving tomorrow");
+    expect(row).toHaveTextContent("From an email");
+    expect(row).toHaveTextContent("no tracking number yet");
+    expect(
+      within(row).getByText("Amazon · #112-1354490-0056218"),
+    ).toBeVisible();
+  });
+
+  it("says Shipped alone when the email gave no estimate", () => {
+    show([], [order("o1", { etaText: null })]);
+    const row = screen.getByRole("listitem");
+    expect(row).toHaveTextContent(/Shipped(?! ·)/);
+    expect(row).not.toHaveTextContent("Shipped ·  ");
+  });
+
+  it("puts shipped orders before Ordered, and delivered ones at the end", () => {
+    show(
+      [shipment("a", "InTransit"), shipment("b", "Delivered")],
+      [
+        order("o1", { stage: "ordered", etaText: null, stageAt: null }),
+        order("o2"),
+        order("o3", { stage: "delivered", etaText: null }),
+      ],
+    );
+    expect(headings()).toEqual([
+      "In transit (1)",
+      "Shipped, no tracking number (1)",
+      "Ordered (1)",
+      "Delivered (1)",
+      "Delivered, no tracking number (1)",
+    ]);
+  });
+
+  it("shows a delivered order as delivered, by email", () => {
+    show([], [order("o1", { stage: "delivered", etaText: null })]);
+    const row = screen.getByRole("listitem");
+    expect(row).toHaveTextContent("Delivered");
+    expect(row).toHaveTextContent("From an email");
+    expect(row).not.toHaveTextContent("no tracking number yet");
+  });
+
+  it("renders an estimate that contains markup as text", () => {
+    const { container } = show(
+      [],
+      [order("o1", { etaText: "<img src=x onerror=alert(1)> today" })],
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByRole("listitem")).toHaveTextContent(
+      "<img src=x onerror=alert(1)> today",
+    );
+  });
+
+  it("can be dismissed like any other order", async () => {
+    const action = vi.fn(async (_formData: FormData) => {});
+    show([], [order("o1")], action);
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(action.mock.calls[0]![0].get("orderId")).toBe("o1");
   });
 });

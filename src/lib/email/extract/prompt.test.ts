@@ -29,6 +29,7 @@ describe("SYSTEM_PROMPT", () => {
       "retailer",
       "item",
       "order_number",
+      "delivery_estimate",
       "tracking_numbers",
       "order_confirmation",
       "shipping_confirmation",

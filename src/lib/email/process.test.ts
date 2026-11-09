@@ -308,6 +308,7 @@ describe("tracking numbers that cannot be used", () => {
     retailer: "Shop",
     item: "Gadget",
     order_number: "5555-1",
+    delivery_estimate: null,
     tracking_numbers: [
       { tracking_number: "FAKE-INVALID-1", carrier: null },
       { tracking_number: "TBA555555555555", carrier: null },
@@ -402,6 +403,7 @@ describe("tracking numbers that cannot be used", () => {
       emailId,
       answering({
         ...model,
+        delivery_estimate: null,
         tracking_numbers: [
           { tracking_number: "TBA999999999999", carrier: null },
         ],
@@ -429,6 +431,7 @@ describe("tracking numbers that cannot be used", () => {
       emailId,
       answering({
         ...model,
+        delivery_estimate: null,
         tracking_numbers: [
           { tracking_number: "12", carrier: null },
           { tracking_number: "AB#12345", carrier: null },
@@ -454,6 +457,7 @@ describe("carrier-format numbers the model missed", () => {
         retailer: "Shop",
         item: null,
         order_number: "4444-9",
+        delivery_estimate: null,
         tracking_numbers: [],
       }),
     );
@@ -474,6 +478,7 @@ describe("carrier-format numbers the model missed", () => {
         retailer: "Shop",
         item: null,
         order_number: null,
+        delivery_estimate: null,
         tracking_numbers: [],
       }),
     );
@@ -495,6 +500,7 @@ describe("carrier-format numbers the model missed", () => {
         retailer: "Shop",
         item: null,
         order_number: null,
+        delivery_estimate: null,
         tracking_numbers: [],
       }),
     );
@@ -517,6 +523,7 @@ describe("carrier-format numbers the model missed", () => {
         retailer: "Shop",
         item: null,
         order_number: null,
+        delivery_estimate: null,
         tracking_numbers: [],
       }),
     );
@@ -540,6 +547,7 @@ describe("carrier-format numbers the model missed", () => {
         retailer: "Shop",
         item: "Gadget",
         order_number: "4444-9",
+        delivery_estimate: null,
         tracking_numbers: [],
       }),
     );
@@ -587,6 +595,7 @@ describe("emails that make nothing", () => {
         retailer: "Shop",
         item: null,
         order_number: null,
+        delivery_estimate: null,
         tracking_numbers: [],
       }),
     );
@@ -675,6 +684,7 @@ describe("what the model sees", () => {
       retailer: "Shop",
       item: null,
       order_number: null,
+      delivery_estimate: null,
       tracking_numbers: [],
     });
 
@@ -724,6 +734,7 @@ describe("what the model sees", () => {
       retailer: "S",
       item: null,
       order_number: null,
+      delivery_estimate: null,
       tracking_numbers: [{ tracking_number: "TBA888888888888", carrier: null }],
     });
 
@@ -939,6 +950,7 @@ describe("one user's email can never touch another user's data", () => {
         retailer: "Amazon",
         item: `Do this for ${victim.email}`,
         order_number: "112-4455667-8899001",
+        delivery_estimate: null,
         tracking_numbers: [
           { tracking_number: "9400111899223197428491", carrier: null },
           // Not in the email at all: must be dropped.

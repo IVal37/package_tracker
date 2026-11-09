@@ -132,3 +132,35 @@ describe("FakeExtractor: tracking numbers", () => {
     expect(extractor.name).toBe("fake");
   });
 });
+
+describe("FakeExtractor: delivery estimate", () => {
+  it("copies the retailer's arrival line from a shipping email", async () => {
+    const answer = await run(
+      "Amazon.com <shipment-tracking@amazon.com>",
+      "Shipped: Phone Accessories",
+      "Your package was shipped!\nArriving tomorrow\nOrder # 112-1354490-0056218\n",
+    );
+    expect(answer).toMatchObject({
+      email_type: "shipping_confirmation",
+      delivery_estimate: "Arriving tomorrow",
+      order_number: "112-1354490-0056218",
+      tracking_numbers: [],
+    });
+  });
+
+  it("has none when the email gives none, or is not about a shipment", async () => {
+    expect(
+      (await run("Shop <a@shop.test>", "Your order has shipped", "Hi Sam"))
+        .delivery_estimate,
+    ).toBeNull();
+    expect(
+      (
+        await run(
+          "Shop <a@shop.test>",
+          "Thanks for your order",
+          "Arriving Thursday, June 25",
+        )
+      ).delivery_estimate,
+    ).toBeNull();
+  });
+});

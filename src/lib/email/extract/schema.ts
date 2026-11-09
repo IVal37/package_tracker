@@ -34,6 +34,9 @@ export const extractionSchema = z.strictObject({
   retailer: optionalText(80),
   item: optionalText(120),
   order_number: optionalText(60),
+  // The retailer's estimate in its own words ("Arriving tomorrow"), shown as
+  // plain text. An answer without the field reads as "no estimate".
+  delivery_estimate: optionalText(60).default(null),
   tracking_numbers: z.array(trackingEntry).max(MAX_TRACKING_NUMBERS),
 });
 
@@ -46,6 +49,7 @@ const apiSchema = z.strictObject({
   retailer: z.string().nullable(),
   item: z.string().nullable(),
   order_number: z.string().nullable(),
+  delivery_estimate: z.string().nullable(),
   tracking_numbers: z.array(
     z.strictObject({
       tracking_number: z.string(),

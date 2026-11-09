@@ -26,6 +26,7 @@ const ANSWER = {
   retailer: "Amazon",
   item: "Merino socks",
   order_number: "112-4455667-8899001",
+  delivery_estimate: "Arriving tomorrow",
   tracking_numbers: [
     { tracking_number: "TBA123456789012", carrier: "Amazon Logistics" },
   ],
@@ -130,6 +131,7 @@ describe("ClaudeExtractor: the request", () => {
     expect(format.type).toBe("json_schema");
     expect(format.schema.additionalProperties).toBe(false);
     expect(Object.keys(format.schema.properties).sort()).toEqual([
+      "delivery_estimate",
       "email_type",
       "item",
       "order_number",
@@ -154,6 +156,7 @@ describe("ClaudeExtractor: valid answers", () => {
       retailer: null,
       item: null,
       order_number: null,
+      delivery_estimate: null,
       tracking_numbers: [],
     };
     answerWith(quiet);
@@ -204,6 +207,10 @@ describe("ClaudeExtractor: malformed output is rejected", () => {
     ["an over-long retailer", { ...ANSWER, retailer: "R".repeat(81) }],
     ["an over-long item", { ...ANSWER, item: "I".repeat(121) }],
     ["an over-long order number", { ...ANSWER, order_number: "9".repeat(61) }],
+    [
+      "an over-long delivery estimate",
+      { ...ANSWER, delivery_estimate: "A".repeat(61) },
+    ],
     [
       "an over-long tracking number",
       {

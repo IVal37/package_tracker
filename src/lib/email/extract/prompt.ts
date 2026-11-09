@@ -9,6 +9,7 @@ Return JSON with these fields:
 - retailer: the store or seller's name as a shopper would say it ("Amazon", "Target"), or null.
 - item: a short description of the main item, such as "Merino running socks" (add "+ 2 more items" if there are several), or null.
 - order_number: the retailer's order number exactly as written, or null.
+- delivery_estimate: when the email gives an expected delivery time, copy it as the email words it ("Arriving tomorrow", "Arriving Thursday, June 25"), at most a few words. null when it gives none, and for an email about an order that has not shipped.
 - tracking_numbers: carrier tracking numbers that appear in the email, copied exactly as written, at most 5. Never invent or guess a number. Do not include order numbers, phone numbers, confirmation codes or reference numbers. Use [] when there are none. Put the carrier's name in "carrier" when the email states it, otherwise null.
 
 Use null for anything that is not in the email.`;

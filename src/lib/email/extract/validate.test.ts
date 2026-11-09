@@ -12,6 +12,7 @@ const GOOD = {
   retailer: "Target",
   item: "Desk lamp",
   order_number: "1234-5678",
+  delivery_estimate: "Arriving Thursday",
   tracking_numbers: [
     { tracking_number: "9400111899223197428490", carrier: "USPS" },
   ],
@@ -20,6 +21,14 @@ const GOOD = {
 describe("parseExtraction", () => {
   it("returns a valid answer unchanged", () => {
     expect(parseExtraction(GOOD)).toEqual(GOOD);
+  });
+
+  it("reads an answer without a delivery estimate as no estimate", () => {
+    const { delivery_estimate: _estimate, ...older } = GOOD;
+    expect(parseExtraction(older).delivery_estimate).toBeNull();
+    expect(
+      parseExtraction({ ...GOOD, delivery_estimate: "  " }).delivery_estimate,
+    ).toBeNull();
   });
 
   it("trims text and turns blank values into null", () => {

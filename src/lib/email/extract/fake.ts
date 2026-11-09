@@ -3,11 +3,14 @@ import type { Extraction, EmailType } from "./schema";
 import type { ExtractionInput, Extractor } from "./types";
 
 const SHIPPED =
-  /\b(has shipped|have shipped|is on its way|on the way|shipment confirmation|shipping confirmation|tracking number|track your package)\b/i;
+  /\b(has shipped|have shipped|was shipped|has been shipped|is on its way|on the way|shipment confirmation|shipping confirmation|tracking number|track your package)\b/i;
 const ORDERED =
   /\b(order confirmation|thanks for your order|thank you for your order|we(?:'ve| have)? received your order|order received|order placed)\b/i;
 const DELIVERED =
   /\b(delivered|out for delivery|delivery update|delivery attempt)\b/i;
+
+// "Arriving tomorrow", "Arriving Thursday, June 25": the line up to its end.
+const ARRIVING = /^\s*(arriving[^\n]{3,50})$/im;
 
 function classify(subject: string, text: string): EmailType {
   const haystack = `${subject}\n${text}`;
@@ -58,11 +61,17 @@ export class FakeExtractor implements Extractor {
         `${subject}\n${text}`,
       )?.[1];
 
+    const estimate = ARRIVING.exec(text)?.[1]?.trim();
+
     return {
       email_type: type,
       retailer: retailerFrom(from),
       item: item ? item.slice(0, 120) : null,
       order_number: order ? order.slice(0, 60) : null,
+      delivery_estimate:
+        type === "shipping_confirmation"
+          ? (estimate?.slice(0, 60) ?? null)
+          : null,
       tracking_numbers: trackingNumbers,
     };
   }

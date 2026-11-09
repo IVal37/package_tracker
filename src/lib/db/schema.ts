@@ -16,6 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 // Relative import: drizzle-kit loads this file outside Next/Vitest, so no "@/" alias.
+import type { OrderStage } from "../email/order-stage";
 import { STATUSES } from "../tracking/status";
 
 export const shipmentStatus = pgEnum("shipment_status", STATUSES);
@@ -245,9 +246,19 @@ export const orders = pgTable(
     sourceEmailId: uuid("source_email_id").references(() => inboundEmails.id, {
       onDelete: "set null",
     }),
+    // What the emails say about the order. Without a shipment this is all we
+    // know; the estimate is the retailer's words ("Arriving tomorrow"), and
+    // stage_at is when the email that set the stage arrived.
+    stage: text("stage").$type<OrderStage>().notNull().default("ordered"),
+    etaText: text("eta_text"),
+    stageAt: timestamptz("stage_at"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "orders_stage_known",
+      sql`${t.stage} in ('ordered', 'shipped', 'delivered')`,
+    ),
     // At most one placeholder per order...
     uniqueIndex("orders_placeholder_unique")
       .on(t.userId, t.retailerKey, t.orderNumber)

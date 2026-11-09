@@ -64,6 +64,13 @@
       "when": 1793328880276,
       "tag": "0008_common_molten_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794188632652,
+      "tag": "0009_legal_bug",
+      "breakpoints": true
     }
   ]
 }

@@ -38,6 +38,23 @@
     }
   },
   {
+    "name": "amazon-shipped-no-tracking-number",
+    "email": {
+      "from": "Amazon.com <shipment-tracking@amazon.com>",
+      "subject": "Shipped: Phone Accessories",
+      "text": "Sam, your package was shipped!\n\nOrdered\nShipped\nOut for delivery\nDelivered\nArriving tomorrow\n\n1 item: Phone Accessories\nOrder # 112-1354490-0056218\n\nTrack package\n\nTotal $9.82\n"
+    },
+    "model": {
+      "email_type": "shipping_confirmation",
+      "retailer": "Amazon",
+      "item": "Phone Accessories",
+      "order_number": "112-1354490-0056218",
+      "delivery_estimate": "Arriving tomorrow",
+      "tracking_numbers": []
+    },
+    "expect": { "shipments": [], "placeholders": 1, "shippedOrders": 0 }
+  },
+  {
     "name": "amazon-two-packages",
     "email": {
       "from": "Amazon.com <shipment-tracking@amazon.com>",

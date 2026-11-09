@@ -2,7 +2,12 @@ import { z } from "zod";
 import type { Db } from "@/lib/db/client";
 import { finishEmail } from "@/lib/db/inbound-emails";
 import { loadInboundEmail } from "@/lib/db/inbound-sync";
-import { attachShipment, createOrder, findOrdersByKey } from "@/lib/db/orders";
+import {
+  attachShipment,
+  createOrder,
+  findOrdersByKey,
+  recordOrderStage,
+} from "@/lib/db/orders";
 import { findShipmentByTrackingNumber } from "@/lib/db/shipments";
 import { reportIssue } from "@/lib/monitoring";
 import { addShipment } from "@/lib/shipments/add-shipment";
@@ -15,6 +20,7 @@ import {
   type Extractor,
 } from "./extract";
 import { emailTexts } from "./email-texts";
+import { stageForEmailType } from "./order-stage";
 import { keepGmailConfirmation } from "./keep-gmail-confirmation";
 import { retailerKey } from "./retailer-key";
 import { findTrackingCandidates } from "./tracking-patterns";
@@ -243,6 +249,30 @@ export async function processInboundEmail(args: {
     }
   }
 
+  // Nothing to track: the email may still say where the order stands. Not for
+  // a package that is already followed, nor one held back by the package cap.
+  const untracked = outcomes.every(
+    (entry) => entry.outcome === "not_found" || entry.outcome === "invalid",
+  );
+  const stage = stageForEmailType(extraction.email_type);
+  const orderStage =
+    untracked && stage && key && orderNumber
+      ? await recordOrderStage(
+          db,
+          userId,
+          { ...order, retailerKey: key, orderNumber },
+          {
+            stage,
+            // The estimate describes a shipment on its way, not a delivered one.
+            etaText:
+              stage === "shipped"
+                ? cleanDisplayText(extraction.delivery_estimate ?? null)
+                : null,
+            at: stored.receivedAt,
+          },
+        )
+      : null;
+
   await finishEmail(db, userId, emailId, "parsed", {
     email_type: extraction.email_type,
     retailer,
@@ -250,6 +280,7 @@ export async function processInboundEmail(args: {
     order_number: orderNumber,
     tracking: outcomes,
     dropped: grounded.dropped.length,
+    order_stage: orderStage,
   });
   return result("parsed", created);
 }

@@ -78,13 +78,14 @@ let seq = 0;
 async function store(
   userId: string,
   email: { from: string; subject: string; text: string; html?: string },
+  receivedAt = new Date("2026-06-20T10:00:00Z"),
 ) {
   const id = await insertInboundEmail(ctx.db, userId, {
     raw: JSON.stringify({ html: "", ...email }),
     messageId: `<fixture-${++seq}@test>`,
     fromAddress: email.from,
     subject: email.subject,
-    receivedAt: new Date("2026-06-20T10:00:00Z"),
+    receivedAt,
   });
   return id!;
 }
@@ -997,5 +998,178 @@ describe("one user's email can never touch another user's data", () => {
 
     expect(await snapshot(b.id)).toBe(before);
     expect((await emailRow(bEmail)).userId).toBe(b.id);
+  });
+});
+
+describe("orders with no tracking number", () => {
+  const AMAZON = byName("amazon-shipped-no-tracking-number");
+  const ORDER = AMAZON.model.order_number!;
+  const minutes = (n: number) => new Date(Date.UTC(2026, 10, 7, 12, n, 0));
+
+  const send = async (
+    userId: string,
+    model: Extraction,
+    receivedAt: Date,
+    email = AMAZON.email,
+  ) => {
+    const emailId = await store(userId, email, receivedAt);
+    return { emailId, result: await run(emailId, answering(model)) };
+  };
+
+  it("keeps what a shipping email says: stage, estimate and when", async () => {
+    const user = await insertUser(ctx.db);
+    const { emailId, result } = await send(user.id, AMAZON.model, minutes(0));
+
+    expect(result).toEqual({ status: "parsed", created: 0 });
+    expect(await shipmentsOf(user.id)).toEqual([]);
+    const [row] = await ordersOf(user.id);
+    expect(row).toMatchObject({
+      retailer: "Amazon",
+      item: "Phone Accessories",
+      orderNumber: ORDER,
+      shipmentId: null,
+      stage: "shipped",
+      etaText: "Arriving tomorrow",
+    });
+    expect(row?.stageAt).toEqual(minutes(0));
+    expect((await emailRow(emailId)).extracted).toMatchObject({
+      order_stage: "created",
+    });
+  });
+
+  it("moves the one order on: ordered, then shipped, then delivered", async () => {
+    const user = await insertUser(ctx.db);
+    const ordered: Extraction = {
+      ...AMAZON.model,
+      email_type: "order_confirmation",
+      delivery_estimate: null,
+    };
+    await send(user.id, ordered, minutes(0));
+    expect((await ordersOf(user.id))[0]).toMatchObject({ stage: "ordered" });
+
+    await send(user.id, AMAZON.model, minutes(10));
+    expect((await ordersOf(user.id))[0]).toMatchObject({
+      stage: "shipped",
+      etaText: "Arriving tomorrow",
+    });
+
+    await send(
+      user.id,
+      {
+        ...AMAZON.model,
+        email_type: "delivery_update",
+        delivery_estimate: "Arriving tomorrow",
+      },
+      minutes(20),
+    );
+    const rows = await ordersOf(user.id);
+    expect(rows).toHaveLength(1);
+    // A delivered order has no estimate left to show.
+    expect(rows[0]).toMatchObject({ stage: "delivered", etaText: null });
+  });
+
+  it("ignores a shipping email that arrives after a newer one", async () => {
+    const user = await insertUser(ctx.db);
+    await send(
+      user.id,
+      { ...AMAZON.model, email_type: "delivery_update" },
+      minutes(20),
+    );
+    await send(user.id, AMAZON.model, minutes(10));
+
+    expect((await ordersOf(user.id))[0]).toMatchObject({
+      stage: "delivered",
+      etaText: null,
+    });
+  });
+
+  it("is safe to run twice on the same email", async () => {
+    const user = await insertUser(ctx.db);
+    const { emailId } = await send(user.id, AMAZON.model, minutes(0));
+    const again = await run(emailId, answering(AMAZON.model));
+
+    expect(again.status).toBe("skipped");
+    expect(await ordersOf(user.id)).toHaveLength(1);
+  });
+
+  it("shows the estimate as plain cleaned text", async () => {
+    const user = await insertUser(ctx.db);
+    await send(
+      user.id,
+      { ...AMAZON.model, delivery_estimate: "  Arriving   <b>today</b> " },
+      minutes(0),
+    );
+    expect((await ordersOf(user.id))[0]?.etaText).toBe("Arriving <b>today</b>");
+  });
+
+  it("needs an order number to know which order it is", async () => {
+    const user = await insertUser(ctx.db);
+    await send(user.id, { ...AMAZON.model, order_number: null }, minutes(0));
+    expect(await ordersOf(user.id)).toEqual([]);
+  });
+
+  it("does nothing for an order that is already followed as a package", async () => {
+    const user = await insertUser(ctx.db);
+    await send(
+      user.id,
+      {
+        ...AMAZON.model,
+        tracking_numbers: [
+          { tracking_number: "TBA309876543210", carrier: "Amazon Logistics" },
+        ],
+      },
+      minutes(0),
+      {
+        ...AMAZON.email,
+        text: AMAZON.email.text + "Tracking ID: TBA309876543210",
+      },
+    );
+    expect(await shipmentsOf(user.id)).toHaveLength(1);
+
+    await send(user.id, AMAZON.model, minutes(30));
+
+    const rows = await ordersOf(user.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.shipmentId).not.toBeNull();
+    expect(rows[0]?.stage).toBe("ordered");
+  });
+
+  it("attaches the package when a later email brings the tracking number", async () => {
+    const user = await insertUser(ctx.db);
+    await send(user.id, AMAZON.model, minutes(0));
+
+    await send(
+      user.id,
+      {
+        ...AMAZON.model,
+        tracking_numbers: [
+          { tracking_number: "TBA309876543210", carrier: "Amazon Logistics" },
+        ],
+      },
+      minutes(30),
+      {
+        ...AMAZON.email,
+        text: AMAZON.email.text + "Tracking ID: TBA309876543210",
+      },
+    );
+
+    const [shipment] = await shipmentsOf(user.id);
+    const rows = await ordersOf(user.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.shipmentId).toBe(shipment?.id);
+  });
+
+  it("leaves another user's order of the same number alone", async () => {
+    const owner = await insertUser(ctx.db);
+    const other = await insertUser(ctx.db);
+    await send(owner.id, AMAZON.model, minutes(0));
+    await send(
+      other.id,
+      { ...AMAZON.model, email_type: "delivery_update" },
+      minutes(10),
+    );
+
+    expect((await ordersOf(owner.id))[0]?.stage).toBe("shipped");
+    expect((await ordersOf(other.id))[0]?.stage).toBe("delivered");
   });
 });

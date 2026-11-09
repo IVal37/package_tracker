@@ -24,6 +24,8 @@ export interface StoredInboundEmail {
   id: string;
   userId: string;
   raw: string;
+  /** When our webhook stored it (not a date from the email itself). */
+  receivedAt: Date;
   parseStatus: "pending" | "parsed" | "failed" | "ignored";
 }
 
@@ -37,6 +39,7 @@ export async function loadInboundEmail(
       id: inboundEmails.id,
       userId: inboundEmails.userId,
       raw: inboundEmails.raw,
+      receivedAt: inboundEmails.receivedAt,
       parseStatus: inboundEmails.parseStatus,
     })
     .from(inboundEmails)

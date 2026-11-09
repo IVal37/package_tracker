@@ -4,7 +4,7 @@
 // userId. ESLint lets only src/lib/email and src/jobs import this module. The
 // stored email content it returns is read by the processing job only and is
 // never rendered or returned to a page.
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { and, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Db } from "./client";
 import { inboundEmails, orders, users } from "./schema";
 
@@ -79,14 +79,31 @@ export async function deleteEmailsBefore(
   return deleted.length;
 }
 
-/** Deletes "Ordered" placeholders (no shipment) created before the cutoff. Returns how many. */
+/**
+ * Deletes orders that never got a shipment and have been quiet since the
+ * cutoff (the last email about them, else when they were created); one that
+ * an email called delivered goes at its own, earlier cutoff. Returns how many.
+ */
 export async function deleteStaleOrdersBefore(
   db: Db,
   cutoff: Date,
+  deliveredCutoff: Date,
 ): Promise<number> {
+  const lastHeard = sql`coalesce(${orders.stageAt}, ${orders.createdAt})`;
   const deleted = await db
     .delete(orders)
-    .where(and(isNull(orders.shipmentId), lt(orders.createdAt, cutoff)))
+    .where(
+      and(
+        isNull(orders.shipmentId),
+        or(
+          and(ne(orders.stage, "delivered"), sql`${lastHeard} < ${cutoff}`),
+          and(
+            eq(orders.stage, "delivered"),
+            sql`${lastHeard} < ${deliveredCutoff}`,
+          ),
+        ),
+      ),
+    )
     .returning({ id: orders.id });
   return deleted.length;
 }

@@ -8,8 +8,10 @@ import { DAY_MS, MINUTE_MS, msBefore } from "@/lib/time";
 
 /** Raw inbound emails are deleted after this long (CLAUDE.md privacy rule). */
 export const RAW_EMAIL_DAYS = 30;
-/** An "Ordered" placeholder that never shipped is dropped after this long. */
+/** An order that never got a package is dropped after this long without an email. */
 export const STALE_ORDER_DAYS = 90;
+/** An order known only from a "delivered" email has nothing left to show after this long. */
+export const DELIVERED_ORDER_DAYS = 14;
 /** A pending email older than this has lost its event; the sweep re-queues it. */
 export const PENDING_GRACE_MINUTES = 5;
 
@@ -27,6 +29,7 @@ export async function cleanupInboundData(args: {
     orders: await deleteStaleOrdersBefore(
       db,
       msBefore(now, STALE_ORDER_DAYS * DAY_MS),
+      msBefore(now, DELIVERED_ORDER_DAYS * DAY_MS),
     ),
   };
 }

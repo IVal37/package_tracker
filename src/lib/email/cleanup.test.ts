@@ -8,6 +8,7 @@ import {
 } from "../../../tests/db/pglite";
 import { inboundEmails, orders } from "@/lib/db/schema";
 import {
+  DELIVERED_ORDER_DAYS,
   PENDING_GRACE_MINUTES,
   RAW_EMAIL_DAYS,
   STALE_ORDER_DAYS,
@@ -51,13 +52,27 @@ async function addEmail(
   return row!.id;
 }
 
-async function addOrder(createdAt: Date, shipped: boolean, forUser = userId) {
+async function addOrder(
+  createdAt: Date,
+  shipped: boolean,
+  forUser = userId,
+  fromEmails: {
+    stage?: "ordered" | "shipped" | "delivered";
+    stageAt?: Date;
+  } = {},
+) {
   const shipmentId = shipped
     ? (await insertShipment(ctx.db, forUser)).id
     : null;
   const [row] = await ctx.db
     .insert(orders)
-    .values({ userId: forUser, retailer: "Shop", createdAt, shipmentId })
+    .values({
+      userId: forUser,
+      retailer: "Shop",
+      createdAt,
+      shipmentId,
+      ...fromEmails,
+    })
     .returning();
   return row!.id;
 }
@@ -162,6 +177,57 @@ describe("cleanupInboundData: unshipped orders", () => {
 
   it("never touches a shipped order, however old", async () => {
     const id = await addOrder(daysAgo(1000), true);
+    await cleanupInboundData({ db: ctx.db, now: NOW });
+    expect(await orderIds()).toEqual([id]);
+  });
+});
+
+describe("cleanupInboundData: orders known only from emails", () => {
+  it("uses a 14 day window for a delivered order", () => {
+    expect(DELIVERED_ORDER_DAYS).toBe(14);
+  });
+
+  it("drops a delivered order 14 days after its email, not after 90", async () => {
+    const stale = await addOrder(daysAgo(30), false, userId, {
+      stage: "delivered",
+      stageAt: daysAgo(15),
+    });
+    const fresh = await addOrder(daysAgo(30), false, userId, {
+      stage: "delivered",
+      stageAt: daysAgo(13),
+    });
+
+    const result = await cleanupInboundData({ db: ctx.db, now: NOW });
+
+    expect(result.orders).toBe(1);
+    const left = await orderIds();
+    expect(left).not.toContain(stale);
+    expect(left).toContain(fresh);
+  });
+
+  it("counts a shipped order from its last email, not from when it was created", async () => {
+    // Ordered 100 days ago, shipped yesterday: still worth showing.
+    const recent = await addOrder(daysAgo(100), false, userId, {
+      stage: "shipped",
+      stageAt: daysAgo(1),
+    });
+    const quiet = await addOrder(daysAgo(100), false, userId, {
+      stage: "shipped",
+      stageAt: daysAgo(91),
+    });
+
+    await cleanupInboundData({ db: ctx.db, now: NOW });
+
+    const left = await orderIds();
+    expect(left).toContain(recent);
+    expect(left).not.toContain(quiet);
+  });
+
+  it("never touches an order that has a package, delivered or not", async () => {
+    const id = await addOrder(daysAgo(300), true, userId, {
+      stage: "delivered",
+      stageAt: daysAgo(200),
+    });
     await cleanupInboundData({ db: ctx.db, now: NOW });
     expect(await orderIds()).toEqual([id]);
   });
